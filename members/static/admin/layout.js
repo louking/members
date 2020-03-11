@@ -1,0 +1,3 @@
+$( function() {
+    $( "#navigation ul" ).menu();
+});
