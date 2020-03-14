@@ -21,6 +21,7 @@ from . import bp
 from ...model import db
 from ...version import __version__
 from loutilities.flask_helpers.blueprints import add_url_rules
+from loutilities.user.roles import ROLE_SUPER_ADMIN
 
 class testException(Exception): pass
 
@@ -29,7 +30,7 @@ thisversion = __version__
 #######################################################################
 class ViewSysinfo(MethodView):
 #######################################################################
-    # decorators = [lambda f: roles_accepted('super-admin', 'event-admin')(f)]
+    # decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN, 'event-admin')(f)]
     url_rules = {
                 'sysinfo': ['/sysinfo',('GET',)],
                 }
@@ -48,14 +49,14 @@ class ViewSysinfo(MethodView):
             raise
 #----------------------------------------------------------------------
 add_url_rules(bp, ViewSysinfo)
-# sysinfo_view = roles_accepted('super-admin', 'event-admin')(ViewSysinfo.as_view('sysinfo'))
+# sysinfo_view = roles_accepted(ROLE_SUPER_ADMIN, 'event-admin')(ViewSysinfo.as_view('sysinfo'))
 # current_app.add_url_rule('/sysinfo',view_func=sysinfo_view,methods=['GET'])
 #----------------------------------------------------------------------
 
 #######################################################################
 class ViewDebug(MethodView):
 #######################################################################
-    decorators = [lambda f: roles_accepted('super-admin')(f)]
+    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f)]
     url_rules = {
                 'debug': ['/_debuginfo',('GET',)],
                 }
@@ -80,7 +81,9 @@ class ViewDebug(MethodView):
                                'GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET',
                                'GMAPS_API_KEY', 'GMAPS_ELEV_API_KEY',
                                'SECURITY_PASSWORD_SALT',
-                               'APP_OWNER_PW']:
+                               'APP_OWNER_PW',
+                               'RSU_KEY', 'RSU_SECRET',
+                               ]:
                         value = '[obscured]'
                 appconfig.append({'label':key, 'value':value})
             sysvars.append(['current_app.config',appconfig])
@@ -110,7 +113,7 @@ class ViewDebug(MethodView):
             raise
 #----------------------------------------------------------------------
 add_url_rules(bp, ViewDebug)
-# debuginfo_view = roles_accepted('super-admin')(ViewDebug.as_view('debug'))
+# debuginfo_view = roles_accepted(ROLE_SUPER_ADMIN)(ViewDebug.as_view('debug'))
 # # debuginfo_view = ViewDebug.as_view('debug')
 # current_app.add_url_rule('/_debuginfo',view_func=debuginfo_view,methods=['GET'])
 #----------------------------------------------------------------------
@@ -118,7 +121,7 @@ add_url_rules(bp, ViewDebug)
 #######################################################################
 class TestException(MethodView):
 #######################################################################
-    decorators = [lambda f: roles_accepted('super-admin')]
+    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)]
     url_rules = {
                 'testexception': ['/xcauseexception',('GET',)],
                 }
@@ -133,6 +136,6 @@ class TestException(MethodView):
             db.session.rollback()
             raise
 #----------------------------------------------------------------------
-# exception_view = roles_accepted('super-admin')(TestException.as_view('testexception'))
+# exception_view = roles_accepted(ROLE_SUPER_ADMIN)(TestException.as_view('testexception'))
 # current_app.add_url_rule('/xcauseexception',view_func=exception_view,methods=['GET'])
 #----------------------------------------------------------------------

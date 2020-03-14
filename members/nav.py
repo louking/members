@@ -25,8 +25,7 @@ from dominate import tags
 from flask_security import current_user
 
 # homegrown
-# from loutilities.user.model import ROLE_SUPER_ADMIN
-ROLE_SUPER_ADMIN = 'super-admin'
+from loutilities.user.roles import ROLE_SUPER_ADMIN
 
 thisnav = Nav()
 
@@ -63,13 +62,14 @@ def nav_menu():
             # requires forgot_password has anonymous_user_required decorator
             # userroles.items.append(View('Reset PW', 'security.forgot_password'))
             userroles.items.append(View('Roles', 'userrole.roles'))
-            navbar.items.append(View('Interests', 'userrole.interests'))
+            userroles.items.append(View('Interests', 'userrole.interests'))
+            userroles.items.append(View('Applications', 'userrole.applications'))
             # navbar.items.append(View('Files', 'userrole.files'))
 
             navbar.items.append(View('My Account', 'security.change_password'))
             navbar.items.append(View('Debug', 'admin.debug'))
 
-        # finally for non super-admin
+        # finally for non ROLE_SUPER_ADMIN
         else:
             navbar.items.append(View('My Account', 'security.change_password'))
 

@@ -31,8 +31,10 @@ def setlogging():
 
     # this is needed for any INFO or DEBUG logging
     current_app.logger.setLevel(logging.DEBUG)
-    logging.basicConfig()
-    logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
+
+    # uncomment next two lines to debug sqlalchemy pool usage
+    # logging.basicConfig()
+    # logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
 
     # # patch werkzeug logging -- not sure why this is being bypassed in werkzeug._internal._log
     # *** for some reason the following code caued debug pin not to be shown, see https://github.com/louking/rrwebapp/issues/300

@@ -15,14 +15,15 @@ import os.path
 from flask import Flask, send_from_directory, g, session, request, url_for
 from flask_mail import Mail
 from jinja2 import ChoiceLoader, PackageLoader
-from flask_security import Security, SQLAlchemyUserDatastore, current_user
+from flask_security import SQLAlchemyUserDatastore, current_user
+from sqlalchemy import desc
 
 # homegrown
 import loutilities
 from loutilities.configparser import getitems
-# from loutilities.user.model import Interest
-from loutilities.user.model import Interest
-
+from loutilities.user import UserSecurity
+from loutilities.user.model import Interest, Application, User, Role
+from .model import LocalUser, update_local_user
 
 # define security globals
 user_datastore = None
@@ -54,6 +55,11 @@ def create_app(config_obj, configfiles=None):
     # define product name (don't import nav until after app.jinja_env.globals['_productname'] set)
     app.jinja_env.globals['_productname'] = app.config['THISAPP_PRODUCTNAME']
     app.jinja_env.globals['_productname_text'] = app.config['THISAPP_PRODUCTNAME_TEXT']
+    for configkey in ['SECURITY_EMAIL_SUBJECT_PASSWORD_RESET',
+                      'SECURITY_EMAIL_SUBJECT_PASSWORD_CHANGE_NOTICE',
+                      'SECURITY_EMAIL_SUBJECT_PASSWORD_NOTICE',
+                      ]:
+        app.config[configkey] = app.config[configkey].format(productname=app.config['THISAPP_PRODUCTNAME_TEXT'])
 
     # initialize database
     from .model import db
@@ -83,6 +89,9 @@ def create_app(config_obj, configfiles=None):
     # bring in js, css assets here, because app needs to be created first
     from .assets import asset_env, asset_bundles
     with app.app_context():
+        # update LocalUser table
+        update_local_user()
+
         # js/css files
         asset_env.append_path(app.static_folder)
         asset_env.append_path(loutilitiespath, '/loutilities/static')
@@ -94,15 +103,19 @@ def create_app(config_obj, configfiles=None):
         ])
         app.jinja_loader = loader
 
+        # needs to be set before UserSecurity() instantiated
+        g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
+
     # initialize assets
     asset_env.init_app(app)
     asset_env.register(asset_bundles)
 
     # Set up Flask-Security
-    from loutilities.user.model import User, Role
+    # from loutilities.user.model import User, Role
+    # from .model import LocalUser
     global user_datastore, security
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-    security = Security(app, user_datastore)
+    security = UserSecurity(app, user_datastore)
 
     # Set up Flask-Mail [configuration in <application>.cfg
     mail = Mail(app)
@@ -142,9 +155,7 @@ def create_app(config_obj, configfiles=None):
     # ----------------------------------------------------------------------
     @app.before_request
     def before_request():
-        # processing static files causes https://github.com/louking/members/issues/3 with binds
-        if request.endpoint in ['static', 'loutilities_static']:
-            return
+        g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
 
         if current_user.is_authenticated:
             user = current_user
@@ -152,7 +163,7 @@ def create_app(config_obj, configfiles=None):
 
             # used in layout.jinja2
             app.jinja_env.globals['user_interests'] = sorted([{'interest': i.interest, 'description': i.description}
-                                                              for i in user.interests],
+                                                              for i in user.interests if g.loutility in i.applications],
                                                              key=lambda a: a['description'].lower())
             session['user_email'] = email
 
@@ -160,13 +171,19 @@ def create_app(config_obj, configfiles=None):
             # used in layout.jinja2
             pubinterests = Interest.query.filter_by(public=True).all()
             app.jinja_env.globals['user_interests'] = sorted([{'interest': i.interest, 'description': i.description}
-                                                              for i in pubinterests],
+                                                              for i in pubinterests if g.loutility in i.applications],
                                                              key=lambda a: a['description'].lower())
             session.pop('user_email', None)
 
     # ----------------------------------------------------------------------
     @app.after_request
     def after_request(response):
+        # check if there are any changes needed to LocalUser table
+        userupdated = User.query.order_by(desc('updated_at')).first().updated_at
+        localuserupdated = LocalUser.query.order_by(desc('updated_at')).first().updated_at
+        if userupdated > localuserupdated:
+            update_local_user()
+
         if not app.config['DEBUG']:
             app.logger.info(
                 '{}: {} {} {}'.format(request.remote_addr, request.method, request.url, response.status_code))
