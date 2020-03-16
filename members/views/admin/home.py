@@ -1,12 +1,12 @@
-###########################################################################################
-# home - administrative views
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       03/09/20        Lou King        Create
-#
-#   Copyright 2020 Lou King.  All rights reserved
-###########################################################################################
+'''
+home - administrative views
+=================================
+      Date            Author          Reason
+      ----            ------          ------
+      03/09/20        Lou King        Create
+
+  Copyright 2020 Lou King.  All rights reserved
+'''
 
 # pypi
 from flask import render_template

@@ -1,13 +1,14 @@
-###########################################################################################
-# sysinfo - debug views for web application
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       07/08/18        Lou King        Create
-#
-#   Copyright 2018 Lou King
-#
-###########################################################################################
+'''
+sysinfo - debug views for web application
+==============================================
+
+    Date            Author          Reason
+    ----            ------          ------
+    03/04/20        Lou King        Create
+
+Copyright 2020 Lou King
+'''
+
 
 # standard
 
