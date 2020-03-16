@@ -24,7 +24,7 @@ from members import create_app
 from members.settings import Development
 from members.model import db, LocalUser
 from members.applogging import setlogging
-from members.model import update_local_user
+from members.model import update_local_tables
 
 class parameterError(Exception): pass
 
@@ -56,7 +56,7 @@ with app.app_context():
     db.create_all(bind=None)
 
     # initialize LocalUser table based on User table
-    update_local_user()
+    update_local_tables()
 
     db.session.commit()
 

@@ -1,19 +1,13 @@
-###########################################################################################
-# models - database models for application
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       03/02/20        Lou King        Create
-#
-#   Copyright 2020 Lou King.  All rights reserved
-###########################################################################################
+'''
+models - database models for application
+===========================================
+'''
 
 # pypi
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
-from loutilities.user.model import db, ManageLocalUser
-from loutilities.user.audit_mixin import AuditMixin
+from loutilities.user.model import db, ManageLocalTables
 
 # set up database - SQLAlchemy() must be done after app.config SQLALCHEMY_* assignments
 Table = db.Table
@@ -44,13 +38,6 @@ LABEL_LEN = 64
 FIELDINFO_LEN = 128
 DISPLAYVALUE_LEN = 1024
 
-class TaskType(Base):
-    __tablename__ = 'tasktype'
-    id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
-    tasktype            = Column(String(TASKTYPE_LEN))
-    description         = Column(String(DESCR_LEN))
-
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
@@ -61,63 +48,34 @@ tasktaskgroup_table = Table('task_taskgroup', Base.metadata,
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
                        )
 
-class LocalUser(Base, AuditMixin):
+# copied by update_local_tables
+class LocalUser(Base):
     __tablename__ = 'localuser'
     id                  = Column(Integer(), primary_key=True)
     user_id             = Column(Integer)
     active              = Column(Boolean)
 
-def update_local_user():
-    '''
-    keep LocalUser table consistent with external db User table
-    '''
-    localuser = ManageLocalUser(db, LocalUser)
-    localuser.update()
-    # # don't try to update before table exists
-    # if not db.engine.has_table('localuser'): return
-    #
-    # # alllocal will be used to determine what LocalUser rows need to be deactivated
-    # # this detects deletions in User table
-    #
-    # alllocal = {}
-    # for localuser in LocalUser.query.all():
-    #     alllocal[localuser.user_id] = localuser
-    # from loutilities.user.model import User
-    # for user in User.query.all():
-    #     # remove from deactivate list; update active status
-    #     if user.id in alllocal:
-    #         localuser = alllocal.pop(user.id)
-    #         localuser.active = user.active
-    #     # needs to be added
-    #     else:
-    #         newlocal = LocalUser(user_id=user.id, active=user.active)
-    #         db.session.add(newlocal)
-    # # all remaining in alllocal need to be deactivated
-    # for user_id in alllocal:
-    #     localuser = LocalUser.query.filter_by(user_id=user_id).one()
-    #     localuser.active = False
-    # db.session.commit()
+# note update_local_tables only copies Interests for current application (g.loutility)
+class LocalInterest(Base):
+    __tablename__ = 'localinterest'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer)
 
-# @event.listens_for(User.active, 'set')
-# def set_user(target, value, oldvalue, initiator):
-#     update_local_user()
-#
-# @event.listens_for(User.active, 'remove')
-# def remove_user(target, value, initiator):
-#     update_local_user()
-#
-# @event.listens_for(User.active, 'modified')
-# def modified_user(target, initiator):
-#     update_local_user()
-#
-# @event.listens_for(User.active, 'append')
-# def append_user(target, value, initiator):
-#     update_local_user()
+class TaskType(Base):
+    __tablename__ = 'tasktype'
+    id                  = Column(Integer(), primary_key=True)
+    version_id          = Column(Integer, nullable=False, default=1)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('tasktypes'))
+    tasktype            = Column(String(TASKTYPE_LEN))
+    description         = Column(String(DESCR_LEN))
 
 class Task(Base):
     __tablename__ = 'task'
     id                  = Column(Integer(), primary_key=True)
     version_id          = Column(Integer, nullable=False, default=1)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('tasks'))
     task                = Column(String(TASK_LEN))
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
@@ -127,6 +85,8 @@ class TaskField(Base):
     __tablename__ = 'taskfield'
     id                  = Column(Integer(), primary_key=True)
     version_id          = Column(Integer, nullable=False, default=1)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('taskfields'))
     label               = Column(String(LABEL_LEN))
     # either displayvalue or inputtype should be set, not both
     displayvalue        = Column(String(DISPLAYVALUE_LEN))
@@ -135,6 +95,7 @@ class TaskField(Base):
     fieldinfo           = Column(String(FIELDINFO_LEN))
     priority            = Column(Float)
 
+# note InputType spans across Interests
 class InputType(Base):
     __tablename__ = 'inputtype'
     id                  = Column(Integer(), primary_key=True)
@@ -145,6 +106,8 @@ class TaskGroup(Base):
     __tablename__ = 'taskgroup'
     id                  = Column(Integer(), primary_key=True)
     version_id          = Column(Integer, nullable=False, default=1)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('taskgroups'))
     taskgroup           = Column(String(TASKGROUP_LEN))
     description         = Column(String(DESCR_LEN))
     tasks               = relationship('Task',
@@ -158,9 +121,19 @@ class UserTaskCompletion(Base):
     __tablename__ = 'usertaskcompletion'
     id                  = Column(Integer(), primary_key=True)
     version_id          = Column(Integer, nullable=False, default=1)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('usertaskcompletions'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('taskscompleted'))
     task_id             = Column(Integer, ForeignKey('task.id'))
     task                = relationship('Task', backref=backref('userscompleted'))
     completion          = Column(DateTime)
+
+def update_local_tables():
+    '''
+    keep LocalUser table consistent with external db User table
+    '''
+    # appname needs to match Application.application
+    localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest)
+    localtables.update()
 

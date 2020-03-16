@@ -23,7 +23,7 @@ import loutilities
 from loutilities.configparser import getitems
 from loutilities.user import UserSecurity
 from loutilities.user.model import Interest, Application, User, Role
-from .model import LocalUser, update_local_user
+from .model import update_local_tables, LocalUser, LocalInterest
 
 # define security globals
 user_datastore = None
@@ -89,8 +89,11 @@ def create_app(config_obj, configfiles=None):
     # bring in js, css assets here, because app needs to be created first
     from .assets import asset_env, asset_bundles
     with app.app_context():
+        # needs to be set before update_local_tables called and before UserSecurity() instantiated
+        g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
+
         # update LocalUser table
-        update_local_user()
+        update_local_tables()
 
         # js/css files
         asset_env.append_path(app.static_folder)
@@ -102,9 +105,6 @@ def create_app(config_obj, configfiles=None):
             PackageLoader('loutilities', 'tables-assets/templates')
         ])
         app.jinja_loader = loader
-
-        # needs to be set before UserSecurity() instantiated
-        g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
 
     # initialize assets
     asset_env.init_app(app)
@@ -121,6 +121,7 @@ def create_app(config_obj, configfiles=None):
     mail = Mail(app)
 
     # activate views
+    from .views import userrole as userroleviews
     from loutilities.user.views import bp as userrole
     app.register_blueprint(userrole)
     from .views.frontend import bp as frontend
@@ -178,11 +179,13 @@ def create_app(config_obj, configfiles=None):
     # ----------------------------------------------------------------------
     @app.after_request
     def after_request(response):
-        # check if there are any changes needed to LocalUser table
-        userupdated = User.query.order_by(desc('updated_at')).first().updated_at
-        localuserupdated = LocalUser.query.order_by(desc('updated_at')).first().updated_at
-        if userupdated > localuserupdated:
-            update_local_user()
+        # # check if there are any changes needed to LocalUser table
+        # userupdated = User.query.order_by(desc('updated_at')).first().updated_at
+        # localuserupdated = LocalUser.query.order_by(desc('updated_at')).first().updated_at
+        # interestupdated = Interest.query.order_by(desc('updated_at')).first().updated_at
+        # localinterestupdated = LocalInterest.query.order_by(desc('updated_at')).first().updated_at
+        # if userupdated > localuserupdated or interestupdated > localinterestupdated:
+        #     update_local_tables()
 
         if not app.config['DEBUG']:
             app.logger.info(
