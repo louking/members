@@ -78,10 +78,11 @@ class ViewDebug(MethodView):
             for key in configkeys:
                 value = current_app.config[key]
                 if True:    # maybe check for something else later
-                    if key in ['SQLALCHEMY_DATABASE_URI', 'SECRET_KEY',
+                    if key in ['SQLALCHEMY_DATABASE_URI', 'SQLALCHEMY_BINDS',
+                               'SECRET_KEY',
+                               'SECURITY_PASSWORD_SALT',
                                'GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET',
                                'GMAPS_API_KEY', 'GMAPS_ELEV_API_KEY',
-                               'SECURITY_PASSWORD_SALT',
                                'APP_OWNER_PW',
                                'RSU_KEY', 'RSU_SECRET',
                                ]:

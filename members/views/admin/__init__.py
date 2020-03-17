@@ -14,3 +14,4 @@ bp = Blueprint('admin', __name__.split('.')[0], url_prefix='/admin', static_fold
 
 from . import home
 from . import sysinfo
+from . import leadership_tasks_admin

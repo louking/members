@@ -25,7 +25,7 @@ from dominate import tags
 from flask_security import current_user
 
 # homegrown
-from loutilities.user.roles import ROLE_SUPER_ADMIN
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 
 thisnav = Nav()
 
@@ -51,7 +51,13 @@ def nav_menu():
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
         # deeper functions are only accessible when interest is set
         if g.interest:
-            pass
+            # leadership admin stuff
+            if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                leadershipadmin = Subgroup('Leadership Admin')
+                navbar.items.append(leadershipadmin)
+                leadershipadmin.items.append(View('Task Types', 'admin.tasktypes', interest=g.interest))
+
+            # leadership member stuff
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):

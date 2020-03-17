@@ -169,7 +169,8 @@ asset_bundles = {
         'datatables.dataRender.ellipsis.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
 
-        'admin/groups.js',          # must be after datatables.js
+        'user/admin/groups.js',          # must be after datatables.js
+        'admin/afterdatatables.js',
 
         output='gen/admin.js',
         filters='jsmin',
