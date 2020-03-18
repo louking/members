@@ -64,27 +64,36 @@ class LocalInterest(Base):
 class TaskType(Base):
     __tablename__ = 'tasktype'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('tasktypes'))
     tasktype            = Column(String(TASKTYPE_LEN))
     description         = Column(String(DESCR_LEN))
 
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
 class Task(Base):
     __tablename__ = 'task'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('tasks'))
     task                = Column(String(TASK_LEN))
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
     period              = Column(Interval())
+    tasktype_id         = Column(Integer, ForeignKey('tasktype.id'))
+    tasktype            = relationship('TaskType', backref=backref('tasks'))
+
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
 
 class TaskField(Base):
     __tablename__ = 'taskfield'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('taskfields'))
     label               = Column(String(LABEL_LEN))
@@ -95,17 +104,26 @@ class TaskField(Base):
     fieldinfo           = Column(String(FIELDINFO_LEN))
     priority            = Column(Float)
 
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
+
 # note InputType spans across Interests
 class InputType(Base):
     __tablename__ = 'inputtype'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     inputtype           = Column(Enum('textarea', 'shorttext', 'file', 'yesno', 'checkbox'))
+
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
 
 class TaskGroup(Base):
     __tablename__ = 'taskgroup'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('taskgroups'))
     taskgroup           = Column(String(TASKGROUP_LEN))
@@ -117,10 +135,15 @@ class TaskGroup(Base):
                                        secondary=usertaskgroup_table,
                                        backref=backref('taskgroups'))
 
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+
 class UserTaskCompletion(Base):
     __tablename__ = 'usertaskcompletion'
     id                  = Column(Integer(), primary_key=True)
-    version_id          = Column(Integer, nullable=False, default=1)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('usertaskcompletions'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
@@ -128,6 +151,11 @@ class UserTaskCompletion(Base):
     task_id             = Column(Integer, ForeignKey('task.id'))
     task                = relationship('Task', backref=backref('userscompleted'))
     completion          = Column(DateTime)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
 
 def update_local_tables():
     '''
