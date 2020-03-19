@@ -109,12 +109,22 @@ class TaskField(Base):
         'version_id_col' : version_id
     }
 
-
 # note InputType spans across Interests
+# entries must be coordinated with code which supports each type
+INPUT_TYPE_LEN = 32
+INPUT_TYPE_TEXTAREA = 'textarea'
+INPUT_TYPE_SHORTTEXT = 'shorttext'
+INPUT_TYPE_FILE = 'file'
+INPUT_TYPE_SELECT = 'select'
+INPUT_TYPE_CHECKBOX = 'checkbox'
+INPUT_TYPE_RADIOBUTTON = 'radiobutton'
+input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_FILE, INPUT_TYPE_RADIOBUTTON, INPUT_TYPE_SELECT, INPUT_TYPE_SHORTTEXT,
+                  INPUT_TYPE_TEXTAREA)
+
 class InputType(Base):
     __tablename__ = 'inputtype'
     id                  = Column(Integer(), primary_key=True)
-    inputtype           = Column(Enum('textarea', 'shorttext', 'file', 'yesno', 'checkbox'))
+    inputtype           = Column(String(INPUT_TYPE_LEN))
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
