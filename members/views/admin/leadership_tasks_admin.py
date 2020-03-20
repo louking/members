@@ -9,10 +9,10 @@ from datetime import timedelta
 
 # homegrown
 from . import bp
-from ... import app
-from ...model import db, LocalInterest, TaskType, Task, TaskField, InputType, TaskGroup, UserTaskCompletion
+from ...model import db, LocalInterest, LocalUser, TaskType, Task, TaskField, TaskGroup, UserTaskCompletion
+from ...model import input_type_all
+from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from loutilities.tables import DbCrudApiRolePermissions # only for InputType
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
 debug = False
@@ -62,8 +62,8 @@ tasktype.register()
 # tasks endpoint
 ###########################################################################################
 
-task_dbattrs = 'id,interest_id,task,description,priority,period,tasktype'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,period,tasktype'.split(',')
+task_dbattrs = 'id,interest_id,task,description,priority,period,tasktype,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,period,tasktype,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 DAYS_PER_PERIOD = 7
@@ -95,6 +95,11 @@ task = DbCrudApiInterestsRolePermissions(
                                                         'dbfield': 'tasktype', 'uselist': False}}
                          },
                         {'data': 'description', 'name': 'description', 'label': 'Description', 'type': 'textarea'},
+                        {'data': 'fields', 'name': 'fields', 'label': 'Fields',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskField, 'labelfield': 'taskfield', 'formfield': 'fields',
+                                              'dbfield': 'fields', 'uselist': True}}
+                         },
                     ],
                     servercolumns = None,  # not server side
                     idSrc = 'rowid', 
@@ -109,35 +114,59 @@ task = DbCrudApiInterestsRolePermissions(
 task.register()
 
 ##########################################################################################
-# inputtypes endpoint
+# taskfields endpoint
 ###########################################################################################
 
-inputtype_dbattrs = 'id,inputtype'.split(',')
-inputtype_formfields = 'rowid,inputtype'.split(',')
-inputtype_dbmapping = dict(zip(inputtype_dbattrs, inputtype_formfields))
-inputtype_formmapping = dict(zip(inputtype_formfields, inputtype_dbattrs))
+taskfield_dbattrs = 'id,interest_id,taskfield,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
+taskfield_formfields = 'rowid,interest_id,taskfield,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
+taskfield_dbmapping = dict(zip(taskfield_dbattrs, taskfield_formfields))
+taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 
-#??  need to use DbCrudApiInterestsRolePermissions even if this table doesn't use local interest
-inputtype = DbCrudApiRolePermissions(
+taskfield = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
-                    model = InputType,
+                    model = TaskField,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
-                    pagename = 'Input Types',
-                    endpoint = 'admin.inputtypes',
-                    rule = '/inputtypes',
-                    dbmapping = inputtype_dbmapping,
-                    formmapping = inputtype_formmapping,
+                    pagename = 'Task Fields',
+                    endpoint = 'admin.taskfields',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/taskfields',
+                    dbmapping = taskfield_dbmapping, 
+                    formmapping = taskfield_formmapping, 
                     clientcolumns = [
-                        {'data': 'inputtype', 'name': 'inputtype', 'label': 'inputtype',
+                        {'data': 'taskfield', 'name': 'taskfield', 'label': 'Field Name',
                          'className': 'field_req',
+                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
+                         '_unique': True,
+                         },
+                        {'data': 'priority', 'name': 'priority', 'label': 'Priority',
+                         'className': 'field_req',
+                         },
+                        {'data': 'displaylabel', 'name': 'displaylabel', 'label': 'Field Label',
+                         'className': 'field_req',
+                         },
+                        {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea'},
+                        {'data': 'inputtype', 'name': 'inputtype', 'label': 'Input Type',
+                         'fieldInfo' : 'if you want the field to collect input, select the input type',
+                         'type': 'select2',
+                         'options': sorted(input_type_all),
+                         'ed' :{
+                             'opts' : {
+                                 'placeholder' : 'Select input type',
+                                 'allowClear' : True
+                             }
+                         },
+                         },
+                        {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
+                         'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
                          },
                     ],
                     servercolumns = None,  # not server side
-                    idSrc = 'rowid',
-                    buttons = ['create', 'editRefresh', 'remove'],
+                    idSrc = 'rowid', 
+                    buttons = ['create', 'editRefresh', 'remove', 'csv'],
                     dtoptions = {
                                         'scrollCollapse': True,
                                         'scrollX': True,
@@ -145,5 +174,64 @@ inputtype = DbCrudApiRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-inputtype.register()
+taskfield.register()
 
+##########################################################################################
+# taskgroups endpoint
+###########################################################################################
+
+taskgroup_dbattrs = 'id,interest_id,taskgroup,description,tasks,users'.split(',')
+taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,users'.split(',')
+taskgroup_dbmapping = dict(zip(taskgroup_dbattrs, taskgroup_formfields))
+taskgroup_formmapping = dict(zip(taskgroup_formfields, taskgroup_dbattrs))
+
+taskgroup = DbCrudApiInterestsRolePermissions(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = TaskGroup,
+                    version_id_col = 'version_id',  # optimistic concurrency control
+                    template = 'datatables.jinja2',
+                    pagename = 'Task Groups',
+                    endpoint = 'admin.taskgroups',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/taskgroups',
+                    dbmapping = taskgroup_dbmapping, 
+                    formmapping = taskgroup_formmapping, 
+                    clientcolumns = [
+                        {'data': 'taskgroup', 'name': 'taskgroup', 'label': 'Task Group',
+                         'className': 'field_req',
+                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
+                         '_unique': True,
+                         },
+                        {'data': 'description', 'name': 'description', 'label': 'Description',
+                         'className': 'field_req',
+                         },
+                        {'data': 'tasks', 'name': 'tasks', 'label': 'Tasks',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Task, 'labelfield': 'task', 'formfield': 'tasks',
+                                              'dbfield': 'tasks', 'uselist': True}}
+                         },
+                        {'data': 'users', 'name': 'users', 'label': 'Users',
+                         '_treatment': {
+                             # viadbattr stores the LocalUser id which has user_id=user.id for each of these
+                             # and pulls the correct users out of User based on LocalUser table
+                             'relationship': {'fieldmodel': User, 'labelfield': 'name',
+                                              'formfield': 'users', 'dbfield': 'users',
+                                              'viadbattr': LocalUser.user_id,
+                                              'queryparams': {'active': True},
+                                              'uselist': True}}
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = ['create', 'editRefresh', 'remove', 'csv'],
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+taskgroup.register()

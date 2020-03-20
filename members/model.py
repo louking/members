@@ -33,10 +33,11 @@ Base = db.Model
 TASK_LEN = 64
 TASKTYPE_LEN = 64
 TASKGROUP_LEN = 64
+TASKFIELD_LEN = 64
 DESCR_LEN = 512
-LABEL_LEN = 64
-FIELDINFO_LEN = 128
+DISPLAYLABEL_LEN = 64
 DISPLAYVALUE_LEN = 1024
+FIELDINFO_LEN = 128
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -46,6 +47,11 @@ usertaskgroup_table = Table('user_taskgroup', Base.metadata,
 tasktaskgroup_table = Table('task_taskgroup', Base.metadata,
                        Column('task_id', Integer, ForeignKey('task.id')),
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
+                       )
+
+taskfield_table = Table('task_taskfield', Base.metadata,
+                       Column('task_id', Integer, ForeignKey('task.id')),
+                       Column('taskfield_id', Integer, ForeignKey('taskfield.id')),
                        )
 
 # copied by update_local_tables
@@ -85,24 +91,9 @@ class Task(Base):
     period              = Column(Interval())
     tasktype_id         = Column(Integer, ForeignKey('tasktype.id'))
     tasktype            = relationship('TaskType', backref=backref('tasks'))
-
-    version_id          = Column(Integer, nullable=False, default=1)
-    __mapper_args__ = {
-        'version_id_col' : version_id
-    }
-
-class TaskField(Base):
-    __tablename__ = 'taskfield'
-    id                  = Column(Integer(), primary_key=True)
-    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
-    interest            = relationship('LocalInterest', backref=backref('taskfields'))
-    label               = Column(String(LABEL_LEN))
-    # either displayvalue or inputtype should be set, not both
-    displayvalue        = Column(String(DISPLAYVALUE_LEN))
-    inputtype_id        = Column(Integer, ForeignKey('inputtype.id'))
-    inputtype           = relationship('InputType', backref=backref('taskfield', uselist=False))
-    fieldinfo           = Column(String(FIELDINFO_LEN))
-    priority            = Column(Float)
+    fields              = relationship('TaskField',
+                                       secondary=taskfield_table,
+                                       backref=backref('tasks'))
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -111,20 +102,27 @@ class TaskField(Base):
 
 # note InputType spans across Interests
 # entries must be coordinated with code which supports each type
-INPUT_TYPE_LEN = 32
 INPUT_TYPE_TEXTAREA = 'textarea'
 INPUT_TYPE_SHORTTEXT = 'shorttext'
 INPUT_TYPE_FILE = 'file'
 INPUT_TYPE_SELECT = 'select'
 INPUT_TYPE_CHECKBOX = 'checkbox'
 INPUT_TYPE_RADIOBUTTON = 'radiobutton'
-input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_FILE, INPUT_TYPE_RADIOBUTTON, INPUT_TYPE_SELECT, INPUT_TYPE_SHORTTEXT,
-                  INPUT_TYPE_TEXTAREA)
+input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_FILE, INPUT_TYPE_RADIOBUTTON, INPUT_TYPE_SELECT,
+                  INPUT_TYPE_SHORTTEXT, INPUT_TYPE_TEXTAREA)
 
-class InputType(Base):
-    __tablename__ = 'inputtype'
+class TaskField(Base):
+    __tablename__ = 'taskfield'
     id                  = Column(Integer(), primary_key=True)
-    inputtype           = Column(String(INPUT_TYPE_LEN))
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('taskfields'))
+    taskfield           = Column(String(TASKFIELD_LEN))
+    displaylabel        = Column(String(DISPLAYLABEL_LEN))
+    # either displayvalue or inputtype should be set, not both
+    displayvalue        = Column(String(DISPLAYVALUE_LEN))
+    inputtype           = Column(Enum(*input_type_all), nullable=True)
+    fieldinfo           = Column(String(FIELDINFO_LEN))
+    priority            = Column(Float)
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

@@ -22,9 +22,9 @@ from os.path import join, dirname
 from loutilities.transform import Transform
 from members import create_app
 from members.settings import Development
-from members.model import db, InputType
+from members.model import db
 from members.applogging import setlogging
-from members.model import update_local_tables, input_type_all
+from members.model import update_local_tables
 
 class parameterError(Exception): pass
 
@@ -55,12 +55,6 @@ with app.app_context():
     db.drop_all(bind=None)
     db.create_all(bind=None)
 
-    # create initial input types (not per Interest)
-    for input_type in input_type_all:
-        thisinputtype = InputType(inputtype=input_type)
-        db.session.add(thisinputtype)
-
-    # initialize LocalUser table based on User table
     update_local_tables()
 
     db.session.commit()
