@@ -9,7 +9,7 @@ from datetime import timedelta
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, TaskType, Task, TaskField, TaskGroup, UserTaskCompletion
+from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, UserTaskCompletion
 from ...model import input_type_all
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
@@ -18,52 +18,11 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 debug = False
 
 ##########################################################################################
-# tasktypes endpoint
-###########################################################################################
-
-tasktype_dbattrs = 'id,interest_id,tasktype,description'.split(',')
-tasktype_formfields = 'rowid,interest_id,tasktype,description'.split(',')
-tasktype_dbmapping = dict(zip(tasktype_dbattrs, tasktype_formfields))
-tasktype_formmapping = dict(zip(tasktype_formfields, tasktype_dbattrs))
-
-tasktype = DbCrudApiInterestsRolePermissions(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
-                    local_interest_model = LocalInterest,
-                    app = bp,   # use blueprint instead of app
-                    db = db,
-                    model = TaskType,
-                    version_id_col = 'version_id',  # optimistic concurrency control
-                    template = 'datatables.jinja2',
-                    pagename = 'Task Types',
-                    endpoint = 'admin.tasktypes',
-                    endpointvalues={'interest': '<interest>'},
-                    rule = '/<interest>/tasktypes',
-                    dbmapping = tasktype_dbmapping, 
-                    formmapping = tasktype_formmapping, 
-                    clientcolumns = [
-                        {'data': 'tasktype', 'name': 'tasktype', 'label': 'Task Type',
-                         'className': 'field_req',
-                         },
-                        {'data': 'description', 'name': 'description', 'label': 'Description'},
-                    ], 
-                    servercolumns = None,  # not server side
-                    idSrc = 'rowid', 
-                    buttons = ['create', 'editRefresh', 'remove', 'csv'],
-                    dtoptions = {
-                                        'scrollCollapse': True,
-                                        'scrollX': True,
-                                        'scrollXInner': "100%",
-                                        'scrollY': True,
-                                  },
-                    )
-tasktype.register()
-
-##########################################################################################
 # tasks endpoint
 ###########################################################################################
 
-task_dbattrs = 'id,interest_id,task,description,priority,period,tasktype,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,period,tasktype,fields'.split(',')
+task_dbattrs = 'id,interest_id,task,description,priority,period,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,period,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 DAYS_PER_PERIOD = 7
@@ -90,11 +49,10 @@ task = DbCrudApiInterestsRolePermissions(
                          },
                         {'data': 'priority', 'name': 'priority', 'label': 'Priority'},
                         {'data': 'period', 'name': 'period', 'label': 'Period (weeks)'},
-                        {'data': 'tasktype', 'name': 'tasktype', 'label': 'Task Type',
-                         '_treatment': {'relationship': {'fieldmodel': TaskType, 'labelfield': 'tasktype', 'formfield': 'tasktype',
-                                                        'dbfield': 'tasktype', 'uselist': False}}
+                        {'data': 'description', 'name': 'description', 'label': 'Display', 'type': 'textarea',
+                         'fieldInfo': '<a href=https://daringfireball.net/projects/markdown/syntax target=_blank>Markdown</a>' +
+                                      ' can be used. Click link for syntax'
                          },
-                        {'data': 'description', 'name': 'description', 'label': 'Description', 'type': 'textarea'},
                         {'data': 'fields', 'name': 'fields', 'label': 'Fields',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskField, 'labelfield': 'taskfield', 'formfield': 'fields',

@@ -58,7 +58,6 @@ def nav_menu():
                 leadershipadmin.items.append(View('Task Groups', 'admin.taskgroups', interest=g.interest))
                 leadershipadmin.items.append(View('Assign Task Groups', 'admin.assigntaskgroups', interest=g.interest))
                 leadershipadmin.items.append(View('Tasks', 'admin.tasks', interest=g.interest))
-                leadershipadmin.items.append(View('Task Types', 'admin.tasktypes', interest=g.interest))
                 leadershipadmin.items.append(View('Task Fields', 'admin.taskfields', interest=g.interest))
 
             # leadership member stuff

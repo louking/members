@@ -75,19 +75,6 @@ class LocalInterest(Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer)
 
-class TaskType(Base):
-    __tablename__ = 'tasktype'
-    id                  = Column(Integer(), primary_key=True)
-    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
-    interest            = relationship('LocalInterest', backref=backref('tasktypes'))
-    tasktype            = Column(String(TASKTYPE_LEN))
-    description         = Column(String(DESCR_LEN))
-
-    version_id          = Column(Integer, nullable=False, default=1)
-    __mapper_args__ = {
-        'version_id_col' : version_id
-    }
-
 class Task(Base):
     __tablename__ = 'task'
     id                  = Column(Integer(), primary_key=True)
@@ -97,8 +84,6 @@ class Task(Base):
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
     period              = Column(Interval())
-    tasktype_id         = Column(Integer, ForeignKey('tasktype.id'))
-    tasktype            = relationship('TaskType', backref=backref('tasks'))
     fields              = relationship('TaskField',
                                        secondary=taskfield_table,
                                        backref=backref('tasks'))
