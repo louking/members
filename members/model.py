@@ -4,6 +4,7 @@ models - database models for application
 '''
 
 # pypi
+from flask import g
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
@@ -166,3 +167,8 @@ def update_local_tables():
     localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest, hasuserinterest=True)
     localtables.update()
 
+def localinterest_query_params():
+    from loutilities.user.model import Interest
+    interest = Interest.query.filter_by(interest=g.interest).one()
+    localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
+    return {'interest': localinterest}

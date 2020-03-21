@@ -10,7 +10,7 @@ from datetime import timedelta
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, UserTaskCompletion
-from ...model import input_type_all
+from ...model import input_type_all, localinterest_query_params
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -56,7 +56,9 @@ task = DbCrudApiInterestsRolePermissions(
                         {'data': 'fields', 'name': 'fields', 'label': 'Fields',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskField, 'labelfield': 'taskfield', 'formfield': 'fields',
-                                              'dbfield': 'fields', 'uselist': True}}
+                                              'dbfield': 'fields', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                     ],
                     servercolumns = None,  # not server side
@@ -169,7 +171,9 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                         {'data': 'tasks', 'name': 'tasks', 'label': 'Tasks',
                          '_treatment': {
                              'relationship': {'fieldmodel': Task, 'labelfield': 'task', 'formfield': 'tasks',
-                                              'dbfield': 'tasks', 'uselist': True}}
+                                              'dbfield': 'tasks', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                         {'data': 'users', 'name': 'users', 'label': 'Users',
                          '_treatment': {
@@ -237,7 +241,9 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                         {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
-                                              'dbfield': 'taskgroups', 'uselist': True}}
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                     ],
                     servercolumns = None,  # not server side
