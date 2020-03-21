@@ -156,11 +156,11 @@ class TaskCompletion(Base):
     __tablename__ = 'taskcompletion'
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
-    interest            = relationship('LocalInterest', backref=backref('usertaskcompletions'))
+    interest            = relationship('LocalInterest', backref=backref('taskcompletions'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('taskscompleted'))
     task_id             = Column(Integer, ForeignKey('task.id'))
-    task                = relationship('Task', backref=backref('userscompleted'))
+    task                = relationship('Task', backref=backref('taskcompletions'))
     completion          = Column(DateTime)
 
     version_id = Column(Integer, nullable=False, default=1)
