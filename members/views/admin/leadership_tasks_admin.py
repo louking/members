@@ -10,7 +10,7 @@ from datetime import timedelta
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, UserTaskCompletion
-from ...model import input_type_all, localinterest_query_params
+from ...model import input_type_all, localinterest_query_params, localinterest_viafilter
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -182,6 +182,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                              'relationship': {'fieldmodel': User, 'labelfield': 'name',
                                               'formfield': 'users', 'dbfield': 'users',
                                               'viadbattr': LocalUser.user_id,
+                                              'viafilter': localinterest_viafilter,
                                               'queryparams': {'active': True},
                                               'uselist': True}}
                          },

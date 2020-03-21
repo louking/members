@@ -172,3 +172,8 @@ def localinterest_query_params():
     interest = Interest.query.filter_by(interest=g.interest).one()
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
     return {'interest': localinterest}
+
+def localinterest_viafilter():
+    from loutilities.user.model import Interest
+    interest = Interest.query.filter_by(interest=g.interest).one()
+    return {'interest_id': interest.id}
