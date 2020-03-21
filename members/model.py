@@ -104,6 +104,7 @@ INPUT_TYPE_CHECKBOX = 'checkbox'
 INPUT_TYPE_RADIOBUTTON = 'radiobutton'
 input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_FILE, INPUT_TYPE_RADIOBUTTON, INPUT_TYPE_SELECT,
                   INPUT_TYPE_SHORTTEXT, INPUT_TYPE_TEXTAREA)
+INPUT_VALUE_LEN = 256
 
 class TaskField(Base):
     __tablename__ = 'taskfield'
@@ -142,9 +143,17 @@ class TaskGroup(Base):
         'version_id_col': version_id
     }
 
+class InputFieldData(Base):
+    __tablename__ = 'inputfielddata'
+    id                  = Column(Integer(), primary_key=True)
+    field_id            = Column(Integer, ForeignKey('taskfield.id'))
+    field               = relationship('TaskField', backref=backref('inputdata'))
+    taskcompletion_id   = Column(Integer, ForeignKey('taskcompletion.id'))
+    taskcompletion      = relationship('TaskCompletion', backref=backref('inputdata'))
+    value               = Column(String(INPUT_VALUE_LEN))
 
-class UserTaskCompletion(Base):
-    __tablename__ = 'usertaskcompletion'
+class TaskCompletion(Base):
+    __tablename__ = 'taskcompletion'
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('usertaskcompletions'))
