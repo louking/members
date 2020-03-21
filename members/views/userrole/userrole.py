@@ -1,4 +1,4 @@
-from loutilities.user.views.userrole import UserView, InterestView
+from loutilities.user.views.userrole import UserView, InterestView, RoleView
 from ...model import update_local_tables
 
 class LocalUserView(UserView):
@@ -13,3 +13,8 @@ class LocalInterestView(InterestView):
 interest = LocalInterestView()
 interest.register()
 
+class LocalRoleView(RoleView):
+    def editor_method_postcommit(self, form):
+        update_local_tables()
+role = LocalRoleView()
+role.register()

@@ -12,7 +12,7 @@ from . import bp
 from ...model import db, LocalInterest, LocalUser, TaskType, Task, TaskField, TaskGroup, UserTaskCompletion
 from ...model import input_type_all
 from loutilities.user.model import User
-from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
 debug = False
@@ -235,3 +235,61 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                                   },
                     )
 taskgroup.register()
+
+##########################################################################################
+# usertaskgroups endpoint
+###########################################################################################
+
+def set_bound_user(formrow):
+    user = User.query.filter_by(name=formrow['user_id']).one()
+    return user.id
+
+def get_bound_user(dbrow):
+    user = User.query.filter_by(id=dbrow.user_id).one()
+    return user.name
+    
+assigntaskgroup_dbattrs = 'id,user_id,taskgroups'.split(',')
+assigntaskgroup_formfields = 'rowid,user_id,taskgroups'.split(',')
+assigntaskgroup_dbmapping = dict(zip(assigntaskgroup_dbattrs, assigntaskgroup_formfields))
+assigntaskgroup_formmapping = dict(zip(assigntaskgroup_formfields, assigntaskgroup_dbattrs))
+assigntaskgroup_dbmapping['user_id'] = set_bound_user
+assigntaskgroup_formmapping['user_id'] = get_bound_user
+
+assigntaskgroup = DbCrudApiInterestsRolePermissions(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = LocalUser,
+                    version_id_col = 'version_id',  # optimistic concurrency control
+                    queryparams = {'active': True},
+                    template = 'datatables.jinja2',
+                    pagename = 'Assign Task Groups',
+                    endpoint = 'admin.assigntaskgroups',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/assigntaskgroups',
+                    dbmapping = assigntaskgroup_dbmapping, 
+                    formmapping = assigntaskgroup_formmapping,
+                    clientcolumns = [
+                        {'data': 'user_id', 'name': 'user_id', 'label': 'User',
+                         'className': 'field_req',
+                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
+                         '_unique': True,
+                         },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True}}
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = ['editRefresh', 'csv'],
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+assigntaskgroup.register()

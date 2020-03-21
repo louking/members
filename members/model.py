@@ -59,7 +59,15 @@ class LocalUser(Base):
     __tablename__ = 'localuser'
     id                  = Column(Integer(), primary_key=True)
     user_id             = Column(Integer)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('users'))
     active              = Column(Boolean)
+
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
 
 # note update_local_tables only copies Interests for current application (g.loutility)
 class LocalInterest(Base):
@@ -170,6 +178,6 @@ def update_local_tables():
     keep LocalUser table consistent with external db User table
     '''
     # appname needs to match Application.application
-    localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest)
+    localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest, hasuserinterest=True)
     localtables.update()
 
