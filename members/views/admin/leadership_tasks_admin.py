@@ -1,5 +1,5 @@
 '''
-tasks - administrative task handling
+leadership_tasks_admin - administrative task handling
 ===========================================
 '''
 # standard
@@ -43,6 +43,7 @@ task = DbCrudApiInterestsRolePermissions(
                     rule = '/<interest>/tasks',
                     dbmapping = task_dbmapping, 
                     formmapping = task_formmapping, 
+                    checkrequired = True,
                     clientcolumns = [
                         {'data': 'task', 'name': 'task', 'label': 'Task',
                          'className': 'field_req',
@@ -77,8 +78,8 @@ task.register()
 # taskfields endpoint
 ###########################################################################################
 
-taskfield_dbattrs = 'id,interest_id,taskfield,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
-taskfield_formfields = 'rowid,interest_id,taskfield,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
+taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
+taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
 taskfield_dbmapping = dict(zip(taskfield_dbattrs, taskfield_formfields))
 taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 
@@ -96,6 +97,7 @@ taskfield = DbCrudApiInterestsRolePermissions(
                     rule = '/<interest>/taskfields',
                     dbmapping = taskfield_dbmapping, 
                     formmapping = taskfield_formmapping, 
+                    checkrequired = True,
                     clientcolumns = [
                         {'data': 'taskfield', 'name': 'taskfield', 'label': 'Field Name',
                          'className': 'field_req',
@@ -103,6 +105,9 @@ taskfield = DbCrudApiInterestsRolePermissions(
                          '_unique': True,
                          },
                         {'data': 'priority', 'name': 'priority', 'label': 'Priority',
+                         'className': 'field_req',
+                         },
+                        {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name (for editor)',
                          'className': 'field_req',
                          },
                         {'data': 'displaylabel', 'name': 'displaylabel', 'label': 'Field Label',
@@ -158,7 +163,8 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                     endpointvalues={'interest': '<interest>'},
                     rule = '/<interest>/taskgroups',
                     dbmapping = taskgroup_dbmapping, 
-                    formmapping = taskgroup_formmapping, 
+                    formmapping = taskgroup_formmapping,
+                    checkrequired = True,
                     clientcolumns = [
                         {'data': 'taskgroup', 'name': 'taskgroup', 'label': 'Task Group',
                          'className': 'field_req',
@@ -233,6 +239,7 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                     rule = '/<interest>/assigntaskgroups',
                     dbmapping = assigntaskgroup_dbmapping, 
                     formmapping = assigntaskgroup_formmapping,
+                    checkrequired = True,
                     clientcolumns = [
                         {'data': 'user_id', 'name': 'user_id', 'label': 'User',
                          'className': 'field_req',

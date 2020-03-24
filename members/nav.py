@@ -61,6 +61,12 @@ def nav_menu():
                 leadershipadmin.items.append(View('Task Fields', 'admin.taskfields', interest=g.interest))
 
             # leadership member stuff
+            if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)
+                    or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
+                    or current_user.has_role(ROLE_SUPER_ADMIN)):
+                leadershipmember = Subgroup('Leadership Member')
+                navbar.items.append(leadershipmember)
+                leadershipmember.items.append(View('Task Checklist', 'admin.taskchecklist', interest=g.interest))
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):

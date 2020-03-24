@@ -35,6 +35,7 @@ TASK_LEN = 64
 TASKTYPE_LEN = 64
 TASKGROUP_LEN = 64
 TASKFIELD_LEN = 64
+TASKFIELDNAME_LEN = 32
 DESCR_LEN = 512
 DISPLAYLABEL_LEN = 64
 DISPLAYVALUE_LEN = 1024
@@ -96,15 +97,16 @@ class Task(Base):
 
 # note InputType spans across Interests
 # entries must be coordinated with code which supports each type
-INPUT_TYPE_TEXTAREA = 'textarea'
-INPUT_TYPE_SHORTTEXT = 'shorttext'
-INPUT_TYPE_FILE = 'file'
-INPUT_TYPE_SELECT = 'select'
+# types must be defined by editor as field type, e.g., see https://editor.datatables.net/reference/field/
 INPUT_TYPE_CHECKBOX = 'checkbox'
-INPUT_TYPE_RADIOBUTTON = 'radiobutton'
-input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_FILE, INPUT_TYPE_RADIOBUTTON, INPUT_TYPE_SELECT,
-                  INPUT_TYPE_SHORTTEXT, INPUT_TYPE_TEXTAREA)
-INPUT_VALUE_LEN = 256
+INPUT_TYPE_RADIO = 'radio'
+INPUT_TYPE_SELECT2 = 'select2'
+INPUT_TYPE_TEXT = 'text'
+INPUT_TYPE_TEXTAREA = 'textarea'
+INPUT_TYPE_UPLOAD = 'upload'
+input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2,
+                  INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD)
+INPUT_VALUE_LEN = 1024
 
 class TaskField(Base):
     __tablename__ = 'taskfield'
@@ -112,6 +114,7 @@ class TaskField(Base):
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('taskfields'))
     taskfield           = Column(String(TASKFIELD_LEN))
+    fieldname           = Column(String(TASKFIELDNAME_LEN))
     displaylabel        = Column(String(DISPLAYLABEL_LEN))
     # either displayvalue or inputtype should be set, not both
     displayvalue        = Column(String(DISPLAYVALUE_LEN))

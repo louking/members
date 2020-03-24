@@ -117,6 +117,21 @@ div.DTE_Field input._rsc_CRUD_input_short {
   font-weight: bold;
 }
 
+div.DTE_Field.editorFullWidthField > label.DTE_Label {
+    display: none;
+}
+div.DTE_Field.editorFullWidthField > div.DTE_Field_Input {
+    float: none !important;
+    width: 100% !important;
+}
+.task_bold div.DTE_Field_Input {
+  font-weight: bold;
+}
+
+.select-checkbox {
+    display: none;
+}
+
 .body-printerfriendly {
   font-family: Arial, Helvetica, sans-serif;
   text-align: left;
