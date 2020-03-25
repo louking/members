@@ -35,11 +35,12 @@ TASK_LEN = 64
 TASKTYPE_LEN = 64
 TASKGROUP_LEN = 64
 TASKFIELD_LEN = 64
-TASKFIELDNAME_LEN = 32
+TASKFIELDNAME_LEN = 16
 DESCR_LEN = 512
 DISPLAYLABEL_LEN = 64
 DISPLAYVALUE_LEN = 1024
 FIELDINFO_LEN = 128
+FIELDOPTIONS_LEN = 2048
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -106,7 +107,7 @@ INPUT_TYPE_TEXTAREA = 'textarea'
 INPUT_TYPE_UPLOAD = 'upload'
 input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2,
                   INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD)
-INPUT_VALUE_LEN = 1024
+INPUT_VALUE_LEN = 4096
 
 class TaskField(Base):
     __tablename__ = 'taskfield'
@@ -120,6 +121,7 @@ class TaskField(Base):
     displayvalue        = Column(String(DISPLAYVALUE_LEN))
     inputtype           = Column(Enum(*input_type_all), nullable=True)
     fieldinfo           = Column(String(FIELDINFO_LEN))
+    fieldoptions        = Column(String(FIELDOPTIONS_LEN))
     priority            = Column(Float)
 
     version_id          = Column(Integer, nullable=False, default=1)
@@ -189,3 +191,9 @@ def localinterest_viafilter():
     from loutilities.user.model import Interest
     interest = Interest.query.filter_by(interest=g.interest).one()
     return {'interest_id': interest.id}
+
+def gen_fieldname():
+    # https://www.educative.io/edpresso/how-to-generate-a-random-string-in-python
+    from random import choice
+    from string import ascii_letters
+    return ''.join(choice(ascii_letters) for i in range(TASKFIELDNAME_LEN))

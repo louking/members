@@ -13,9 +13,8 @@ from markdown import markdown
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskCompletion, InputFieldData
-from ...model import input_type_all, localinterest_query_params, localinterest_viafilter
-from loutilities.user.model import User
+from ...model import db, LocalInterest, LocalUser, Task, TaskCompletion, InputFieldData
+from loutilities.tables import SEPARATOR
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
@@ -27,12 +26,19 @@ def mdrow(dbrow):
     else:
         return ''
 
+def get_options(f):
+    if not f.fieldoptions:
+        return []
+    else:
+        return f.fieldoptions.split(SEPARATOR)
+
 def addlfields(task):
     taskfields = []
     for f in task.fields:
         thistaskfield = {}
         for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority'.split(','):
             thistaskfield[key] = getattr(f, key)
+        thistaskfield['fieldoptions'] = get_options(f)
         taskfields.append(thistaskfield)
     return taskfields
 
@@ -136,8 +142,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         self.rows = iter(theserows)
 
     def updaterow(self, thisid, formdata):
-        if debug: current_app.logger.debug('updaterow({},{})'.format(thisid, formdata))
-
         # find the task and local user
         thistask = Task.query.filter_by(id=thisid).one()
         localuser = self._get_localuser()

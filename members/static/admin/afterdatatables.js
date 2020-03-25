@@ -1,5 +1,6 @@
 function afterdatatables() {
     console.log('afterdatatables()');
+    var hasoptions = ['checkbox', 'radio', 'select2'];
 
     // handle editor substitution before submitting
     register_group_for_editor('interest', '#metanav-select-interest');
@@ -18,6 +19,9 @@ function afterdatatables() {
                     type:   f.inputtype,
                     fieldInfo:  f.fieldInfo,
                     className:  'addlfield',
+                    options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
+                    // separator ', ' must match loutilities.tables.SEPARATOR
+                    separator: f.inputtype === 'checkbox' ? ', ' : null,
                 })
             }
         }
@@ -32,5 +36,20 @@ function afterdatatables() {
         // editor.on('submitSuccess', function(e, data, action, xhr) {
         //
         // })
+
+    // special processing for task field configuration
+    } else if (location.pathname.includes('/taskfields')) {
+        editor.dependent( 'inputtype', function(val, data, callback) {
+            // show field options only if inputtype is one of the following values
+            return hasoptions.includes(val) ?
+                { show: 'fieldoptions' } :
+                { hide: 'fieldoptions' }
+        } )
+
+        // force update of options
+        editor.on('initEdit', function(e, node, data, items, type) {
+            editor.field('fieldoptions').update(data.fieldoptions);
+            editor.field('fieldoptions').val(data.fieldoptions);
+        })
     }
 }

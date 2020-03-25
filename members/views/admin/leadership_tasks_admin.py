@@ -10,10 +10,11 @@ from datetime import timedelta
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskCompletion
-from ...model import input_type_all, localinterest_query_params, localinterest_viafilter
+from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.tables import SEPARATOR
 
 debug = False
 
@@ -78,12 +79,30 @@ task.register()
 # taskfields endpoint
 ###########################################################################################
 
-taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
-taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,inputtype,priority'.split(',')
+taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority'.split(',')
+taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority'.split(',')
 taskfield_dbmapping = dict(zip(taskfield_dbattrs, taskfield_formfields))
 taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 
-taskfield = DbCrudApiInterestsRolePermissions(
+from ...model import INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2
+INPUT_TYPE_HASOPTIONS = [INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2]
+
+def get_options(dbrow):
+    if not dbrow.fieldoptions:
+        return []
+    else:
+        return dbrow.fieldoptions.split(SEPARATOR)
+
+taskfield_formmapping['fieldoptions'] = get_options
+
+class TaskFieldCrud(DbCrudApiInterestsRolePermissions):
+    def createrow(self, formdata):
+        taskfieldrow = super().createrow(formdata)
+        taskfield = TaskField.query.filter_by(id=self.created_id).one()
+        taskfield.fieldname = gen_fieldname()
+        return self.dte.get_response_data(taskfield)
+
+taskfield = TaskFieldCrud(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -107,11 +126,10 @@ taskfield = DbCrudApiInterestsRolePermissions(
                         {'data': 'priority', 'name': 'priority', 'label': 'Priority',
                          'className': 'field_req',
                          },
-                        {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name (for editor)',
-                         'className': 'field_req',
-                         },
                         {'data': 'displaylabel', 'name': 'displaylabel', 'label': 'Field Label',
                          'className': 'field_req',
+                         },
+                        {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
                          },
                         {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea'},
                         {'data': 'inputtype', 'name': 'inputtype', 'label': 'Input Type',
@@ -124,6 +142,14 @@ taskfield = DbCrudApiInterestsRolePermissions(
                                  'allowClear' : True
                              }
                          },
+                         },
+                        {'data': 'fieldoptions', 'name': 'fieldoptions', 'label': 'Options',
+                         'type': 'select2', 'separator':SEPARATOR,
+                         'options': [],
+                         'opts': {
+                             'multiple': 'multiple',
+                             'tags': True
+                         }
                          },
                         {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
                          'fieldInfo': 'this gets displayed under the field to help the user fill in the form'

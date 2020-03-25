@@ -17,7 +17,7 @@ from members.settings import Development
 from members.model import db
 from members.applogging import setlogging
 from members.model import LocalInterest, Task, TaskGroup, TaskField
-from members.model import input_type_all
+from members.model import input_type_all, gen_fieldname
 from loutilities.user.model import User, Interest
 
 class parameterError(Exception): pass
@@ -56,7 +56,7 @@ with app.app_context():
     priority = 1
     for fieldtype in input_type_all:
         thisfield = TaskField(taskfield='test {}'.format(fieldtype),
-                              fieldname=fieldtype,
+                              fieldname=gen_fieldname(),
                               interest=localtestinterest,
                               inputtype=fieldtype,
                               priority=priority,
