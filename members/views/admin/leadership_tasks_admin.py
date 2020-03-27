@@ -6,11 +6,14 @@ leadership_tasks_admin - administrative task handling
 from datetime import timedelta
 
 # pypi
+from flask import g, url_for
 
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskCompletion
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
+from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
+
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -79,8 +82,8 @@ task.register()
 # taskfields endpoint
 ###########################################################################################
 
-taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority'.split(',')
-taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority'.split(',')
+taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl'.split(',')
+taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl'.split(',')
 taskfield_dbmapping = dict(zip(taskfield_dbattrs, taskfield_formfields))
 taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 
@@ -100,6 +103,9 @@ class TaskFieldCrud(DbCrudApiInterestsRolePermissions):
         taskfieldrow = super().createrow(formdata)
         taskfield = TaskField.query.filter_by(id=self.created_id).one()
         taskfield.fieldname = gen_fieldname()
+        if taskfield.inputtype == INPUT_TYPE_UPLOAD:
+            taskfield.uploadurl == (url_for('admin.fieldupload', interest=g.interest)
+                                          + '?{}={}'.format(FIELDNAME_ARG, taskfield.fieldname))
         return self.dte.get_response_data(taskfield)
 
 taskfield = TaskFieldCrud(
@@ -143,6 +149,9 @@ taskfield = TaskFieldCrud(
                              }
                          },
                          },
+                        {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
+                         'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
+                         },
                         {'data': 'fieldoptions', 'name': 'fieldoptions', 'label': 'Options',
                          'type': 'select2', 'separator':SEPARATOR,
                          'options': [],
@@ -151,8 +160,7 @@ taskfield = TaskFieldCrud(
                              'tags': True
                          }
                          },
-                        {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
-                         'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
+                        {'data': 'uploadurl', 'name': 'uploadurl', 'label': 'Upload URL', 'type': 'readonly'
                          },
                     ],
                     servercolumns = None,  # not server side

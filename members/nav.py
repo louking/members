@@ -64,22 +64,22 @@ def nav_menu():
             if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)
                     or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
-                leadershipmember = Subgroup('Leadership Member')
-                navbar.items.append(leadershipmember)
-                leadershipmember.items.append(View('Task Checklist', 'admin.taskchecklist', interest=g.interest))
+                # leadershipmember = Subgroup('Leadership Member')
+                # navbar.items.append(leadershipmember)
+                navbar.items.append(View('Task Checklist', 'admin.taskchecklist', interest=g.interest))
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
             userroles = Subgroup('Users/Roles')
             navbar.items.append(userroles)
             userroles.items.append(View('Users', 'userrole.users'))
-            # this doesn't work because https://github.com/jwag956/flask-security/blob/743be9c979b558b4ecfb177dc8117c0bf55e38ed/flask_security/views.py#L464
-            # requires forgot_password has anonymous_user_required decorator
-            # userroles.items.append(View('Reset PW', 'security.forgot_password'))
             userroles.items.append(View('Roles', 'userrole.roles'))
             userroles.items.append(View('Interests', 'userrole.interests'))
             userroles.items.append(View('Applications', 'userrole.applications'))
             # navbar.items.append(View('Files', 'userrole.files'))
+
+            if g.interest:
+                navbar.items.append(View('Files', 'admin.files', interest=g.interest))
 
             navbar.items.append(View('My Account', 'security.change_password'))
             navbar.items.append(View('Debug', 'admin.debug'))

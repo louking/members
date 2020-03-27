@@ -21,7 +21,10 @@ function afterdatatables() {
                     className:  'addlfield',
                     options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
                     // separator ', ' must match loutilities.tables.SEPARATOR
+                    // only for checkbox as this is currently only input type which allows multiple selections
                     separator: f.inputtype === 'checkbox' ? ', ' : null,
+                    ajax: f.uploadurl,
+                    display: (f.inputtype === 'upload') ? renderfileid() : null,
                 })
             }
         }

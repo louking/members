@@ -7,19 +7,38 @@ leadership_tasks_member - member task handling
 from datetime import datetime
 
 # pypi
-from flask import current_app
+from flask import request, current_app
 from flask_security import current_user
 from markdown import markdown
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, TaskCompletion, InputFieldData
+from ...model import db, LocalInterest, LocalUser, Task, TaskCompletion, InputFieldData, Files
+from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from loutilities.tables import SEPARATOR
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.user.tablefiles import FieldUpload
 
 debug = False
 
+# field upload endpoint
+fieldupload = FieldUpload(
+                app=bp,  # use blueprint instead of app
+                db=db,
+                local_interest_model=LocalInterest,
+                roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
+                uploadendpoint='admin.fieldupload',
+                endpointvalues={'interest': '<interest>'},
+                uploadrule='/<interest>/fieldupload',
+                fieldname = lambda: request.args.get(FIELDNAME_ARG),
+                filesdirectory=lambda: current_app.config['APP_FILE_FOLDER'],
+                localinterestmodel=LocalInterest,
+                filesmodel=Files
+            )
+fieldupload.register()
+
+# task checklist endpoint
 def mdrow(dbrow):
     if dbrow.description:
         return markdown(dbrow.description, extensions=['md_in_html', 'attr_list'])
@@ -36,7 +55,7 @@ def addlfields(task):
     taskfields = []
     for f in task.fields:
         thistaskfield = {}
-        for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority'.split(','):
+        for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
         thistaskfield['fieldoptions'] = get_options(f)
         taskfields.append(thistaskfield)
@@ -122,19 +141,19 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             for task in taskgroup.tasks:
                 tasks |= set([task])
 
-        # then determine which of these tasks are out of date
-        expiredtasks = set()
-        for task in iter(tasks):
-            allcompleted = TaskCompletion.query.filter_by(task=task, user=theuser).all()
-            inwindow = [t for t in allcompleted if t.completion > datetime.now() - task.period]
-            # if no completions found in the window of required completion, the user needs to do this task
-            if not inwindow:
-                expiredtasks |= set([task])
+        # # then determine which of these tasks are out of date
+        # expiredtasks = set()
+        # for task in iter(tasks):
+        #     allcompleted = TaskCompletion.query.filter_by(task=task, user=theuser).all()
+        #     inwindow = [t for t in allcompleted if t.completion > datetime.now() - task.period]
+        #     # if no completions found in the window of required completion, the user needs to do this task
+        #     if not inwindow:
+        #         expiredtasks |= set([task])
+        #
+        # # add each expired task to the view, sorted by task priority
+        # expiredtasks = sorted(list(expiredtasks), key=lambda t: t.priority)
 
-        # add each expired task to the view, sorted by task priority
-        expiredtasks = sorted(list(expiredtasks), key=lambda t: t.priority)
-
-        # TODO: for now ignore expiredtasks
+        # TODO: need to add completion date, or status, or display class to the tasks returned
         tasks = sorted(list(tasks), key=lambda t: t.priority)
         for task in iter(tasks):
             theserows.append(task)
@@ -165,12 +184,17 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             )
             db.session.add(inputfielddata)
 
+            if f.inputtype == INPUT_TYPE_UPLOAD:
+                file = Files.query.filter_by(fileid=formdata[f.fieldname]).one()
+                file.taskcompletion = taskcompletion
+
+        # TODO: need to add completion date, or status, or display class to the tasks returned
         return self.dte.get_response_data(thistask)
 
     def _get_localuser(self):
         # TODO: process request.args to see if different user is needed
         return LocalUser.query.filter_by(user_id=current_user.id, **self.queryparams).one()
 
-
 taskchecklist = TaskChecklist()
 taskchecklist.register()
+

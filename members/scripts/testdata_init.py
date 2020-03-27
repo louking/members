@@ -9,6 +9,7 @@ from os.path import join, dirname
 from datetime import timedelta
 
 # pypi
+from flask import url_for
 
 # homegrown
 from loutilities.transform import Transform
@@ -17,7 +18,7 @@ from members.settings import Development
 from members.model import db
 from members.applogging import setlogging
 from members.model import LocalInterest, Task, TaskGroup, TaskField
-from members.model import input_type_all, gen_fieldname
+from members.model import input_type_all, gen_fieldname, FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from loutilities.user.model import User, Interest
 
 class parameterError(Exception): pass
@@ -55,12 +56,16 @@ with app.app_context():
 
     priority = 1
     for fieldtype in input_type_all:
+        fieldname = gen_fieldname()
         thisfield = TaskField(taskfield='test {}'.format(fieldtype),
-                              fieldname=gen_fieldname(),
+                              fieldname=fieldname,
                               interest=localtestinterest,
                               inputtype=fieldtype,
                               priority=priority,
                               displaylabel='Display Label {}'.format(fieldtype),
+                              uploadurl=(url_for('admin.fieldupload', interest='fsrc')
+                                            + '?{}={}'.format(FIELDNAME_ARG, fieldname)
+                                         if fieldtype==INPUT_TYPE_UPLOAD else None)
                               )
         db.session.add(thisfield)
         db.session.flush()

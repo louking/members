@@ -163,14 +163,14 @@ asset_bundles = {
         'admin/layout.js',
         'layout.js',
 
-        'utils.js',
-
         'datatables.js',                        # from loutilities
         'datatables.dataRender.ellipsis.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
         'editor.fieldType.display.js',          # from loutilities
 
-        'user/admin/groups.js',          # must be after datatables.js
+        # must be after datatables.js
+        'utils.js',
+        'user/admin/groups.js',
         'admin/afterdatatables.js',
 
         output='gen/admin.js',

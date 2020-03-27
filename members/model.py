@@ -9,6 +9,7 @@ from flask import g
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
 from loutilities.user.model import db, ManageLocalTables
+from loutilities.user.tablefiles import FilesMixin
 
 # set up database - SQLAlchemy() must be done after app.config SQLALCHEMY_* assignments
 Table = db.Table
@@ -41,6 +42,7 @@ DISPLAYLABEL_LEN = 64
 DISPLAYVALUE_LEN = 1024
 FIELDINFO_LEN = 128
 FIELDOPTIONS_LEN = 2048
+URL_LEN = 2047      # https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -108,6 +110,7 @@ INPUT_TYPE_UPLOAD = 'upload'
 input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2,
                   INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD)
 INPUT_VALUE_LEN = 4096
+FIELDNAME_ARG = 'fieldname'
 
 class TaskField(Base):
     __tablename__ = 'taskfield'
@@ -122,6 +125,7 @@ class TaskField(Base):
     inputtype           = Column(Enum(*input_type_all), nullable=True)
     fieldinfo           = Column(String(FIELDINFO_LEN))
     fieldoptions        = Column(String(FIELDOPTIONS_LEN))
+    uploadurl           = Column(String(URL_LEN))
     priority            = Column(Float)
 
     version_id          = Column(Integer, nullable=False, default=1)
@@ -172,6 +176,14 @@ class TaskCompletion(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+
+class Files(Base, FilesMixin):
+    __tablename__ = 'files'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship("LocalInterest")
+    taskcompletion_id   = Column(Integer, ForeignKey('taskcompletion.id'))
+    taskcompletion      = relationship("TaskCompletion")
 
 def update_local_tables():
     '''
