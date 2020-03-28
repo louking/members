@@ -49,9 +49,9 @@ with app.app_context():
     testinterest = Interest.query.filter_by(interest='fsrc').one()
     localtestinterest = LocalInterest.query.filter_by(interest_id=testinterest.id).one()
 
-    eventaskgroup = TaskGroup(taskgroup='Even Tasks', interest=localtestinterest)
+    eventaskgroup = TaskGroup(taskgroup='Even Tasks', description='even tasks description', interest=localtestinterest)
     db.session.add(eventaskgroup)
-    oddtaskgroup = TaskGroup(taskgroup='Odd Tasks', interest=localtestinterest)
+    oddtaskgroup = TaskGroup(taskgroup='Odd Tasks', description='odd tasks description', interest=localtestinterest)
     db.session.add(oddtaskgroup)
 
     priority = 1
@@ -74,6 +74,7 @@ with app.app_context():
                         interest=localtestinterest,
                         description='Task description for {}'.format(fieldtype),
                         period=timedelta(52*7),
+                        isoptional=False,
                         priority=priority,
                         fields=[thisfield],
                         )

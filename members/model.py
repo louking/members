@@ -89,6 +89,7 @@ class Task(Base):
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
     period              = Column(Interval())
+    isoptional          = Column(Boolean)
     fields              = relationship('TaskField',
                                        secondary=taskfield_table,
                                        backref=backref('tasks'))

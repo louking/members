@@ -25,13 +25,13 @@ debug = False
 # tasks endpoint
 ###########################################################################################
 
-task_dbattrs = 'id,interest_id,task,description,priority,period,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,period,fields'.split(',')
+task_dbattrs = 'id,interest_id,task,description,priority,period,isoptional,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,period,isoptional,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 DAYS_PER_PERIOD = 7
-task_dbmapping['period'] = lambda formrow: timedelta(int(formrow['period'])*DAYS_PER_PERIOD)
-task_formmapping['period'] = lambda dbrow: dbrow.period.days // DAYS_PER_PERIOD
+task_dbmapping['period'] = lambda formrow: timedelta(int(formrow['period'])*DAYS_PER_PERIOD) if formrow['period'] else None
+task_formmapping['period'] = lambda dbrow: dbrow.period.days // DAYS_PER_PERIOD if dbrow.period else None
 
 task = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
@@ -52,11 +52,21 @@ task = DbCrudApiInterestsRolePermissions(
                         {'data': 'task', 'name': 'task', 'label': 'Task',
                          'className': 'field_req',
                          },
-                        {'data': 'priority', 'name': 'priority', 'label': 'Priority'},
-                        {'data': 'period', 'name': 'period', 'label': 'Period (weeks)'},
+                        {'data': 'priority', 'name': 'priority', 'label': 'Priority',
+                         'className': 'field_req',
+                         },
                         {'data': 'description', 'name': 'description', 'label': 'Display', 'type': 'textarea',
+                         'className': 'field_req',
                          'fieldInfo': '<a href=https://daringfireball.net/projects/markdown/syntax target=_blank>Markdown</a>' +
                                       ' can be used. Click link for syntax'
+                         },
+                        {'data': 'period', 'name': 'period', 'label': 'Period (weeks)',
+                         'fieldInfo':'leave blank if this task doesn\'t need to be done periodically'
+                         },
+                        {'data': 'isoptional', 'name': 'isoptional', 'label': 'Optional Task',
+                         'className': 'field_req',
+                         '_treatment': {'boolean': {'formfield': 'isoptional', 'dbfield': 'isoptional'}},
+                         'ed': {'def': 'no'},
                          },
                         {'data': 'fields', 'name': 'fields', 'label': 'Fields',
                          '_treatment': {
