@@ -17,7 +17,7 @@ from members import create_app
 from members.settings import Development
 from members.model import db
 from members.applogging import setlogging
-from members.model import LocalInterest, Task, TaskGroup, TaskField
+from members.model import LocalInterest, Task, TaskGroup, TaskField, TaskTaskField
 from members.model import input_type_all, gen_fieldname, FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from loutilities.user.model import User, Interest
 
@@ -76,8 +76,10 @@ with app.app_context():
                         period=timedelta(52*7),
                         isoptional=False,
                         priority=priority,
-                        fields=[thisfield],
+                        # fields=[thisfield],
                         )
+        task_taskfield = TaskTaskField(need='required', taskfield=thisfield)
+        thistask.fields.append(task_taskfield)
         db.session.flush()
 
         if int(priority) % 2 == 0:

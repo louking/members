@@ -54,10 +54,23 @@ tasktaskgroup_table = Table('task_taskgroup', Base.metadata,
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
                        )
 
-taskfield_table = Table('task_taskfield', Base.metadata,
-                       Column('task_id', Integer, ForeignKey('task.id')),
-                       Column('taskfield_id', Integer, ForeignKey('taskfield.id')),
-                       )
+# taskfield_table = Table('task_taskfield', Base.metadata,
+#                        Column('task_id', Integer, ForeignKey('task.id')),
+#                        Column('taskfield_id', Integer, ForeignKey('taskfield.id')),
+#                        )
+
+# associate task / taskfield tables adding necessity attribute
+NEED_REQUIRED = 'required'
+NEED_ONE_OF   = 'oneof'
+NEED_OPTIONAL = 'optional'
+needs_all = [NEED_REQUIRED, NEED_ONE_OF, NEED_OPTIONAL]
+class TaskTaskField(Base):
+    __tablename__ = 'task_taskfield'
+    task_id             = Column(Integer, ForeignKey('task.id'), primary_key=True)
+    taskfield_id        = Column(Integer, ForeignKey('taskfield.id'), primary_key=True)
+    need                = Column(Enum(*needs_all))
+    task                = relationship('Task', back_populates='fields')
+    taskfield           = relationship('TaskField', back_populates='tasks')
 
 # copied by update_local_tables
 class LocalUser(Base):
@@ -90,9 +103,8 @@ class Task(Base):
     priority            = Column(Float)
     period              = Column(Interval())
     isoptional          = Column(Boolean)
-    fields              = relationship('TaskField',
-                                       secondary=taskfield_table,
-                                       backref=backref('tasks'))
+    fields              = relationship('TaskTaskField',
+                                       back_populates='task')
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -128,6 +140,8 @@ class TaskField(Base):
     fieldoptions        = Column(String(FIELDOPTIONS_LEN))
     uploadurl           = Column(String(URL_LEN))
     priority            = Column(Float)
+    tasks               = relationship('TaskTaskField',
+                                       back_populates='taskfield')
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
