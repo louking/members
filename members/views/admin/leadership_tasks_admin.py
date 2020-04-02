@@ -493,9 +493,6 @@ taskfield = TaskFieldCrud(
                         {'data': 'displaylabel', 'name': 'displaylabel', 'label': 'Field Label',
                          'className': 'field_req',
                          },
-                        {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
-                         },
-                        {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea'},
                         {'data': 'inputtype', 'name': 'inputtype', 'label': 'Input Type',
                          'fieldInfo' : 'if you want the field to collect input, select the input type',
                          'type': 'select2',
@@ -507,9 +504,6 @@ taskfield = TaskFieldCrud(
                              }
                          },
                          },
-                        {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
-                         'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
-                         },
                         {'data': 'fieldoptions', 'name': 'fieldoptions', 'label': 'Options',
                          'type': 'select2', 'separator':SEPARATOR,
                          'options': [],
@@ -517,6 +511,12 @@ taskfield = TaskFieldCrud(
                              'multiple': 'multiple',
                              'tags': True
                          }
+                         },
+                        {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
+                         'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
+                         },
+                        {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea'},
+                        {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
                          },
                         {'data': 'uploadurl', 'name': 'uploadurl', 'label': 'Upload URL', 'type': 'readonly'
                          },
