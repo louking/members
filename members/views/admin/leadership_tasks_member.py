@@ -7,15 +7,15 @@ leadership_tasks_member - member task handling
 from datetime import datetime
 
 # pypi
-from flask import request, current_app
+from flask import request, current_app, request
 from flask_security import current_user
 from markdown import markdown
 
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, TaskCompletion, InputFieldData, Files
-from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
-from loutilities.tables import SEPARATOR
+from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, NEED_ONE_OF, NEED_REQUIRED
+from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
@@ -189,12 +189,34 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
     def _validate(self, action, formdata):
         results = []
 
-        # # verify some fields were supplied
-        # for field in ['couponcode']:
-        #     level = SponsorLevel.query.filter_by(id=formdata['level']['id']).one_or_none()
-        #     if level and level.couponcount and level.couponcount > 0:
-        #         if not formdata[field]:
-        #             results.append({'name': field, 'status': 'please supply'})
+        # kludge to get task.id
+        # NOTE: this is only called from 'edit' / put function, and there will be only one id
+        thisid = list(get_request_data(request.form).keys())[0]
+        thistask = Task.query.filter_by(id=thisid).one()
+
+        # build lists of required and shared fields
+        required = []
+        one_of = []
+        for tasktaskfield in thistask.fields:
+            taskfield = tasktaskfield.taskfield
+            if tasktaskfield.need == NEED_REQUIRED:
+                required.append(taskfield.fieldname)
+            elif tasktaskfield.need == NEED_ONE_OF:
+                one_of.append(taskfield.fieldname)
+
+        # verify required fields were supplied
+        for field in required:
+            if not formdata[field]:
+                results.append({'name': field, 'status': 'please supply'})
+
+        # verify one of the one_of fields was supplied
+        onefound = False
+        for field in one_of:
+            if formdata[field]:
+                onefound = True
+        if not onefound:
+            for field in one_of:
+                results.append({'name':field, 'status': 'one of these must be supplied'})
 
         return results
 
