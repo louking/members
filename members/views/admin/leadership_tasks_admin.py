@@ -18,7 +18,7 @@ from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
-from loutilities.tables import DteDbOptionsPickerBase
+from loutilities.tables import DteDbOptionsPickerBase, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
 
 class ParameterError(Exception): pass
@@ -360,6 +360,41 @@ class AssociationCrudApi(DbCrudApiInterestsRolePermissions):
             setattr(assnrow, self.assnmodelfield, dbrow)
 
         return self.dte.get_response_data(dbrow)
+
+    def editor_method_posthook(self, form):
+        '''
+        do validation after editor method because we want all processing to have taken place before
+        we try to read thistask.fields
+        '''
+        action = get_request_action(form)
+
+        # we only have to worry about create and edit functions
+        if action == 'create':
+            thisid = self.created_id
+        elif action in ['edit', 'editRefresh']:
+            # kludge to get task.id
+            # NOTE: this is only called from 'edit' / put function, and there will be only one id
+            thisid = list(get_request_data(form).keys())[0]
+        else:
+            return
+
+        thistask = Task.query.filter_by(id=thisid).one()
+
+        # build sets of duplicated fields
+        duplicated = set()
+        found = set()
+
+        for tasktaskfield in thistask.fields:
+            taskfield = tasktaskfield.taskfield
+            if taskfield.fieldname in found:
+                duplicated.add(taskfield.fieldname)
+            found.add(taskfield.fieldname)
+
+        # indicate error for any fields which were duplicated
+        if duplicated:
+            dupnames = [TaskField.query.filter_by(fieldname=fn).one().taskfield for fn in list(duplicated)]
+            self._fielderrors = [{'name': 'fields.id', 'status': '{} fields were found in more than one category'.format(dupnames)}]
+            raise ParameterError
 
 
 task_dbattrs = 'id,interest_id,task,description,priority,period,isoptional,fields'.split(',')
