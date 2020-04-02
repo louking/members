@@ -53,7 +53,8 @@ def get_options(f):
 
 def addlfields(task):
     taskfields = []
-    for f in task.fields:
+    for ttf in task.fields:
+        f = ttf.taskfield
         thistaskfield = {}
         for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
@@ -86,6 +87,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             rule='/<interest>/taskchecklist',
             dbmapping=taskchecklist_dbmapping,
             formmapping=taskchecklist_formmapping,
+            validate = self._validate,
             clientcolumns=[
                 {'data': 'priority', 'name': 'priority', 'label': 'Priority',
                  'type':'hidden',
@@ -141,18 +143,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             for task in taskgroup.tasks:
                 tasks |= set([task])
 
-        # # then determine which of these tasks are out of date
-        # expiredtasks = set()
-        # for task in iter(tasks):
-        #     allcompleted = TaskCompletion.query.filter_by(task=task, user=theuser).all()
-        #     inwindow = [t for t in allcompleted if t.completion > datetime.now() - task.period]
-        #     # if no completions found in the window of required completion, the user needs to do this task
-        #     if not inwindow:
-        #         expiredtasks |= set([task])
-        #
-        # # add each expired task to the view, sorted by task priority
-        # expiredtasks = sorted(list(expiredtasks), key=lambda t: t.priority)
-
         # TODO: need to add completion date, or status, or display class to the tasks returned
         tasks = sorted(list(tasks), key=lambda t: t.priority)
         for task in iter(tasks):
@@ -194,6 +184,19 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
     def _get_localuser(self):
         # TODO: process request.args to see if different user is needed
         return LocalUser.query.filter_by(user_id=current_user.id, **self.queryparams).one()
+
+    def _validate(self, action, formdata):
+        results = []
+
+        # # verify some fields were supplied
+        # for field in ['couponcode']:
+        #     level = SponsorLevel.query.filter_by(id=formdata['level']['id']).one_or_none()
+        #     if level and level.couponcount and level.couponcount > 0:
+        #         if not formdata[field]:
+        #             results.append({'name': field, 'status': 'please supply'})
+
+        return results
+
 
 taskchecklist = TaskChecklist()
 taskchecklist.register()
