@@ -160,13 +160,14 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             user = localuser, 
             interest = self.localinterest,
             completion = datetime.now(), 
-            task = thistask, 
+            task = thistask,
         )
         db.session.add(taskcompletion)
         db.session.flush()
 
         # save the additional fields
-        for f in thistask.fields:
+        for ttf in thistask.fields:
+            f = ttf.taskfield
             inputfielddata = InputFieldData(
                 field = f,
                 taskcompletion = taskcompletion,
