@@ -4,7 +4,7 @@ leadership_tasks_member - member task handling
 '''
 
 # standard
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # pypi
 from flask import request, current_app, request
@@ -19,8 +19,11 @@ from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
+from loutilities.timeu import asctime
 
 debug = False
+
+EXPIRES_SOON = 14 #days
 
 # field upload endpoint
 fieldupload = FieldUpload(
@@ -39,6 +42,8 @@ fieldupload = FieldUpload(
 fieldupload.register()
 
 # task checklist endpoint
+dtrender = asctime('%Y-%m-%d')
+
 def mdrow(dbrow):
     if dbrow.description:
         return markdown(dbrow.description, extensions=['md_in_html', 'attr_list'])
@@ -62,13 +67,54 @@ def addlfields(task):
         taskfields.append(thistaskfield)
     return taskfields
 
-taskchecklist_dbattrs = 'id,task,description,priority,__readonly__'.split(',')
-taskchecklist_formfields = 'rowid,task,description,priority,addlfields'.split(',')
+def lastcompleted(task):
+    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
+    return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
+
+def get_status(task, taskcompletion):
+    # displayorder needs to match values in afterdatatables.js
+    displayorder = ['overdue', 'expires soon', 'optional', 'up to date', 'done']
+    if task.isoptional:
+        thisstatus = 'optional'
+        thisexpires = None
+    elif not task.period and taskcompletion:
+        thisstatus = 'done'
+        thisexpires = 'no expiration'
+    elif not taskcompletion or taskcompletion.completion + task.period < datetime.today():
+        thisstatus = 'overdue'
+        thisexpires = 'expired'
+    elif taskcompletion.completion + (task.period - timedelta(EXPIRES_SOON)) < datetime.today():
+        thisstatus = 'expires soon'
+        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
+    else:
+        thisstatus = 'up to date'
+        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
+
+    return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
+
+def status(task):
+    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
+    return get_status(task, taskcompletion)['status']
+
+def order(task):
+    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
+    return get_status(task, taskcompletion)['order']
+
+def expires(task):
+    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
+    return get_status(task, taskcompletion)['expires']
+
+taskchecklist_dbattrs = 'id,task,description,priority,__readonly__,__readonly__,__readonly__,__readonly__,__readonly__'.split(',')
+taskchecklist_formfields = 'rowid,task,description,priority,lastcompleted,addlfields,status,order,expires'.split(',')
 taskchecklist_dbmapping = dict(zip(taskchecklist_dbattrs, taskchecklist_formfields))
 taskchecklist_formmapping = dict(zip(taskchecklist_formfields, taskchecklist_dbattrs))
 
 taskchecklist_formmapping['description'] = mdrow
 taskchecklist_formmapping['addlfields'] = addlfields
+taskchecklist_formmapping['lastcompleted'] = lastcompleted
+taskchecklist_formmapping['status'] = status
+taskchecklist_formmapping['order'] = order
+taskchecklist_formmapping['expires'] = expires
 
 class TaskChecklist(DbCrudApiInterestsRolePermissions):
     def __init__(self, **kwargs):
@@ -89,13 +135,31 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             formmapping=taskchecklist_formmapping,
             validate = self._validate,
             clientcolumns=[
+                {'data': 'order', 'name': 'order', 'label': 'Display Order',
+                 'type':'hidden',
+                 'className': 'Hidden',
+                 },
                 {'data': 'priority', 'name': 'priority', 'label': 'Priority',
                  'type':'hidden',
                  'className': 'Hidden',
                  },
                 {'data': 'task', 'name': 'task', 'label': 'Task',
                  'type': 'display',
+                 'orderable': False,
                  'className': 'editorFullWidthField task_bold',
+                 },
+                {'data': 'status', 'name': 'status', 'label': 'Status',
+                 'orderable': False,
+                 'type': 'readonly',
+                 'className': 'status-field',
+                 },
+                {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
+                 'orderable': False,
+                 'type': 'readonly',
+                 },
+                {'data': 'expires', 'name': 'expires', 'label': 'Expires',
+                 'orderable': False,
+                 'type': 'readonly',
                  },
                 {'data': 'description', 'name': 'description', 'label': '',
                  'type': 'display',
@@ -117,6 +181,11 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 'scrollX': True,
                 'scrollXInner': "100%",
                 'scrollY': True,
+                'rowCallback': {'eval': 'set_cell_status_class'},
+                # note id is column 0 to datatables
+                'order': [[1, 'asc'], [5, 'asc'], [2, 'asc']],
+                # would be the following if selector was accepted
+                # 'order': [['order:name','asc'], ['lastcompleted:name','asc'], ['priority:name','asc']]
             },
             edoptions={
                 'i18n':

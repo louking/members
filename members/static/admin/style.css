@@ -26,3 +26,19 @@
     font-weight: normal;
 }
 
+/* task checklist status styling */
+.status-overdue {
+    color: red;
+}
+.status-expires-soon{
+    color: orange;
+}
+.status-optional {
+}
+.status-up-to-date {
+    color: green;
+}
+.status-done {
+    color: green;
+}
+

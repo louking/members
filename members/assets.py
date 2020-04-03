@@ -78,10 +78,11 @@ frontend_common_js = Bundle(
 
     'layout.js',
 
-    'utils.js',
+    'utils.js', # from loutilities
 
     'datatables.js',  # from loutilities
     'datatables.dataRender.ellipsis.js',  # from loutilities
+    'datatables.dataRender.datetime.js',  # from loutilities
     'editor.buttons.editrefresh.js',  # from loutilities
 
     filters='jsmin',
@@ -163,13 +164,17 @@ asset_bundles = {
         'admin/layout.js',
         'layout.js',
 
+        # must be before datatables
+        'admin/beforedatatables.js',
+
         'datatables.js',                        # from loutilities
         'datatables.dataRender.ellipsis.js',    # from loutilities
+        'datatables.dataRender.datetime.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
         'editor.fieldType.display.js',          # from loutilities
 
         # must be after datatables.js
-        'utils.js',
+        'utils.js',                             # from loutilities
         'user/admin/groups.js',
         'admin/afterdatatables.js',
 
