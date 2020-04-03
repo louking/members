@@ -1,10 +1,20 @@
+'''
+userrole - specific user/role management for this application
+
+This is needed to update local database tables when using common database for single sign-on
+'''
+
 from loutilities.user.views.userrole import UserView, InterestView, RoleView
 from ...model import update_local_tables
 
 class LocalUserView(UserView):
     def editor_method_postcommit(self, form):
         update_local_tables()
-user = LocalUserView()
+user = LocalUserView(
+    pagename='members',
+    endpoint='userrole.members',
+    rule='/members',
+)
 user.register()
 
 class LocalInterestView(InterestView):

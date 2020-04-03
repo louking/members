@@ -668,7 +668,7 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                     formmapping = assigntaskgroup_formmapping,
                     checkrequired = True,
                     clientcolumns = [
-                        {'data': 'user_id', 'name': 'user_id', 'label': 'User',
+                        {'data': 'user_id', 'name': 'user_id', 'label': 'Member',
                          'className': 'field_req',
                          # TODO: is this unique in the table or within an interest? Needs to be within an interest
                          '_unique': True,
