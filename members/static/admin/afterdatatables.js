@@ -34,8 +34,15 @@ function afterdatatables() {
                 editor.clear( f.fieldname )
             }
         }
+
+        // add and clear additional fields appropriately
         editor.on('initEdit', add_fields)
         editor.on('close', clear_fields)
+
+        // make sure embedded links open in a new tab
+        editor.on('opened', function(e, type){
+            $('.DTE_Field_Input a').attr('target', '_blank');
+        })
         // editor.on('submitSuccess', function(e, data, action, xhr) {
         //
         // })
