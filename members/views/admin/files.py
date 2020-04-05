@@ -10,19 +10,20 @@
 
 # standard
 from os.path import join, exists
-from os import remove
 
 # pypi
-from flask import current_app
+from flask import g, current_app, send_from_directory
 
 # homegrown
 from . import bp
 from ...model import db, Files, LocalInterest
+from ..viewhelpers import localinterest
 from loutilities.user.tablefiles import FilesCrud
-from loutilities.user.roles import ROLE_SUPER_ADMIN
+from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 
 ###########################################################################################
-# files endpoint
+# files endpoint (files summary view)
 ###########################################################################################
 
 files_dbattrs = 'id,fileid,filename,taskcompletion_id,mimetype'.split(',')
@@ -66,3 +67,55 @@ files = FilesCrud(
                     )
 files.register()
 
+###########################################################################################
+# file endpoint (serves a single file)
+###########################################################################################
+
+class FileServer(DbCrudApiInterestsRolePermissions):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        args = dict(
+            app=bp,  # use blueprint instead of app
+            db=db,
+            model=Files,
+            local_interest_model=LocalInterest,
+            filesdirectory=lambda: current_app.config['APP_FILE_FOLDER'],
+            roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
+            endpoint='admin.file',
+            endpointvalues={'interest': '<interest>'},
+            rule='/<interest>/file/<fileid>',
+            clientcolumns=[]
+        )
+        args.update(kwargs)
+
+        # this initialization needs to be done before checking any self.xxx attributes
+        super().__init__(**args)
+
+    def get(self, fileid):
+        # verify user can read the data, otherwise abort
+        if not self.permission():
+            self.rollback()
+            self.abort()
+
+        # get file information from table
+        linterest = localinterest()
+        file = Files.query.filter_by(fileid=fileid, interest=linterest).one_or_none()
+        if not file:
+            self.rollback()
+            self.abort()
+
+        # find path of file
+        groupdir = join(self.filesdirectory(), g.interest)
+        filepath = join(groupdir, fileid)
+
+        if not exists(filepath):
+            self.rollback()
+            self.abort()
+
+        return send_from_directory(groupdir, fileid,
+                                   mimetype=file.mimetype,
+                                   # as_attachment=True,
+                                   attachment_filename=file.filename)
+
+fileserver = FileServer()
+fileserver.register()
