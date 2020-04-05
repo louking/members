@@ -86,7 +86,6 @@ class LocalUser(Base):
         'version_id_col' : version_id
     }
 
-
 # note update_local_tables only copies Interests for current application (g.loutility)
 class LocalInterest(Base):
     __tablename__ = 'localinterest'

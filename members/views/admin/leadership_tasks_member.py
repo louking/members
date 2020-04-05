@@ -4,7 +4,7 @@ leadership_tasks_member - member task handling
 '''
 
 # standard
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # pypi
 from flask import request, current_app, request
@@ -19,11 +19,9 @@ from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
-from loutilities.timeu import asctime
+from ..viewhelpers import lastcompleted, get_status, get_order, get_expires
 
 debug = False
-
-EXPIRES_SOON = 14 #days
 
 # field upload endpoint
 fieldupload = FieldUpload(
@@ -40,9 +38,6 @@ fieldupload = FieldUpload(
                 filesmodel=Files
             )
 fieldupload.register()
-
-# task checklist endpoint
-dtrender = asctime('%Y-%m-%d')
 
 def mdrow(dbrow):
     if dbrow.description:
@@ -67,43 +62,6 @@ def addlfields(task):
         taskfields.append(thistaskfield)
     return taskfields
 
-def lastcompleted(task):
-    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
-    return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
-
-def get_status(task, taskcompletion):
-    # displayorder needs to match values in afterdatatables.js
-    displayorder = ['overdue', 'expires soon', 'optional', 'up to date', 'done']
-    if task.isoptional:
-        thisstatus = 'optional'
-        thisexpires = None
-    elif not task.period and taskcompletion:
-        thisstatus = 'done'
-        thisexpires = 'no expiration'
-    elif not taskcompletion or taskcompletion.completion + task.period < datetime.today():
-        thisstatus = 'overdue'
-        thisexpires = 'expired'
-    elif taskcompletion.completion + (task.period - timedelta(EXPIRES_SOON)) < datetime.today():
-        thisstatus = 'expires soon'
-        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
-    else:
-        thisstatus = 'up to date'
-        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
-
-    return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
-
-def status(task):
-    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
-    return get_status(task, taskcompletion)['status']
-
-def order(task):
-    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
-    return get_status(task, taskcompletion)['order']
-
-def expires(task):
-    taskcompletion = TaskCompletion.query.filter_by(task=task).order_by(TaskCompletion.completion.desc()).first()
-    return get_status(task, taskcompletion)['expires']
-
 taskchecklist_dbattrs = 'id,task,description,priority,__readonly__,__readonly__,__readonly__,__readonly__,__readonly__'.split(',')
 taskchecklist_formfields = 'rowid,task,description,priority,lastcompleted,addlfields,status,order,expires'.split(',')
 taskchecklist_dbmapping = dict(zip(taskchecklist_dbattrs, taskchecklist_formfields))
@@ -111,10 +69,10 @@ taskchecklist_formmapping = dict(zip(taskchecklist_formfields, taskchecklist_dba
 
 taskchecklist_formmapping['description'] = mdrow
 taskchecklist_formmapping['addlfields'] = addlfields
-taskchecklist_formmapping['lastcompleted'] = lastcompleted
-taskchecklist_formmapping['status'] = status
-taskchecklist_formmapping['order'] = order
-taskchecklist_formmapping['expires'] = expires
+taskchecklist_formmapping['lastcompleted'] = lambda task: lastcompleted(task, current_user)
+taskchecklist_formmapping['status'] = lambda task: get_status(task, current_user)
+taskchecklist_formmapping['order'] = lambda task: get_order(task, current_user)
+taskchecklist_formmapping['expires'] = lambda task: get_expires(task, current_user)
 
 class TaskChecklist(DbCrudApiInterestsRolePermissions):
     def __init__(self, **kwargs):
@@ -212,8 +170,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             for task in taskgroup.tasks:
                 tasks |= set([task])
 
-        # TODO: need to add completion date, or status, or display class to the tasks returned
-        tasks = sorted(list(tasks), key=lambda t: t.priority)
         for task in iter(tasks):
             theserows.append(task)
 
