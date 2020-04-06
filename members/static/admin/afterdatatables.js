@@ -78,6 +78,18 @@ function afterdatatables() {
 
     // special processing for task summary
     } else if (location.pathname.includes('/tasksummary')) {
+        // set up registered filters (id, default for local storage, transient => don't update local storage
+        fltr_register('members-external-filter-members', null, true);
+        fltr_register('members-external-filter-tasks', null, true);
+        fltr_register('members-external-filter-taskgroups-by-task', null, true);
+        fltr_register('members-external-filter-taskgroups-by-member', null, true);
+        fltr_register('members-external-filter-statuses', null, true);
+        fltr_register('members-external-filter-completed', null, true);
+        fltr_register('members-external-filter-expires', null, true);
+
+        // initialize all the filters
+        fltr_init();
+
         // add and clear additional fields appropriately
         editor.on('initEdit', add_field_vals);
         editor.on('close', clear_field_vals);

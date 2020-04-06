@@ -23,6 +23,7 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from ..viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser
 
 class ParameterError(Exception): pass
@@ -854,6 +855,26 @@ class ReadOnlySelect2(DteDbRelationship):
         col['opts']['disabled'] = True
         return col
 
+filters = filtercontainerdiv()
+filters += filterdiv('members-external-filter-members', 'Member')
+filters += filterdiv('members-external-filter-tasks', 'Task')
+filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
+filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
+filters += filterdiv('members-external-filter-statuses', 'Status')
+filters += filterdiv('members-external-filter-completed', 'Last Completed')
+filters += filterdiv('members-external-filter-expires', 'Expires')
+
+membercol = 1
+tasksummary_yadcf_options = [
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
+    yadcfoption('task_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-task', 'multi_select', placeholder='Select task groups', width='200px'),
+    yadcfoption('member_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
+    yadcfoption('status:name', 'members-external-filter-statuses', 'multi_select', placeholder='Select statuses', width='200px'),
+    yadcfoption('lastcompleted:name', 'members-external-filter-completed', 'range_date'),
+    yadcfoption('expires:name', 'members-external-filter-expires', 'range_date'),
+]
+
 tasksummary = TaskSummary(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
@@ -861,6 +882,7 @@ tasksummary = TaskSummary(
                     db = db,
                     model = Task,
                     template = 'datatables.jinja2',
+                    pretablehtml = filters,
                     pagename = 'Task Summary',
                     endpoint = 'admin.tasksummary',
                     endpointvalues={'interest': '<interest>'},
@@ -889,7 +911,7 @@ tasksummary = TaskSummary(
                         {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                          'type': 'readonly',
                          },
-                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task Task Groups',
+                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task in Task Groups',
                          'type': 'readonly',
                          '_treatment': {
                              'relationship': {
@@ -901,8 +923,8 @@ tasksummary = TaskSummary(
 
                             }}
                          },
-                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
-                         'type': 'readonly',
+                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member in Task Groups',
+                         # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(
@@ -942,12 +964,14 @@ tasksummary = TaskSummary(
                     },
                     edoptions={
                         'i18n':
+                            # "edit" window shows "Task" in title
                             {'edit':
                                 {
                                     'title': 'Task',
                                 }
                             }
-                    }
+                    },
+                    yadcfoptions=tasksummary_yadcf_options,
                 )
 tasksummary.register()
 

@@ -37,7 +37,7 @@ dt_responsive_ver = '2.2.3'
 s2_ver = '4.0.12'
 
 # yadcf
-yadcf_ver = '0.9.4.beta.33'
+yadcf_ver = '0.9.4.beta.40'
 
 moment_ver = '2.24.0'       # moment.js (see https://momentjs.com/)
 lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)
@@ -80,10 +80,11 @@ frontend_common_js = Bundle(
 
     'utils.js', # from loutilities
 
-    'datatables.js',  # from loutilities
-    'datatables.dataRender.ellipsis.js',  # from loutilities
-    'datatables.dataRender.datetime.js',  # from loutilities
-    'editor.buttons.editrefresh.js',  # from loutilities
+    'datatables.js',                        # from loutilities
+    'datatables.dataRender.ellipsis.js',    # from loutilities
+    'datatables.dataRender.datetime.js',    # from loutilities
+    'editor.buttons.editrefresh.js',        # from loutilities
+    'filters.js',                           # from loutilities
 
     filters='jsmin',
     output='gen/frontendcommon.js',
@@ -172,6 +173,7 @@ asset_bundles = {
         'datatables.dataRender.datetime.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
         'editor.fieldType.display.js',          # from loutilities
+        'filters.js',                           # from loutilities
 
         # must be after datatables.js
         'utils.js',                             # from loutilities
