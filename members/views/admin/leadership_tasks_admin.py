@@ -8,18 +8,22 @@ from datetime import timedelta
 # pypi
 from flask import g, url_for, current_app
 from sqlalchemy import Enum
+from dominate.tags import a
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
+from ...model import db
+from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
+from ...model import InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
-from loutilities.tables import DteDbOptionsPickerBase, get_request_action, get_request_data
+from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
+from ..viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser
 
 class ParameterError(Exception): pass
 
@@ -393,7 +397,7 @@ class AssociationCrudApi(DbCrudApiInterestsRolePermissions):
         # indicate error for any fields which were duplicated
         if duplicated:
             dupnames = [TaskField.query.filter_by(fieldname=fn).one().taskfield for fn in list(duplicated)]
-            self._fielderrors = [{'name': 'fields.id', 'status': '{} fields were found in more than one category'.format(dupnames)}]
+            self._fielderrors = [{'name': 'fields.id', 'get_status': '{} fields were found in more than one category'.format(dupnames)}]
             raise ParameterError
 
 
@@ -692,3 +696,258 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                                   },
                     )
 assigntaskgroup.register()
+
+##########################################################################################
+# tasksummary endpoint
+###########################################################################################
+
+def addlfields(task, member):
+    taskfields = []
+    localuser = user2localuser(member)
+    tc = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
+    if tc:
+        for ttf in task.fields:
+            f = ttf.taskfield
+            thistaskfield = {}
+            for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
+                thistaskfield[key] = getattr(f, key)
+            thistaskfield['fieldoptions'] = get_options(f)
+            value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value
+            if f.inputtype != INPUT_TYPE_UPLOAD:
+                thistaskfield['value'] = value
+            else:
+                file = Files.query.filter_by(fileid=value).one()
+                thistaskfield['value'] = a(file.filename,
+                                           href=url_for('admin.file',
+                                                        interest=g.interest,
+                                                        fileid=value),
+                                           target='_blank').render()
+            taskfields.append(thistaskfield)
+    return taskfields
+
+# map id to rowid, retrieve all other required fields
+# no dbmapping because this table is read-only
+tasksummary_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups'.split(',')
+tasksummary_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups'.split(',')
+tasksummary_dbmapping = dict(zip(tasksummary_dbattrs, tasksummary_formfields))
+
+tasksummary_formmapping = {}
+tasksummary_formmapping['rowid'] = 'id'
+tasksummary_formmapping['task_taskgroups'] = 'task_taskgroups'
+tasksummary_formmapping['member_taskgroups'] = 'member_taskgroups'
+tasksummary_formmapping['member'] = lambda tu: tu.member.name
+tasksummary_formmapping['task'] = lambda tu: tu.task.task
+tasksummary_formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
+tasksummary_formmapping['status'] = lambda tu: get_status(tu.task, tu.member)
+tasksummary_formmapping['order'] = lambda tu: get_order(tu.task, tu.member)
+tasksummary_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
+tasksummary_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
+tasksummary_formmapping['addlfields'] = lambda tu: addlfields(tu.task, tu.member)
+
+class TaskUser():
+    '''
+    allows creation of "taskuser" object to simulate database behavior
+    '''
+    def __init__(self, **kwargs):
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+class TaskSummary(DbCrudApiInterestsRolePermissions):
+    def _setdata(self):
+        taskgroups = TaskGroup.query.all()
+        self.data = {}
+
+        # collect all the members which are referenced by taskgroups
+        localusers = set()
+        for taskgroup in taskgroups:
+            for localuser in taskgroup.users:
+                localusers |= set([localuser])
+
+        # retrieve member data from localusers
+        members = []
+        for localuser in iter(localusers):
+            members.append({'localuser':localuser, 'member': User.query.filter_by(id=localuser.user_id).one()})
+
+        tasksusers = []
+        fakeid = 0
+        for member in members:
+            # collect all the tasks which are referenced by taskgroups for this member
+            tasks = set()
+            for taskgroup in member['localuser'].taskgroups:
+                for task in taskgroup.tasks:
+                    tasks |= set([task])
+            for task in iter(tasks):
+                fakeid += 1
+                taskuser = TaskUser(
+                    id=fakeid,
+                    task=task, task_taskgroups=task.taskgroups,
+                    member=member['member'], member_taskgroups=member['localuser'].taskgroups
+                )
+                tasksusers.append(taskuser)
+                from copy import copy
+                self.data[fakeid] = copy(taskuser)
+
+        return tasksusers
+
+    def open(self):
+        taskgroups = TaskGroup.query.all()
+
+        # collect all the members which are referenced by taskgroups
+        localusers = set()
+        for taskgroup in taskgroups:
+            for localuser in taskgroup.users:
+                localusers |= set([localuser])
+
+        # retrieve member data from localusers
+        members = []
+        for localuser in iter(localusers):
+            members.append({'localuser':localuser, 'member': User.query.filter_by(id=localuser.user_id).one()})
+
+        tasksusers = []
+        for member in members:
+            # collect all the tasks which are referenced by taskgroups for this member
+            tasks = set()
+            for taskgroup in member['localuser'].taskgroups:
+                for task in taskgroup.tasks:
+                    tasks |= set([task])
+            for task in iter(tasks):
+                usertaskid = '{};{}'.format(member['localuser'].id, task.id)
+                taskuser = TaskUser(
+                    id=usertaskid,
+                    task=task, task_taskgroups=task.taskgroups,
+                    member=member['member'], member_taskgroups=member['localuser'].taskgroups
+                )
+                tasksusers.append(taskuser)
+        self.rows = iter(tasksusers)
+
+    def refreshrows(self, ids):
+        '''
+        refresh row(s) from database
+
+        :param ids: comma separated ids of row to be refreshed
+        :rtype: list of returned rows for rendering, e.g., from DataTablesEditor.get_response_data()
+        '''
+        theseids = ids.split(',')
+        responsedata = []
+        for thisid in theseids:
+            # id is made up of localuser.id, task.id
+            localuserid, taskid = thisid.split(';')
+            localuser = LocalUser.query.filter_by(id=localuserid).one()
+            task = Task.query.filter_by(id=taskid).one()
+
+            member = {'localuser': localuser, 'member': User.query.filter_by(id=localuser.user_id).one()}
+
+            taskuser = TaskUser(
+                id=thisid,
+                task=task, task_taskgroups=task.taskgroups,
+                member=member['member'], member_taskgroups=member['localuser'].taskgroups
+            )
+
+            responsedata.append(self.dte.get_response_data(taskuser))
+
+        return responsedata
+
+class ReadOnlySelect2(DteDbRelationship):
+    def col_options(self):
+        col = super().col_options()
+        # readonly select2
+        col['opts']['disabled'] = True
+        return col
+
+tasksummary = TaskSummary(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = Task,
+                    template = 'datatables.jinja2',
+                    pagename = 'Task Summary',
+                    endpoint = 'admin.tasksummary',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/tasksummary',
+                    dbmapping = tasksummary_dbmapping,
+                    formmapping = tasksummary_formmapping, 
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'member', 'name': 'member', 'label': 'Member',
+                         'type': 'readonly',
+                         },
+                        {'data': 'order', 'name': 'order', 'label': 'Display Order',
+                         'type': 'hidden',
+                         'className': 'Hidden',
+                         },
+                        {'data': 'status', 'name': 'status', 'label': 'Status',
+                         'type': 'readonly',
+                         'className': 'status-field',
+                         },
+                        {'data': 'task', 'name': 'task', 'label': 'Task',
+                         'type': 'readonly',
+                         },
+                        {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
+                         'type': 'readonly',
+                         },
+                        {'data': 'expires', 'name': 'expires', 'label': 'Expires',
+                         'type': 'readonly',
+                         },
+                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task Task Groups',
+                         'type': 'readonly',
+                         '_treatment': {
+                             'relationship': {
+                                 'optionspicker' : ReadOnlySelect2(
+                                        fieldmodel = TaskGroup, labelfield = 'taskgroup', formfield = 'task_taskgroups',
+                                        dbfield = 'task_taskgroups', uselist = True,
+                                        queryparams = localinterest_query_params,
+                                 )
+
+                            }}
+                         },
+                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
+                         'type': 'readonly',
+                         '_treatment': {
+                             'relationship': {
+                                 'optionspicker' : ReadOnlySelect2(
+                                    fieldmodel = TaskGroup, labelfield = 'taskgroup',
+                                    formfield = 'member_taskgroups',
+                                    dbfield = 'member_taskgroups', uselist = True,
+                                    queryparams = localinterest_query_params,
+                                 )
+                             }}
+                         },
+                        {'data': 'fields', 'name': 'fields', 'label': 'Add\'l Fields',
+                         'type': 'readonly',
+                         'dtonly': True,
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = [
+                        {
+                            'extend':'editRefresh',
+                            'text':'View',
+                            'editor': {'eval':'editor'},
+                            'formButtons': [
+                                {'text': 'Dismiss', 'action': {'eval':'dismiss_button'}}
+                            ]
+                        },
+                        'csv'
+                    ],
+                    dtoptions = {
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': True,
+                        'rowCallback': {'eval': 'set_cell_status_class'},
+                        # note id is column 0 to datatables
+                        'order': [[1, 'asc'], [2, 'asc']],
+                    },
+                    edoptions={
+                        'i18n':
+                            {'edit':
+                                {
+                                    'title': 'Task',
+                                }
+                            }
+                    }
+                )
+tasksummary.register()
+

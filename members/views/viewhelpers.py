@@ -25,6 +25,10 @@ def user2localuser(user):
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
     return LocalUser.query.filter_by(user_id=user.id, active=True, interest=localinterest).one()
 
+def localinterest():
+    interest = Interest.query.filter_by(interest=g.interest).one()
+    return LocalInterest.query.filter_by(interest_id=interest.id).one()
+
 def lastcompleted(task, user):
     localuser = user2localuser(user)
     taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
