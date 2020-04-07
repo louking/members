@@ -24,7 +24,7 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
-from .viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser
+from .viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser, localinterest
 
 class ParameterError(Exception): pass
 
@@ -754,44 +754,10 @@ class TaskUser():
             setattr(self, key, kwargs[key])
 
 class TaskSummary(DbCrudApiInterestsRolePermissions):
-    def _setdata(self):
-        taskgroups = TaskGroup.query.all()
-        self.data = {}
-
-        # collect all the members which are referenced by taskgroups
-        localusers = set()
-        for taskgroup in taskgroups:
-            for localuser in taskgroup.users:
-                localusers |= set([localuser])
-
-        # retrieve member data from localusers
-        members = []
-        for localuser in iter(localusers):
-            members.append({'localuser':localuser, 'member': User.query.filter_by(id=localuser.user_id).one()})
-
-        tasksusers = []
-        fakeid = 0
-        for member in members:
-            # collect all the tasks which are referenced by taskgroups for this member
-            tasks = set()
-            for taskgroup in member['localuser'].taskgroups:
-                for task in taskgroup.tasks:
-                    tasks |= set([task])
-            for task in iter(tasks):
-                fakeid += 1
-                taskuser = TaskUser(
-                    id=fakeid,
-                    task=task, task_taskgroups=task.taskgroups,
-                    member=member['member'], member_taskgroups=member['localuser'].taskgroups
-                )
-                tasksusers.append(taskuser)
-                from copy import copy
-                self.data[fakeid] = copy(taskuser)
-
-        return tasksusers
 
     def open(self):
-        taskgroups = TaskGroup.query.all()
+        locinterest = localinterest()
+        taskgroups = TaskGroup.query.filter_by(interest=locinterest).all()
 
         # collect all the members which are referenced by taskgroups
         localusers = set()
