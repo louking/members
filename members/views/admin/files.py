@@ -17,7 +17,7 @@ from flask import g, current_app, send_from_directory
 # homegrown
 from . import bp
 from ...model import db, Files, LocalInterest
-from ..viewhelpers import localinterest
+from .viewhelpers import localinterest
 from loutilities.user.tablefiles import FilesCrud
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER

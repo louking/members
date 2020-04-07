@@ -7,7 +7,7 @@ leadership_tasks_member - member task handling
 from datetime import datetime
 
 # pypi
-from flask import request, current_app, request
+from flask import current_app, request
 from flask_security import current_user
 from markdown import markdown
 
@@ -19,7 +19,7 @@ from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
-from ..viewhelpers import lastcompleted, get_status, get_order, get_expires
+from .viewhelpers import lastcompleted, get_status, get_order, get_expires
 
 debug = False
 

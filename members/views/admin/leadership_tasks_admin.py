@@ -24,7 +24,7 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
-from ..viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser
+from .viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser
 
 class ParameterError(Exception): pass
 
