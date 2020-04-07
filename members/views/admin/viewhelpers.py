@@ -34,6 +34,19 @@ def lastcompleted(task, user):
     taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
     return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
 
+def _get_expiration(task, taskcompletion):
+    # task completed, return expiration depending on task / completion date
+    if taskcompletion:
+        return dtrender.dt2asc(taskcompletion.completion + task.period)
+
+    # task not completed, return default
+    else:
+        li = localinterest()
+        if li.initial_expiration:
+            return dtrender.dt2asc(li.initial_expiration)
+        else:
+            return None
+
 def _get_status(task, taskcompletion):
     # displayorder needs to match values in beforedatatables.js fn set_cell_status_class.classes
     displayorder = ['overdue', 'expires soon', 'optional', 'up to date', 'done']
@@ -45,13 +58,13 @@ def _get_status(task, taskcompletion):
         thisexpires = 'no expiration'
     elif not taskcompletion or taskcompletion.completion + task.period < datetime.today():
         thisstatus = 'overdue'
-        thisexpires = 'expired'
+        thisexpires = _get_expiration(task, taskcompletion)
     elif taskcompletion.completion + (task.period - timedelta(EXPIRES_SOON)) < datetime.today():
         thisstatus = 'expires soon'
-        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
+        thisexpires = _get_expiration(task, taskcompletion)
     else:
         thisstatus = 'up to date'
-        thisexpires = dtrender.dt2asc(taskcompletion.completion + task.period)
+        thisexpires = _get_expiration(task, taskcompletion)
 
     return {'get_status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
 

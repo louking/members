@@ -910,6 +910,7 @@ tasksummary = TaskSummary(
                          },
                         {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                          'type': 'readonly',
+                         'className': 'status-field',
                          },
                         {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task in Task Groups',
                          'type': 'readonly',

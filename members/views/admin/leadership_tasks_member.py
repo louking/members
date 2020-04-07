@@ -123,6 +123,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                  'orderable': False,
                  'type': 'readonly',
+                 'className': 'status-field',
                  },
             ],
             servercolumns=None,  # not server side

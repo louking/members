@@ -74,6 +74,7 @@ def nav_menu():
             userroles = Subgroup('Members/Roles')
             navbar.items.append(userroles)
             userroles.items.append(View('Members', 'userrole.members'))
+            userroles.items.append(View('Interest Attributes', 'admin.interestattrs'))
             userroles.items.append(View('Roles', 'userrole.roles'))
             userroles.items.append(View('Interests', 'userrole.interests'))
             userroles.items.append(View('Applications', 'userrole.applications'))

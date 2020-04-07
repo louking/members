@@ -91,6 +91,12 @@ class LocalInterest(Base):
     __tablename__ = 'localinterest'
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer)
+    initial_expiration  = Column(Date)
+
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
 
 class Task(Base):
     __tablename__ = 'task'
