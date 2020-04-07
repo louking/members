@@ -17,6 +17,10 @@ from loutilities.timeu import asctime
 dtrender = asctime('%Y-%m-%d')
 EXPIRES_SOON = 14 #days
 
+def _get_task_completion(task, user):
+    localuser = user2localuser(user)
+    return TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
+
 def localuser2user(localuser):
     return User.query.filter_by(id=localuser.user_id, active=True).one()
 
@@ -30,8 +34,7 @@ def localinterest():
     return LocalInterest.query.filter_by(interest_id=interest.id).one()
 
 def lastcompleted(task, user):
-    localuser = user2localuser(user)
-    taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
+    taskcompletion = _get_task_completion(task, user)
     return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
 
 def _get_expiration(task, taskcompletion):
@@ -66,20 +69,17 @@ def _get_status(task, taskcompletion):
         thisstatus = 'up to date'
         thisexpires = _get_expiration(task, taskcompletion)
 
-    return {'get_status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
+    return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
 
 def get_status(task, user):
-    localuser = user2localuser(user)
-    taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
-    return _get_status(task, taskcompletion)['get_status']
+    taskcompletion = _get_task_completion(task, user)
+    return _get_status(task, taskcompletion)['status']
 
 def get_order(task, user):
-    localuser = user2localuser(user)
-    taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
+    taskcompletion = _get_task_completion(task, user)
     return _get_status(task, taskcompletion)['order']
 
 def get_expires(task, user):
-    localuser = user2localuser(user)
-    taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
+    taskcompletion = _get_task_completion(task, user)
     return _get_status(task, taskcompletion)['expires']
 

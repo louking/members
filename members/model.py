@@ -191,6 +191,8 @@ class TaskCompletion(Base):
     task_id             = Column(Integer, ForeignKey('task.id'))
     task                = relationship('Task', backref=backref('taskcompletions'))
     completion          = Column(DateTime)
+    update_time         = Column(DateTime)
+    updated_by          = Column(Integer)   # localuser.id
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

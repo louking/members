@@ -182,11 +182,14 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         localuser = self._get_localuser()
 
         # create the completion record
+        rightnow = datetime.now()
         taskcompletion = TaskCompletion(
             user = localuser, 
             interest = self.localinterest,
-            completion = datetime.now(), 
+            completion = rightnow,
             task = thistask,
+            update_time = rightnow,
+            updated_by = localuser.id,
         )
         db.session.add(taskcompletion)
         db.session.flush()
