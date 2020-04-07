@@ -106,6 +106,11 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                  'orderable': False,
                  'className': 'editorFullWidthField task_bold',
                  },
+                {'data': 'description', 'name': 'description', 'label': '',
+                 'type': 'display',
+                 'className': 'editorFullWidthField',
+                 'edonly': True,
+                 },
                 {'data': 'status', 'name': 'status', 'label': 'Status',
                  'orderable': False,
                  'type': 'readonly',
@@ -118,11 +123,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                  'orderable': False,
                  'type': 'readonly',
-                 },
-                {'data': 'description', 'name': 'description', 'label': '',
-                 'type': 'display',
-                 'className': 'editorFullWidthField',
-                 'edonly': True,
                  },
             ],
             servercolumns=None,  # not server side
@@ -141,9 +141,9 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 'scrollY': True,
                 'rowCallback': {'eval': 'set_cell_status_class'},
                 # note id is column 0 to datatables
-                'order': [[1, 'asc'], [5, 'asc'], [2, 'asc']],
                 # would be the following if selector was accepted
                 # 'order': [['order:name','asc'], ['lastcompleted:name','asc'], ['priority:name','asc']]
+                'order': [[1, 'asc'], [6, 'asc'], [2, 'asc']],
             },
             edoptions={
                 'i18n':
