@@ -54,8 +54,11 @@ def _get_status(task, taskcompletion):
     # displayorder needs to match values in beforedatatables.js fn set_cell_status_class.classes
     displayorder = ['overdue', 'expires soon', 'optional', 'up to date', 'done']
     if task.isoptional:
-        thisstatus = 'optional'
-        thisexpires = None
+        if not taskcompletion:
+            thisstatus = 'optional'
+        else:
+            thisstatus = 'done'
+        thisexpires = 'no expiration'
     elif not task.period and taskcompletion:
         thisstatus = 'done'
         thisexpires = 'no expiration'
