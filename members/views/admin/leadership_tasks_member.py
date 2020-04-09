@@ -4,23 +4,23 @@ leadership_tasks_member - member task handling
 '''
 
 # standard
-from datetime import datetime
 
 # pypi
-from flask import current_app, request
+from flask import g, current_app, request, url_for
 from flask_security import current_user
 from markdown import markdown
+from dominate.tags import a
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, Files
-from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED
+from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
+from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD
 from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires
-from .viewhelpers import create_taskcompletion
+from .viewhelpers import create_taskcompletion, get_task_completion
 
 debug = False
 
@@ -54,12 +54,25 @@ def get_options(f):
 
 def addlfields(task):
     taskfields = []
+    tc = get_task_completion(task, current_user)
+
     for ttf in task.fields:
         f = ttf.taskfield
         thistaskfield = {}
         for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
         thistaskfield['fieldoptions'] = get_options(f)
+        if tc:
+            value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value
+            if f.inputtype != INPUT_TYPE_UPLOAD:
+                thistaskfield['value'] = value
+            else:
+                file = Files.query.filter_by(fileid=value).one()
+                thistaskfield['value'] = a(file.filename,
+                                           href=url_for('admin.file',
+                                                        interest=g.interest,
+                                                        fileid=value),
+                                           target='_blank').render()
         taskfields.append(thistaskfield)
     return taskfields
 

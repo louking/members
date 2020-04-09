@@ -33,28 +33,34 @@ function add_field_vals(data) {
     iteminprogress = data;
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
-        var fieldname = f.fieldname + '-val';
-        editor.add({
-            name:   fieldname,
-            data:   f.fieldname,
-            label:  f.displaylabel,
-            type:   f.inputtype != 'upload' ? 'readonly' : 'display',
-            fieldInfo:  f.fieldInfo,
-            className:  'addlfield',
-            options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
-            // separator ', ' must match loutilities.tables.SEPARATOR
-            // only for checkbox as this is currently only input type which allows multiple selections
-            separator: f.inputtype === 'checkbox' ? ', ' : null,
-        })
-        editor.set(fieldname, f.value);
+        // only add display if data was entered previously
+        if (f.hasOwnProperty('value')) {
+            var fieldname = f.fieldname + '-val';
+            editor.add({
+                name:   fieldname,
+                data:   f.fieldname,
+                label:  f.displaylabel + ' (last entry)',
+                type:   f.inputtype !== 'upload' ? 'readonly' : 'display',
+                fieldInfo:  f.fieldInfo,
+                className:  'addlfield',
+                options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
+                // separator ', ' must match loutilities.tables.SEPARATOR
+                // only for checkbox as this is currently only input type which allows multiple selections
+                separator: f.inputtype === 'checkbox' ? ', ' : null,
+            })
+            editor.set(fieldname, f.value);
+        }
     }
 }
 
 function clear_field_vals(e) {
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
-        var fieldname = f.fieldname + '-val';
-        editor.clear( fieldname )
+        // was only added if data was entered previously
+        if (f.hasOwnProperty('value')) {
+            var fieldname = f.fieldname + '-val';
+            editor.clear( fieldname )
+        }
     }
 }
 
@@ -85,8 +91,14 @@ function afterdatatables() {
     if (location.pathname.includes('/taskchecklist'))
     {
         // add and clear additional fields appropriately
-        editor.on('initEdit', add_fields);
-        editor.on('close', clear_fields);
+        editor.on('initEdit', function(e, node, data, items, type) {
+            add_field_vals(data);
+            add_fields(e, node, data, items, type);
+        });
+        editor.on('close', function (e) {
+            clear_field_vals(e);
+            clear_fields(e);
+        });
 
     // special processing for task summary
     } else if (location.pathname.includes('/tasksummary')) {
