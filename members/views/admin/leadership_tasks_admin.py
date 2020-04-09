@@ -7,6 +7,7 @@ from datetime import timedelta
 
 # pypi
 from flask import g, url_for, current_app
+from flask_security import current_user
 from sqlalchemy import Enum
 from dominate.tags import a
 
@@ -17,6 +18,9 @@ from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskT
 from ...model import InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
+from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
+from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
+from .viewhelpers import dtrender, dttimerender
 
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
@@ -24,7 +28,6 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
-from .viewhelpers import lastcompleted, get_status, get_order, get_expires, user2localuser, localinterest
 
 class ParameterError(Exception): pass
 
@@ -480,8 +483,8 @@ task.register()
 # taskfields endpoint
 ###########################################################################################
 
-taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl'.split(',')
-taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl'.split(',')
+taskfield_dbattrs = 'id,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl,override_completion'.split(',')
+taskfield_formfields = 'rowid,interest_id,taskfield,fieldname,displaylabel,displayvalue,fieldinfo,fieldoptions,inputtype,priority,uploadurl,override_completion'.split(',')
 taskfield_dbmapping = dict(zip(taskfield_dbattrs, taskfield_formfields))
 taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 
@@ -559,6 +562,11 @@ taskfield = TaskFieldCrud(
                         {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
                          },
                         {'data': 'uploadurl', 'name': 'uploadurl', 'label': 'Upload URL', 'type': 'readonly'
+                         },
+                        {'data': 'override_completion', 'name': 'override_completion', 'label': 'Override Completion',
+                         '_treatment': {'boolean': {'formfield': 'override_completion', 'dbfield': 'override_completion'}},
+                         'fieldInfo': 'if \'yes\' this field overrides date when member marks task completed',
+                         'ed': {'def': 'no'},
                          },
                     ],
                     servercolumns = None,  # not server side
@@ -704,8 +712,7 @@ assigntaskgroup.register()
 
 def addlfields(task, member):
     taskfields = []
-    localuser = user2localuser(member)
-    tc = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.completion.desc()).first()
+    tc = get_task_completion(task, member)
     if tc:
         for ttf in task.fields:
             f = ttf.taskfield
@@ -786,6 +793,33 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
                 )
                 tasksusers.append(taskuser)
         self.rows = iter(tasksusers)
+
+    def updaterow(self, thisid, formdata):
+        '''
+        just update TaskCompletion.completion
+
+        :param thisid:
+        :param formdata:
+        :return:
+        '''
+        memberid, taskid = thisid.split(';')
+        luser = LocalUser.query.filter_by(id=memberid).one()
+        task = Task.query.filter_by(id=taskid).one()
+
+        # create new TaskCompletion record, update the task completion time and user who made the update
+        tc = create_taskcompletion(task, luser, self.localinterest, formdata)
+        tc.completion = dtrender.asc2dt(formdata['lastcompleted'])
+        tc.updated_by = user2localuser(current_user).id
+
+        member = {'localuser': luser, 'member': User.query.filter_by(id=luser.user_id).one()}
+
+        taskuser = TaskUser(
+            id=thisid,
+            task=task, task_taskgroups=task.taskgroups,
+            member=member['member'], member_taskgroups=member['localuser'].taskgroups
+        )
+
+        return self.dte.get_response_data(taskuser)
 
     def refreshrows(self, ids):
         '''
@@ -872,7 +906,7 @@ tasksummary = TaskSummary(
                          'type': 'readonly',
                          },
                         {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
-                         'type': 'readonly',
+                         'type': 'datetime',
                          },
                         {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                          'type': 'readonly',
@@ -915,6 +949,7 @@ tasksummary = TaskSummary(
                             'text':'View',
                             'editor': {'eval':'editor'},
                             'formButtons': [
+                                {'text': 'Update', 'action': {'eval': 'submit_button'}},
                                 {'text': 'Dismiss', 'action': {'eval':'dismiss_button'}}
                             ]
                         },
@@ -926,8 +961,8 @@ tasksummary = TaskSummary(
                         'scrollXInner': "100%",
                         'scrollY': True,
                         'rowCallback': {'eval': 'set_cell_status_class'},
-                        # note id is column 0 to datatables
-                        'order': [[1, 'asc'], [2, 'asc']],
+                        # note id is column 0 to datatables, col 2 (display order) hidden
+                        'order': [[1, 'asc'], [2, 'asc'], [6, 'asc']],
                     },
                     edoptions={
                         'i18n':
@@ -941,4 +976,83 @@ tasksummary = TaskSummary(
                     yadcfoptions=tasksummary_yadcf_options,
                 )
 tasksummary.register()
+
+##########################################################################################
+# history endpoint
+###########################################################################################
+
+history_dbattrs = 'id,interest_id,member,task,completion,update_time,updated_by'.split(',')
+history_formfields = 'rowid,interest_id,member,task,completion,update_time,updated_by'.split(',')
+history_dbmapping = dict(zip(history_dbattrs, history_formfields))
+history_formmapping = dict(zip(history_formfields, history_dbattrs))
+
+history_formmapping['member'] = lambda tc: localuser2user(tc.user_id).name
+history_formmapping['task'] = lambda tc: tc.task.task
+history_formmapping['completion'] = lambda tc: dtrender.dt2asc(tc.completion)
+history_formmapping['update_time'] = lambda tc: dttimerender.dt2asc(tc.update_time)
+history_formmapping['updated_by'] = lambda tc: localuser2user(tc.updated_by).name
+
+history = DbCrudApiInterestsRolePermissions(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = TaskCompletion,
+                    template = 'datatables.jinja2',
+                    pagename = 'History',
+                    endpoint = 'admin.history',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/history',
+                    dbmapping = history_dbmapping, 
+                    formmapping = history_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'update_time', 'name': 'update_time', 'label': 'Update Time',
+                         'type': 'readonly',
+                         },
+                        {'data': 'updated_by', 'name': 'updated_by', 'label': 'Updated By',
+                         'type': 'readonly',
+                         },
+                        {'data': 'member', 'name': 'member', 'label': 'Member',
+                         'type': 'readonly',
+                         },
+                        {'data': 'task', 'name': 'task', 'label': 'Task',
+                         'type': 'readonly',
+                         },
+                        {'data': 'completion', 'name': 'completion', 'label': 'Date Completed',
+                         'type': 'readonly',
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = [
+                        {
+                            'extend':'editRefresh',
+                            'text':'View',
+                            'editor': {'eval':'editor'},
+                            'formButtons': [
+                                {'text': 'Dismiss', 'action': {'eval':'dismiss_button'}}
+                            ]
+                        },
+                        'csv'
+                    ],
+                    dtoptions = {
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': True,
+                        'order': [[1, 'desc']],
+                    },
+                    edoptions={
+                        'i18n':
+                            # "edit" window shows "Task" in title
+                            {'edit':
+                                {
+                                    'title': 'Task Completion',
+                                }
+                            }
+                    },
+                    )
+history.register()
+
 

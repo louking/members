@@ -125,8 +125,10 @@ INPUT_TYPE_SELECT2 = 'select2'
 INPUT_TYPE_TEXT = 'text'
 INPUT_TYPE_TEXTAREA = 'textarea'
 INPUT_TYPE_UPLOAD = 'upload'
+INPUT_TYPE_DATE = 'datetime'
 input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2,
-                  INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD)
+                  INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD,
+                  INPUT_TYPE_DATE)
 INPUT_VALUE_LEN = 4096
 FIELDNAME_ARG = 'fieldname'
 
@@ -143,8 +145,9 @@ class TaskField(Base):
     inputtype           = Column(Enum(*input_type_all), nullable=True)
     fieldinfo           = Column(String(FIELDINFO_LEN))
     fieldoptions        = Column(String(FIELDOPTIONS_LEN))
-    uploadurl           = Column(String(URL_LEN))
+    uploadurl           = Column(String(URL_LEN)) # (upload)
     priority            = Column(Float)
+    override_completion = Column(Boolean) # (datetime) True means override TaskCompletion.completion
     tasks               = relationship('TaskTaskField',
                                        back_populates='taskfield')
 

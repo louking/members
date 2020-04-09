@@ -18,3 +18,7 @@ function set_cell_status_class(row, data, displayNum, displayIndex, dataIndex) {
 function dismiss_button() {
     this.close();
 }
+
+function submit_button() {
+    this.submit();
+}

@@ -11,22 +11,28 @@ from flask import g
 # homegrown
 from members.model import TaskCompletion, LocalUser, LocalInterest
 from loutilities.user.model import User, Interest
+from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD
 
 from loutilities.timeu import asctime
 
 dtrender = asctime('%Y-%m-%d')
+dttimerender = asctime('%Y-%m-%d %H:%M:%S')
 EXPIRES_SOON = 14 #days
 
-def _get_task_completion(task, user):
+def get_task_completion(task, user):
     localuser = user2localuser(user)
     return TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
 
 def localuser2user(localuser):
+    if type(localuser) == int:
+        localuser = LocalUser.query.filter_by(id=localuser, active=True).one()
     return User.query.filter_by(id=localuser.user_id, active=True).one()
 
 def user2localuser(user):
     interest = Interest.query.filter_by(interest=g.interest).one()
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
+    if type(user) == int:
+        user = User.query.filter_by(id=user, active=True).one()
     return LocalUser.query.filter_by(user_id=user.id, active=True, interest=localinterest).one()
 
 def localinterest():
@@ -34,7 +40,7 @@ def localinterest():
     return LocalInterest.query.filter_by(interest_id=interest.id).one()
 
 def lastcompleted(task, user):
-    taskcompletion = _get_task_completion(task, user)
+    taskcompletion = get_task_completion(task, user)
     return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
 
 def _get_expiration(task, taskcompletion):
@@ -75,14 +81,53 @@ def _get_status(task, taskcompletion):
     return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
 
 def get_status(task, user):
-    taskcompletion = _get_task_completion(task, user)
+    taskcompletion = get_task_completion(task, user)
     return _get_status(task, taskcompletion)['status']
 
 def get_order(task, user):
-    taskcompletion = _get_task_completion(task, user)
+    taskcompletion = get_task_completion(task, user)
     return _get_status(task, taskcompletion)['order']
 
 def get_expires(task, user):
-    taskcompletion = _get_task_completion(task, user)
+    taskcompletion = get_task_completion(task, user)
     return _get_status(task, taskcompletion)['expires']
 
+def create_taskcompletion(task, localuser, localinterest, formdata):
+    rightnow = datetime.now()
+    taskcompletion = TaskCompletion(
+        user=localuser,
+        interest=localinterest,
+        completion=rightnow,
+        task=task,
+        update_time=rightnow,
+        updated_by=localuser.id,
+    )
+    db.session.add(taskcompletion)
+    db.session.flush()
+
+    # save the additional fields
+    for ttf in task.fields:
+        f = ttf.taskfield
+        # it's possible the field isn't there but the value
+        # set by the user earlier would be there (fieldname + '-val')
+        if f.fieldname in formdata:
+            value = formdata[f.fieldname]
+        else:
+            value = formdata[f.fieldname + '-val']
+        inputfielddata = InputFieldData(
+            field=f,
+            taskcompletion=taskcompletion,
+            value=value,
+        )
+        db.session.add(inputfielddata)
+        db.session.flush()
+
+        if f.inputtype == INPUT_TYPE_UPLOAD:
+            file = Files.query.filter_by(fileid=formdata[f.fieldname]).one()
+            file.taskcompletion = taskcompletion
+
+        elif f.inputtype == INPUT_TYPE_DATE:
+            if f.override_completion:
+                taskcompletion.completion = dtrender.asc2dt(inputfielddata.value)
+
+        return taskcompletion

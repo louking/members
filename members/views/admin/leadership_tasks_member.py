@@ -13,13 +13,14 @@ from markdown import markdown
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, TaskCompletion, InputFieldData, Files
-from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, NEED_ONE_OF, NEED_REQUIRED
+from ...model import db, LocalInterest, LocalUser, Task, Files
+from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED
 from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires
+from .viewhelpers import create_taskcompletion
 
 debug = False
 
@@ -181,32 +182,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         thistask = Task.query.filter_by(id=thisid).one()
         localuser = self._get_localuser()
 
-        # create the completion record
-        rightnow = datetime.now()
-        taskcompletion = TaskCompletion(
-            user = localuser, 
-            interest = self.localinterest,
-            completion = rightnow,
-            task = thistask,
-            update_time = rightnow,
-            updated_by = localuser.id,
-        )
-        db.session.add(taskcompletion)
-        db.session.flush()
-
-        # save the additional fields
-        for ttf in thistask.fields:
-            f = ttf.taskfield
-            inputfielddata = InputFieldData(
-                field = f,
-                taskcompletion = taskcompletion,
-                value = formdata[f.fieldname]
-            )
-            db.session.add(inputfielddata)
-
-            if f.inputtype == INPUT_TYPE_UPLOAD:
-                file = Files.query.filter_by(fileid=formdata[f.fieldname]).one()
-                file.taskcompletion = taskcompletion
+        create_taskcompletion(thistask, localuser, self.localinterest, formdata)
 
         # TODO: need to add completion date, or status, or display class to the tasks returned
         return self.dte.get_response_data(thistask)

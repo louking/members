@@ -60,6 +60,7 @@ def nav_menu():
                 leadershipadmin.items.append(View('Task Groups', 'admin.taskgroups', interest=g.interest))
                 leadershipadmin.items.append(View('Tasks', 'admin.tasks', interest=g.interest))
                 leadershipadmin.items.append(View('Task Fields', 'admin.taskfields', interest=g.interest))
+                leadershipadmin.items.append(View('History', 'admin.history', interest=g.interest))
 
             # leadership member stuff
             if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)

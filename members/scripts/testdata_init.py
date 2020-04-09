@@ -18,7 +18,7 @@ from members.settings import Development
 from members.model import db
 from members.applogging import setlogging
 from members.model import LocalInterest, Task, TaskGroup, TaskField, TaskTaskField
-from members.model import input_type_all, gen_fieldname, FIELDNAME_ARG, INPUT_TYPE_UPLOAD
+from members.model import input_type_all, gen_fieldname, FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DATE
 from loutilities.user.model import User, Interest
 
 class parameterError(Exception): pass
@@ -67,6 +67,8 @@ with app.app_context():
                                             + '?{}={}'.format(FIELDNAME_ARG, fieldname)
                                          if fieldtype==INPUT_TYPE_UPLOAD else None)
                               )
+        if fieldtype == INPUT_TYPE_DATE:
+            thisfield.override_completion = True
         db.session.add(thisfield)
         db.session.flush()
 

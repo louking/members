@@ -29,7 +29,7 @@ function clear_fields(e) {
     }
 }
 
-function add_field_vals(e, node, data, items, type) {
+function add_field_vals(data) {
     iteminprogress = data;
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
@@ -56,6 +56,18 @@ function clear_field_vals(e) {
         var fieldname = f.fieldname + '-val';
         editor.clear( fieldname )
     }
+}
+
+function set_field_vals() {
+    for (i = 0; i < iteminprogress.addlfields.length; i++) {
+        var f = iteminprogress.addlfields[i];
+        editor.set(f.fieldname, f.value);
+    }
+}
+
+function add_fields_and_set_vals(e, node, data, items, type) {
+    add_fields(e, node, data, items, type);
+    set_field_vals();
 }
 
 function afterdatatables() {
@@ -91,8 +103,8 @@ function afterdatatables() {
         fltr_init();
 
         // add and clear additional fields appropriately
-        editor.on('initEdit', add_field_vals);
-        editor.on('close', clear_field_vals);
+        editor.on('initEdit', add_fields_and_set_vals);
+        editor.on('close', clear_fields);
 
     // special processing for task field configuration
     } else if (location.pathname.includes('/taskfields')) {
