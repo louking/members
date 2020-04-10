@@ -21,6 +21,8 @@ from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
 from .viewhelpers import dtrender, dttimerender
+# this is just to pick up list() function
+from .leadership_tasks_member import fieldupload
 
 from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
@@ -730,6 +732,7 @@ def addlfields(task, member):
                                                         interest=g.interest,
                                                         fileid=value),
                                            target='_blank').render()
+                thistaskfield['fileid'] = value
             taskfields.append(thistaskfield)
     return taskfields
 
@@ -890,6 +893,7 @@ tasksummary = TaskSummary(
                     dbmapping = tasksummary_dbmapping,
                     formmapping = tasksummary_formmapping, 
                     checkrequired = True,
+                    templateargs = {'tablefiles': lambda: fieldupload.list()},
                     clientcolumns = [
                         {'data': 'member', 'name': 'member', 'label': 'Member',
                          'type': 'readonly',

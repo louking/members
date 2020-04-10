@@ -67,7 +67,12 @@ function clear_field_vals(e) {
 function set_field_vals() {
     for (i = 0; i < iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
-        editor.set(f.fieldname, f.value);
+        // upload field value has url, so need to substitute fileid
+        if (!f.hasOwnProperty('fileid')) {
+            editor.set(f.fieldname, f.value);
+        } else {
+            editor.set(f.fieldname, f.fileid);
+        }
     }
 }
 
