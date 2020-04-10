@@ -34,6 +34,7 @@ Base = db.Model
 
 TASK_LEN = 64
 TASKTYPE_LEN = 64
+POSITION_LEN = 64
 TASKGROUP_LEN = 64
 TASKFIELD_LEN = 64
 TASKFIELDNAME_LEN = 16
@@ -46,6 +47,21 @@ URL_LEN = 2047      # https://stackoverflow.com/questions/417142/what-is-the-max
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
+                       Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
+                       )
+
+userposition_table = Table('user_position', Base.metadata,
+                       Column('user_id', Integer, ForeignKey('localuser.id')),
+                       Column('position_id', Integer, ForeignKey('position.id')),
+                       )
+
+positiontaskgroup_table = Table('position_taskgroup', Base.metadata,
+                       Column('position_id', Integer, ForeignKey('position.id')),
+                       Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
+                       )
+
+positionemailgroup_table = Table('position_emailgroup', Base.metadata,
+                       Column('position_id', Integer, ForeignKey('position.id')),
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
                        )
 
@@ -169,6 +185,28 @@ class TaskGroup(Base):
     users               = relationship('LocalUser',
                                        secondary=usertaskgroup_table,
                                        backref=backref('taskgroups'))
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class Position(Base):
+    __tablename__ = 'position'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('positions'))
+    position            = Column(String(POSITION_LEN))
+    description         = Column(String(DESCR_LEN))
+    users               = relationship('LocalUser',
+                                       secondary=userposition_table,
+                                       backref=backref('positions'))
+    taskgroups          = relationship('TaskGroup',
+                                       secondary=positiontaskgroup_table,
+                                       backref=backref('positions'))
+    emailgroups         = relationship('TaskGroup',
+                                       secondary=positionemailgroup_table,
+                                       backref=backref('positionemailgroups'))
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

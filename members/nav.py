@@ -56,7 +56,8 @@ def nav_menu():
                 leadershipadmin = Subgroup('Leadership Admin')
                 navbar.items.append(leadershipadmin)
                 leadershipadmin.items.append(View('Task Summary', 'admin.tasksummary', interest=g.interest))
-                leadershipadmin.items.append(View('Assign Task Groups', 'admin.assigntaskgroups', interest=g.interest))
+                leadershipadmin.items.append(View('Assign Positions', 'admin.assignpositions', interest=g.interest))
+                leadershipadmin.items.append(View('Positions', 'admin.positions', interest=g.interest))
                 leadershipadmin.items.append(View('Task Groups', 'admin.taskgroups', interest=g.interest))
                 leadershipadmin.items.append(View('Tasks', 'admin.tasks', interest=g.interest))
                 leadershipadmin.items.append(View('Task Fields', 'admin.taskfields', interest=g.interest))
@@ -79,7 +80,6 @@ def nav_menu():
             userroles.items.append(View('Roles', 'userrole.roles'))
             userroles.items.append(View('Interests', 'userrole.interests'))
             userroles.items.append(View('Applications', 'userrole.applications'))
-            # navbar.items.append(View('Files', 'userrole.files'))
 
             if g.interest:
                 navbar.items.append(View('Files', 'admin.files', interest=g.interest))

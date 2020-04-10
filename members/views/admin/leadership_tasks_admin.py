@@ -15,7 +15,7 @@ from dominate.tags import a
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
-from ...model import InputFieldData, Files
+from ...model import Position, InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
@@ -584,6 +584,77 @@ taskfield = TaskFieldCrud(
 taskfield.register()
 
 ##########################################################################################
+# positions endpoint
+###########################################################################################
+
+position_dbattrs = 'id,interest_id,position,description,taskgroups,users,emailgroups'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,users,emailgroups'.split(',')
+position_dbmapping = dict(zip(position_dbattrs, position_formfields))
+position_formmapping = dict(zip(position_formfields, position_dbattrs))
+
+position = DbCrudApiInterestsRolePermissions(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = Position,
+                    version_id_col = 'version_id',  # optimistic concurrency control
+                    template = 'datatables.jinja2',
+                    pagename = 'Positions',
+                    endpoint = 'admin.positions',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/positions',
+                    dbmapping = position_dbmapping, 
+                    formmapping = position_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'position', 'name': 'position', 'label': 'Position',
+                         'className': 'field_req',
+                         '_unique': True,
+                         },
+                        {'data': 'description', 'name': 'description', 'label': 'Description',
+                         'type': 'textarea',
+                         },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                        {'data': 'users', 'name': 'users', 'label': 'Users',
+                         '_treatment': {
+                             # viadbattr stores the LocalUser id which has user_id=user.id for each of these
+                             # and pulls the correct users out of User based on LocalUser table
+                             'relationship': {'fieldmodel': User, 'labelfield': 'name',
+                                              'formfield': 'users', 'dbfield': 'users',
+                                              'viadbattr': LocalUser.user_id,
+                                              'viafilter': localinterest_viafilter,
+                                              'queryparams': {'active': True},
+                                              'uselist': True}}
+                         },
+                        {'data': 'emailgroups', 'name': 'emailgroups', 'label': 'Email Groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
+                                              'formfield': 'emailgroups',
+                                              'dbfield': 'emailgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = ['create', 'editRefresh', 'remove', 'csv'],
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+position.register()
+
+##########################################################################################
 # taskgroups endpoint
 ###########################################################################################
 
@@ -648,7 +719,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
 taskgroup.register()
 
 ##########################################################################################
-# usertaskgroups endpoint
+# assignpositions endpoint
 ###########################################################################################
 
 def set_bound_user(formrow):
@@ -659,14 +730,14 @@ def get_bound_user(dbrow):
     user = User.query.filter_by(id=dbrow.user_id).one()
     return user.name
     
-assigntaskgroup_dbattrs = 'id,user_id,taskgroups'.split(',')
-assigntaskgroup_formfields = 'rowid,user_id,taskgroups'.split(',')
-assigntaskgroup_dbmapping = dict(zip(assigntaskgroup_dbattrs, assigntaskgroup_formfields))
-assigntaskgroup_formmapping = dict(zip(assigntaskgroup_formfields, assigntaskgroup_dbattrs))
-assigntaskgroup_dbmapping['user_id'] = set_bound_user
-assigntaskgroup_formmapping['user_id'] = get_bound_user
+assignposition_dbattrs = 'id,user_id,positions,taskgroups'.split(',')
+assignposition_formfields = 'rowid,user_id,positions,taskgroups'.split(',')
+assignposition_dbmapping = dict(zip(assignposition_dbattrs, assignposition_formfields))
+assignposition_formmapping = dict(zip(assignposition_formfields, assignposition_dbattrs))
+assignposition_dbmapping['user_id'] = set_bound_user
+assignposition_formmapping['user_id'] = get_bound_user
 
-assigntaskgroup = DbCrudApiInterestsRolePermissions(
+assignposition = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -675,22 +746,31 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                     version_id_col = 'version_id',  # optimistic concurrency control
                     queryparams = {'active': True},
                     template = 'datatables.jinja2',
-                    pagename = 'Assign Task Groups',
-                    endpoint = 'admin.assigntaskgroups',
+                    pagename = 'Assign Positions',
+                    endpoint = 'admin.assignpositions',
                     endpointvalues={'interest': '<interest>'},
-                    rule = '/<interest>/assigntaskgroups',
-                    dbmapping = assigntaskgroup_dbmapping, 
-                    formmapping = assigntaskgroup_formmapping,
+                    rule = '/<interest>/assignpositions',
+                    dbmapping = assignposition_dbmapping, 
+                    formmapping = assignposition_formmapping,
                     checkrequired = True,
                     clientcolumns = [
                         {'data': 'user_id', 'name': 'user_id', 'label': 'Member',
                          'className': 'field_req',
-                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
                          '_unique': True,
                          },
-                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                        {'data': 'positions', 'name': 'positions', 'label': 'Positions',
+                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
                          '_treatment': {
-                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                             'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
+                                              'dbfield': 'positions', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
+                                              'formfield': 'taskgroups',
                                               'dbfield': 'taskgroups', 'uselist': True,
                                               'queryparams': localinterest_query_params,
                                               }}
@@ -706,7 +786,7 @@ assigntaskgroup = DbCrudApiInterestsRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-assigntaskgroup.register()
+assignposition.register()
 
 ##########################################################################################
 # tasksummary endpoint
