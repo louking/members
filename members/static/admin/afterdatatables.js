@@ -29,37 +29,43 @@ function clear_fields(e) {
     }
 }
 
-function add_field_vals(data) {
+function add_field_vals(data, justtypes) {
     iteminprogress = data;
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
-        // only add display if data was entered previously
-        if (f.hasOwnProperty('value')) {
-            var fieldname = f.fieldname + '-val';
-            editor.add({
-                name:   fieldname,
-                data:   f.fieldname,
-                label:  f.displaylabel + ' (last entry)',
-                type:   f.inputtype !== 'upload' ? 'readonly' : 'display',
-                fieldInfo:  f.fieldInfo,
-                className:  'addlfield',
-                options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
-                // separator ', ' must match loutilities.tables.SEPARATOR
-                // only for checkbox as this is currently only input type which allows multiple selections
-                separator: f.inputtype === 'checkbox' ? ', ' : null,
-            })
-            editor.set(fieldname, f.value);
+
+        if (justtypes == undefined || justtypes.includes(f.inputtype)) {
+            // only add display if data was entered previously
+            if (f.hasOwnProperty('value')) {
+                var fieldname = f.fieldname + '-val';
+                editor.add({
+                    name:   fieldname,
+                    data:   f.fieldname,
+                    label:  f.displaylabel + ' (last entry)',
+                    type:   f.inputtype !== 'upload' ? 'readonly' : 'display',
+                    fieldInfo:  f.fieldInfo,
+                    className:  'addlfield',
+                    options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
+                    // separator ', ' must match loutilities.tables.SEPARATOR
+                    // only for checkbox as this is currently only input type which allows multiple selections
+                    separator: f.inputtype === 'checkbox' ? ', ' : null,
+                })
+                editor.set(fieldname, f.value);
+            }
         }
+
     }
 }
 
-function clear_field_vals(e) {
+function clear_field_vals(e, justtypes) {
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
-        // was only added if data was entered previously
-        if (f.hasOwnProperty('value')) {
-            var fieldname = f.fieldname + '-val';
-            editor.clear( fieldname )
+        if (justtypes == undefined || justtypes.includes(f.inputtype)) {
+            // was only added if data was entered previously
+            if (f.hasOwnProperty('value')) {
+                var fieldname = f.fieldname + '-val';
+                editor.clear(fieldname)
+            }
         }
     }
 }
@@ -76,6 +82,7 @@ function set_field_vals() {
     }
 }
 
+// note this is only called from Task Summary
 function add_fields_and_set_vals(e, node, data, items, type) {
     add_fields(e, node, data, items, type);
     set_field_vals();
@@ -120,8 +127,14 @@ function afterdatatables() {
         fltr_init();
 
         // add and clear additional fields appropriately
-        editor.on('initEdit', add_fields_and_set_vals);
-        editor.on('close', clear_fields);
+        editor.on('initEdit', function (e, node, data, items, type) {
+            add_field_vals(data, ['upload']);
+            add_fields_and_set_vals(e, node, data, items, type);
+        });
+        editor.on('close', function (e) {
+            clear_field_vals(e, ['upload']);
+            clear_fields(e);
+        });
 
     // special processing for task field configuration
     } else if (location.pathname.includes('/taskfields')) {
