@@ -20,7 +20,7 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires
-from .viewhelpers import create_taskcompletion, get_task_completion
+from .viewhelpers import create_taskcompletion, get_task_completion, get_member_tasks
 
 debug = False
 
@@ -177,13 +177,10 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         theserows = []
 
         # collect all the tasks to send to client
-        tasks = set()
-        theuser = self._get_localuser()
+        member = self._get_localuser()
 
-        # first collect all the tasks which apply to this user
-        for taskgroup in theuser.taskgroups:
-            for task in taskgroup.tasks:
-                tasks |= set([task])
+        # collect all the tasks which are referenced by positions and taskgroups for this member
+        tasks = get_member_tasks(member)
 
         for task in iter(tasks):
             theserows.append(task)

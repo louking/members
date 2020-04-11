@@ -20,6 +20,7 @@ from ...model import input_type_all, localinterest_query_params, localinterest_v
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
+from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
 # this is just to pick up list() function
 from .leadership_tasks_member import fieldupload
@@ -783,7 +784,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
 taskgroup.register()
 
 ##########################################################################################
-# assignpositions endpoint
+# assigntasks endpoint
 ###########################################################################################
 
 def set_bound_user(formrow):
@@ -794,14 +795,14 @@ def get_bound_user(dbrow):
     user = User.query.filter_by(id=dbrow.user_id).one()
     return user.name
     
-assignposition_dbattrs = 'id,user_id,positions,taskgroups'.split(',')
-assignposition_formfields = 'rowid,user_id,positions,taskgroups'.split(',')
-assignposition_dbmapping = dict(zip(assignposition_dbattrs, assignposition_formfields))
-assignposition_formmapping = dict(zip(assignposition_formfields, assignposition_dbattrs))
-assignposition_dbmapping['user_id'] = set_bound_user
-assignposition_formmapping['user_id'] = get_bound_user
+assigntask_dbattrs = 'id,user_id,positions,taskgroups'.split(',')
+assigntask_formfields = 'rowid,user_id,positions,taskgroups'.split(',')
+assigntask_dbmapping = dict(zip(assigntask_dbattrs, assigntask_formfields))
+assigntask_formmapping = dict(zip(assigntask_formfields, assigntask_dbattrs))
+assigntask_dbmapping['user_id'] = set_bound_user
+assigntask_formmapping['user_id'] = get_bound_user
 
-assignposition = DbCrudApiInterestsRolePermissions(
+assigntask = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -810,12 +811,12 @@ assignposition = DbCrudApiInterestsRolePermissions(
                     version_id_col = 'version_id',  # optimistic concurrency control
                     queryparams = {'active': True},
                     template = 'datatables.jinja2',
-                    pagename = 'Assign Positions',
-                    endpoint = 'admin.assignpositions',
+                    pagename = 'Assign Tasks',
+                    endpoint = 'admin.assigntasks',
                     endpointvalues={'interest': '<interest>'},
-                    rule = '/<interest>/assignpositions',
-                    dbmapping = assignposition_dbmapping, 
-                    formmapping = assignposition_formmapping,
+                    rule = '/<interest>/assigntasks',
+                    dbmapping = assigntask_dbmapping, 
+                    formmapping = assigntask_formmapping,
                     checkrequired = True,
                     clientcolumns = [
                         {'data': 'user_id', 'name': 'user_id', 'label': 'Member',
@@ -850,7 +851,7 @@ assignposition = DbCrudApiInterestsRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-assignposition.register()
+assigntask.register()
 
 ##########################################################################################
 # tasksummary endpoint
@@ -882,14 +883,15 @@ def addlfields(task, member):
 
 # map id to rowid, retrieve all other required fields
 # no dbmapping because this table is read-only
-tasksummary_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups'.split(',')
-tasksummary_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups'.split(',')
+tasksummary_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
+tasksummary_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
 tasksummary_dbmapping = dict(zip(tasksummary_dbattrs, tasksummary_formfields))
 
 tasksummary_formmapping = {}
 tasksummary_formmapping['rowid'] = 'id'
 tasksummary_formmapping['task_taskgroups'] = 'task_taskgroups'
 tasksummary_formmapping['member_taskgroups'] = 'member_taskgroups'
+tasksummary_formmapping['member_positions'] = 'member_positions'
 tasksummary_formmapping['member'] = lambda tu: tu.member.name
 tasksummary_formmapping['task'] = lambda tu: tu.task.task
 tasksummary_formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
@@ -899,7 +901,7 @@ tasksummary_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
 tasksummary_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
 tasksummary_formmapping['addlfields'] = lambda tu: addlfields(tu.task, tu.member)
 
-class TaskUser():
+class TaskMember():
     '''
     allows creation of "taskuser" object to simulate database behavior
     '''
@@ -911,35 +913,35 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
 
     def open(self):
         locinterest = localinterest()
-        taskgroups = TaskGroup.query.filter_by(interest=locinterest).all()
+        localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
 
-        # collect all the members which are referenced by taskgroups
+        # collect all the members
         localusers = set()
-        for taskgroup in taskgroups:
-            for localuser in taskgroup.users:
-                localusers |= set([localuser])
+        for localuser in localusersdb:
+            localusers |= {localuser}
 
         # retrieve member data from localusers
         members = []
         for localuser in iter(localusers):
             members.append({'localuser':localuser, 'member': User.query.filter_by(id=localuser.user_id).one()})
 
-        tasksusers = []
+        tasksmembers = []
         for member in members:
-            # collect all the tasks which are referenced by taskgroups for this member
-            tasks = set()
-            for taskgroup in member['localuser'].taskgroups:
-                for task in taskgroup.tasks:
-                    tasks |= set([task])
+            # collect all the tasks which are referenced by positions and taskgroups for this member
+            tasks = get_member_tasks(member['localuser'])
+
+            # create/add taskmember to list for all tasks
             for task in iter(tasks):
-                usertaskid = '{};{}'.format(member['localuser'].id, task.id)
-                taskuser = TaskUser(
-                    id=usertaskid,
+                membertaskid = '{};{}'.format(member['localuser'].id, task.id)
+                taskmember = TaskMember(
+                    id=membertaskid,
                     task=task, task_taskgroups=task.taskgroups,
-                    member=member['member'], member_taskgroups=member['localuser'].taskgroups
+                    member=member['member'],
+                    member_positions=member['localuser'].positions,
+                    member_taskgroups=member['localuser'].taskgroups,
                 )
-                tasksusers.append(taskuser)
-        self.rows = iter(tasksusers)
+                tasksmembers.append(taskmember)
+        self.rows = iter(tasksmembers)
 
     def updaterow(self, thisid, formdata):
         '''
@@ -960,10 +962,12 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
 
         member = {'localuser': luser, 'member': User.query.filter_by(id=luser.user_id).one()}
 
-        taskuser = TaskUser(
+        taskuser = TaskMember(
             id=thisid,
             task=task, task_taskgroups=task.taskgroups,
-            member=member['member'], member_taskgroups=member['localuser'].taskgroups
+            member=member['member'],
+            member_positions = member['localuser'].positions,
+            member_taskgroups=member['localuser'].taskgroups,
         )
 
         return self.dte.get_response_data(taskuser)
@@ -985,10 +989,12 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
 
             member = {'localuser': localuser, 'member': User.query.filter_by(id=localuser.user_id).one()}
 
-            taskuser = TaskUser(
+            taskuser = TaskMember(
                 id=thisid,
                 task=task, task_taskgroups=task.taskgroups,
-                member=member['member'], member_taskgroups=member['localuser'].taskgroups
+                member=member['member'],
+                member_positions=member['localuser'].positions,
+                member_taskgroups=member['localuser'].taskgroups,
             )
 
             responsedata.append(self.dte.get_response_data(taskuser))
@@ -1004,9 +1010,10 @@ class ReadOnlySelect2(DteDbRelationship):
 
 filters = filtercontainerdiv()
 filters += filterdiv('members-external-filter-members', 'Member')
+filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
+filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
 filters += filterdiv('members-external-filter-tasks', 'Task')
 filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
-filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
 filters += filterdiv('members-external-filter-statuses', 'Status')
 filters += filterdiv('members-external-filter-completed', 'Last Completed')
 filters += filterdiv('members-external-filter-expires', 'Expires')
@@ -1016,6 +1023,7 @@ tasksummary_yadcf_options = [
     yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
     yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
     yadcfoption('task_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-task', 'multi_select', placeholder='Select task groups', width='200px'),
+    yadcfoption('member_positions.position:name', 'members-external-filter-positions-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
     yadcfoption('member_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
     yadcfoption('status:name', 'members-external-filter-statuses', 'multi_select', placeholder='Select statuses', width='200px'),
     yadcfoption('lastcompleted:name', 'members-external-filter-completed', 'range_date'),
@@ -1060,17 +1068,17 @@ tasksummary = TaskSummary(
                          'type': 'readonly',
                          'className': 'status-field',
                          },
-                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task in Task Groups',
-                         'type': 'readonly',
+                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member in Positions',
+                         # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(
-                                        fieldmodel = TaskGroup, labelfield = 'taskgroup', formfield = 'task_taskgroups',
-                                        dbfield = 'task_taskgroups', uselist = True,
-                                        queryparams = localinterest_query_params,
+                                    fieldmodel = Position, labelfield = 'position',
+                                    formfield = 'member_positions',
+                                    dbfield = 'member_positions', uselist = True,
+                                    queryparams = localinterest_query_params,
                                  )
-
-                            }}
+                             }}
                          },
                         {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member in Task Groups',
                          # 'type': 'readonly',
@@ -1083,6 +1091,18 @@ tasksummary = TaskSummary(
                                     queryparams = localinterest_query_params,
                                  )
                              }}
+                         },
+                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task in Task Groups',
+                         'type': 'readonly',
+                         '_treatment': {
+                             'relationship': {
+                                 'optionspicker' : ReadOnlySelect2(
+                                        fieldmodel = TaskGroup, labelfield = 'taskgroup', formfield = 'task_taskgroups',
+                                        dbfield = 'task_taskgroups', uselist = True,
+                                        queryparams = localinterest_query_params,
+                                 )
+
+                            }}
                          },
                         {'data': 'fields', 'name': 'fields', 'label': 'Add\'l Fields',
                          'type': 'readonly',

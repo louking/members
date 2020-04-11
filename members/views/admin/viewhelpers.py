@@ -131,3 +131,31 @@ def create_taskcompletion(task, localuser, localinterest, formdata):
                 taskcompletion.completion = dtrender.asc2dt(inputfielddata.value)
 
         return taskcompletion
+
+def get_member_tasks(member):
+    '''
+    get all tasks for a member
+    :param member: LocalUser record for member
+    :return: set of tasks
+    '''
+    tasks = set()
+
+    # collect all the tasks which are referenced by positions and taskgroups for this member
+    for position in member.positions:
+        for taskgroup in position.taskgroups:
+            get_tasks(taskgroup, tasks)
+    for taskgroup in member.taskgroups:
+        get_tasks(taskgroup, tasks)
+    return tasks
+
+def get_tasks(taskgroup, tasks):
+    '''
+    get tasks recursively for this task group
+    :param taskgroup: TaskGroup instance
+    :param tasks: input and output set of tasks
+    :return: None
+    '''
+    for task in taskgroup.tasks:
+        tasks |= {task}
+    for taskgroup in taskgroup.taskgroups:
+        get_tasks(taskgroup, tasks)

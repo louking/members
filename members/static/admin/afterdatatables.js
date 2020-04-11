@@ -116,9 +116,10 @@ function afterdatatables() {
     } else if (location.pathname.includes('/tasksummary')) {
         // set up registered filters (id, default for local storage, transient => don't update local storage
         fltr_register('members-external-filter-members', null, true);
+        fltr_register('members-external-filter-positions-by-member', null, true);
+        fltr_register('members-external-filter-taskgroups-by-member', null, true);
         fltr_register('members-external-filter-tasks', null, true);
         fltr_register('members-external-filter-taskgroups-by-task', null, true);
-        fltr_register('members-external-filter-taskgroups-by-member', null, true);
         fltr_register('members-external-filter-statuses', null, true);
         fltr_register('members-external-filter-completed', null, true);
         fltr_register('members-external-filter-expires', null, true);

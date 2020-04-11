@@ -56,7 +56,7 @@ def nav_menu():
                 leadershipadmin = Subgroup('Leadership Admin')
                 navbar.items.append(leadershipadmin)
                 leadershipadmin.items.append(View('Task Summary', 'admin.tasksummary', interest=g.interest))
-                leadershipadmin.items.append(View('Assign Positions', 'admin.assignpositions', interest=g.interest))
+                leadershipadmin.items.append(View('Assign Tasks', 'admin.assigntasks', interest=g.interest))
                 leadershipadmin.items.append(View('Positions', 'admin.positions', interest=g.interest))
                 leadershipadmin.items.append(View('Task Groups', 'admin.taskgroups', interest=g.interest))
                 leadershipadmin.items.append(View('Tasks', 'admin.tasks', interest=g.interest))
