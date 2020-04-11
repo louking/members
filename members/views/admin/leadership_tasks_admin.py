@@ -6,7 +6,7 @@ leadership_tasks_admin - administrative task handling
 from datetime import timedelta
 
 # pypi
-from flask import g, url_for, current_app
+from flask import g, url_for, current_app, request
 from flask_security import current_user
 from sqlalchemy import Enum
 from dominate.tags import a
@@ -615,14 +615,8 @@ position = DbCrudApiInterestsRolePermissions(
                         {'data': 'description', 'name': 'description', 'label': 'Description',
                          'type': 'textarea',
                          },
-                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
-                         '_treatment': {
-                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
-                                              'dbfield': 'taskgroups', 'uselist': True,
-                                              'queryparams': localinterest_query_params,
-                                              }}
-                         },
-                        {'data': 'users', 'name': 'users', 'label': 'Users',
+                        {'data': 'users', 'name': 'users', 'label': 'Members',
+                         'fieldInfo': 'members who hold this position',
                          '_treatment': {
                              # viadbattr stores the LocalUser id which has user_id=user.id for each of these
                              # and pulls the correct users out of User based on LocalUser table
@@ -633,7 +627,16 @@ position = DbCrudApiInterestsRolePermissions(
                                               'queryparams': {'active': True},
                                               'uselist': True}}
                          },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         'fieldInfo': 'members who hold this position must do tasks within these groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
                         {'data': 'emailgroups', 'name': 'emailgroups', 'label': 'Email Groups',
+                         'fieldInfo': 'members holding this position receive summary emails about other members configured with these groups',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
                                               'formfield': 'emailgroups',
@@ -658,8 +661,54 @@ position.register()
 # taskgroups endpoint
 ###########################################################################################
 
-taskgroup_dbattrs = 'id,interest_id,taskgroup,description,tasks,users'.split(',')
-taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,users'.split(',')
+def _validate_branch(taskgroup, branchlist):
+    '''
+    recursively check if this taskgroup in branchlist -- if it is, there's an error
+
+    :param taskgroup: task group to check
+    :param branchlist: list of task groups so far in this branch
+    :return: results error list
+    '''
+    results = []
+    if taskgroup.id in branchlist:
+        branchnames = ', '.join(["'{}'".format(TaskGroup.query.filter_by(id=id).one().taskgroup) for id in branchlist])
+        results = [{'name': 'taskgroups.id', 'status': 'task group loop found: \'{}\' repeated following {}'.format(taskgroup.taskgroup, branchnames)}]
+
+    else:
+        thisbranch = branchlist + [taskgroup.id]
+        for tg in taskgroup.taskgroups:
+            results = _validate_branch(tg, thisbranch)
+            if results: break
+
+    return results
+
+def _validate_taskgroup(action, formdata):
+    results = []
+
+    # NOTE: only using from 'create', 'edit' functions, so assuming there will be only one id
+    if action == 'create':
+        initialbranch = []
+    elif action == 'edit':
+        # kludge to get referenced taskgroup.id
+        thisid = int(list(get_request_data(request.form).keys())[0])
+        initialbranch = [thisid]
+    else:
+        return results
+
+    # recursively look through all task groups this task group refers to
+    # if the any task group is referenced more than once on a branch then we have a loop
+    # stop at first problem
+    for tgid in formdata['taskgroups']['id'].split(SEPARATOR):
+        # if empty string, no ids were supplied
+        if tgid == '': break
+        taskgroup = TaskGroup.query.filter_by(id=tgid).one()
+        results = _validate_branch(taskgroup, initialbranch)
+        if results: break
+
+    return results
+
+taskgroup_dbattrs = 'id,interest_id,taskgroup,description,tasks,positions,users,taskgroups'.split(',')
+taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,positions,users,taskgroups'.split(',')
 taskgroup_dbmapping = dict(zip(taskgroup_dbattrs, taskgroup_formfields))
 taskgroup_formmapping = dict(zip(taskgroup_formfields, taskgroup_dbattrs))
 
@@ -678,6 +727,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                     dbmapping = taskgroup_dbmapping, 
                     formmapping = taskgroup_formmapping,
                     checkrequired = True,
+                    validate = _validate_taskgroup,
                     clientcolumns = [
                         {'data': 'taskgroup', 'name': 'taskgroup', 'label': 'Task Group',
                          'className': 'field_req',
@@ -687,10 +737,24 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                         {'data': 'description', 'name': 'description', 'label': 'Description',
                          'className': 'field_req',
                          },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
                         {'data': 'tasks', 'name': 'tasks', 'label': 'Tasks',
                          '_treatment': {
                              'relationship': {'fieldmodel': Task, 'labelfield': 'task', 'formfield': 'tasks',
                                               'dbfield': 'tasks', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                        {'data': 'positions', 'name': 'positions', 'label': 'Positions',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
+                                              'dbfield': 'positions', 'uselist': True,
                                               'queryparams': localinterest_query_params,
                                               }}
                          },

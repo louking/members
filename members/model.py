@@ -179,6 +179,9 @@ class TaskGroup(Base):
     interest            = relationship('LocalInterest', backref=backref('taskgroups'))
     taskgroup           = Column(String(TASKGROUP_LEN))
     description         = Column(String(DESCR_LEN))
+    parent_id           = Column(Integer, ForeignKey('taskgroup.id'))
+    taskgroups          = relationship('TaskGroup')
+
     tasks               = relationship('Task',
                                        secondary=tasktaskgroup_table,
                                        backref=backref('taskgroups'))
