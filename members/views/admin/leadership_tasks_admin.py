@@ -431,8 +431,8 @@ def task_validate(action, formdata):
 
     return results
 
-task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,fields'.split(',')
+task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,taskgroups,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,taskgroups,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 DAYS_PER_PERIOD = 7
@@ -476,6 +476,15 @@ task = AssociationCrudApi(
                          'className': 'field_req',
                          'fieldInfo': '<a href=https://daringfireball.net/projects/markdown/syntax target=_blank>Markdown</a>' +
                                       ' can be used. Click link for syntax'
+                         },
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
+                                              'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                         {'data': 'expirysoon', 'name': 'expirysoon', 'label': 'Expires Soon (weeks)',
                          'fieldInfo': 'number of weeks before task expires to start indicating "expires soon"',
