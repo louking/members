@@ -22,6 +22,8 @@ from .viewhelpers import lastcompleted, get_status, get_order, get_expires, loca
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
 from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
+from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY
+
 # this is just to pick up list() function
 from .leadership_tasks_member import fieldupload
 
@@ -407,14 +409,43 @@ class AssociationCrudApi(DbCrudApiInterestsRolePermissions):
             self._fielderrors = [{'name': 'fields.id', 'get_status': '{} fields were found in more than one category'.format(dupnames)}]
             raise ParameterError
 
+def task_validate(action, formdata):
+    results = []
 
-task_dbattrs = 'id,interest_id,task,description,priority,period,isoptional,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,period,isoptional,fields'.split(',')
+    # TODO: remove this when #51 fixed
+    from re import compile
+    # datepattern = '^(19|20)\d\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$'
+    datepattern = compile('^(0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
+    if formdata['dateofyear'] and not datepattern.match(formdata['dateofyear']):
+        results.append({'name': 'dateofyear', 'status': 'must be formatted as MM-DD'})
+
+    # if both of these are set, they will conflict with each other
+    if formdata['period'] and formdata['dateofyear']:
+        results.append({'name': 'period', 'status': 'only one of these should be supplied'})
+        results.append({'name': 'dateofyear', 'status': 'only one of these should be supplied'})
+
+    # expirysoon is needed for nonoptional tasks which have a period or dateofyear
+    if formdata['isoptional'] != 'yes' and (formdata['period'] or formdata['dateofyear']):
+        if not formdata['expirysoon']:
+            results.append({'name': 'expirysoon', 'status': 'please supply'})
+
+    return results
+
+task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 DAYS_PER_PERIOD = 7
 task_dbmapping['period'] = lambda formrow: timedelta(int(formrow['period'])*DAYS_PER_PERIOD) if formrow['period'] else None
 task_formmapping['period'] = lambda dbrow: dbrow.period.days // DAYS_PER_PERIOD if dbrow.period else None
+task_dbmapping['expirysoon'] = lambda formrow: timedelta(int(formrow['expirysoon'])*DAYS_PER_PERIOD) if formrow['expirysoon'] else None
+task_formmapping['expirysoon'] = lambda dbrow: dbrow.expirysoon.days // DAYS_PER_PERIOD if dbrow.expirysoon else None
+task_dbmapping['expirystarts'] = lambda formrow: timedelta(int(formrow['expirystarts'])*DAYS_PER_PERIOD) if formrow['expirystarts'] else None
+task_formmapping['expirystarts'] = lambda dbrow: dbrow.expirystarts.days // DAYS_PER_PERIOD if dbrow.expirystarts else None
+# only take mm-dd portion of date into database
+# TODO: uncommend these when #51 fixed
+# task_dbmapping['dateofyear'] = lambda formrow: formrow['dateofyear'][-5:] if formrow['dateofyear'] else None
+# task_formmapping['dateofyear'] = lambda dbrow: '{}-{}'.format(date.today().year, dbrow.dateofyear) if dbrow.dateofyear else None
 
 task = AssociationCrudApi(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
@@ -433,6 +464,7 @@ task = AssociationCrudApi(
                     dbmapping = task_dbmapping, 
                     formmapping = task_formmapping, 
                     checkrequired = True,
+                    validate = task_validate,
                     clientcolumns = [
                         {'data': 'task', 'name': 'task', 'label': 'Task',
                          'className': 'field_req',
@@ -444,6 +476,10 @@ task = AssociationCrudApi(
                          'className': 'field_req',
                          'fieldInfo': '<a href=https://daringfireball.net/projects/markdown/syntax target=_blank>Markdown</a>' +
                                       ' can be used. Click link for syntax'
+                         },
+                        {'data': 'expirysoon', 'name': 'expirysoon', 'label': 'Expires Soon (weeks)',
+                         'fieldInfo': 'number of weeks before task expires to start indicating "expires soon"',
+                         'ed': {'def': EXPIRES_SOON / PERIOD_WINDOW_DISPLAY}
                          },
                         {'data': 'fields', 'name': 'fields', 'label': 'Fields',
                          '_treatment': {
@@ -463,7 +499,19 @@ task = AssociationCrudApi(
                              }}
                          },
                         {'data': 'period', 'name': 'period', 'label': 'Period (weeks)',
-                         'fieldInfo': 'leave blank if this task doesn\'t need to be done periodically'
+                         'fieldInfo': 'Period or Date of Year may be specified. Leave blank if this task doesn\'t need to be done periodically'
+                         },
+                        {'data': 'dateofyear', 'name': 'dateofyear', 'label': 'Date of Year',
+                         # TODO: uncomment these when #51 fixed
+                         # 'type': 'datetime',
+                         # 'render': {'eval': 'render_month_date'},
+                         # 'ed': {'displayFormat': 'MM-DD', 'wireFormat':'YYYY-MM-DD', 'def': None},
+                         'fieldInfo': 'Period or Date of Year may be specified. Leave blank if this task doesn\'t need to be done by a particular date',
+                         # TODO: remove this when #51 fixed
+                         'ed': {'label': 'Date of Year (mm-dd)'},
+                         },
+                        {'data': 'expirystarts', 'name': 'expirystarts', 'label': 'Overdue Starts (weeks)',
+                         'fieldInfo': 'only used if Date of Year specified. number of weeks after task expires to start indicating "overdue"'
                          },
                         {'data': 'isoptional', 'name': 'isoptional', 'label': 'Optional Task',
                          '_treatment': {'boolean': {'formfield': 'isoptional', 'dbfield': 'isoptional'}},

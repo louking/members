@@ -22,3 +22,11 @@ function dismiss_button() {
 function submit_button() {
     this.submit();
 }
+
+function render_month_date(data, type, row, meta) {
+    if (data) {
+        return data.slice(-5)
+    } else {
+        return data
+    }
+}

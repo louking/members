@@ -44,6 +44,7 @@ DISPLAYVALUE_LEN = 1024
 FIELDINFO_LEN = 128
 FIELDOPTIONS_LEN = 2048
 URL_LEN = 2047      # https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
+DOY_LEN = 5         # mm-dd
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -122,7 +123,10 @@ class Task(Base):
     task                = Column(String(TASK_LEN))
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
-    period              = Column(Interval())
+    expirysoon          = Column(Interval)
+    period              = Column(Interval)          # period or dateofyear, not both
+    dateofyear          = Column(String(DOY_LEN))   # mm-dd
+    expirystarts        = Column(Interval)          # only used if dateofyear specified
     isoptional          = Column(Boolean)
     fields              = relationship('TaskTaskField',
                                        back_populates='task')
