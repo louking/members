@@ -118,15 +118,15 @@ def _get_expiration(task, taskcompletion):
             if debug: current_app.logger.debug('not completed: today {} doy {} windowstarts {} windowends {}'.format(todaymmdd, task.dateofyear,
                                                                          windowstarts.isoformat(),
                                                                          windowends.isoformat()))
-            # if today is before dayofyear, then expires this year
-            if todaymmdd <= task.dateofyear:
-                theyear = today.year
 
-            # if today and dateofyear in different year, expired last year
-            else:
-                theyear = today.year - 1
+            # we want the dateofyear / year to fall within the window
+            theyear = windowstarts.year
+            expiry = date(theyear, month, day)
+            while expiry < windowstarts:
+                theyear += 1
+                expiry = date(theyear, month, day)
 
-            return date(theyear, month, day).isoformat()
+            return expiry.isoformat()
 
         else:
             completion = taskcompletion.completion
