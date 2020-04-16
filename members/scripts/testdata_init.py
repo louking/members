@@ -115,37 +115,39 @@ with app.app_context():
     todayplus = today + timedelta(10)
     compls.append(todayplus.isoformat()[-5:])
 
-    for doytest in doytests:
-        for compl in compls:
-            tasktext = 'Task compl {} (for {})'.format(compl, doytest)
-            thistask = Task(task=tasktext,
-                            description='Task compl {} (for {})'.format(compl, doytest),
-                            interest=localtestinterest,
-                            dateofyear=doytest,
-                            isoptional=False,
-                            priority=1,
-                            expirystarts=timedelta(39*7),
-                            expirysoon=timedelta(8*7),
-                            )
-            db.session.add(thistask)
-            db.session.flush()
-            doytaskgroup.tasks.append(thistask)
+    do_doytests = False
+    if do_doytests:
+        for doytest in doytests:
+            for compl in compls:
+                tasktext = 'Task compl {} (for {})'.format(compl, doytest)
+                thistask = Task(task=tasktext,
+                                description='Task compl {} (for {})'.format(compl, doytest),
+                                interest=localtestinterest,
+                                dateofyear=doytest,
+                                isoptional=False,
+                                priority=1,
+                                expirystarts=timedelta(39*7),
+                                expirysoon=timedelta(8*7),
+                                )
+                db.session.add(thistask)
+                db.session.flush()
+                doytaskgroup.tasks.append(thistask)
 
-            taskmonth, taskday = [int(md) for md in doytest.split('-')]
-            if compl:
-                complmonth, complday = [int(md) for md in compl.split('-')]
-                if compl <= todaymmdd:
-                    year = today.year
-                else:
-                    year = today.year - 1
-                taskcompletion = TaskCompletion(
-                    interest=localtestinterest,
-                    task=thistask,
-                    user=localtestuser,
-                    update_time = datetime.now(),
-                    updated_by=localtestuser.id,
-                    completion = datetime(year, complmonth, complday)
-                )
-                db.session.add(taskcompletion)
+                taskmonth, taskday = [int(md) for md in doytest.split('-')]
+                if compl:
+                    complmonth, complday = [int(md) for md in compl.split('-')]
+                    if compl <= todaymmdd:
+                        year = today.year
+                    else:
+                        year = today.year - 1
+                    taskcompletion = TaskCompletion(
+                        interest=localtestinterest,
+                        task=thistask,
+                        user=localtestuser,
+                        update_time = datetime.now(),
+                        updated_by=localtestuser.id,
+                        completion = datetime(year, complmonth, complday)
+                    )
+                    db.session.add(taskcompletion)
 
     db.session.commit()
