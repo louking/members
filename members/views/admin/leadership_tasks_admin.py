@@ -730,7 +730,7 @@ def _validate_branch(taskgroup, branchlist):
     results = []
     if taskgroup.id in branchlist:
         branchnames = ', '.join(["'{}'".format(TaskGroup.query.filter_by(id=id).one().taskgroup) for id in branchlist])
-        results = [{'name': 'taskgroups.id', 'status': 'task group loop found: \'{}\' repeated following {}'.format(taskgroup.taskgroup, branchnames)}]
+        results = [{'name': 'tgtaskgroups.id', 'status': 'task group loop found: \'{}\' repeated following {}'.format(taskgroup.taskgroup, branchnames)}]
 
     else:
         thisbranch = branchlist + [taskgroup.id]
@@ -756,7 +756,7 @@ def _validate_taskgroup(action, formdata):
     # recursively look through all task groups this task group refers to
     # if the any task group is referenced more than once on a branch then we have a loop
     # stop at first problem
-    for tgid in formdata['taskgroups']['id'].split(SEPARATOR):
+    for tgid in formdata['tgtaskgroups']['id'].split(SEPARATOR):
         # if empty string, no ids were supplied
         if tgid == '': break
         taskgroup = TaskGroup.query.filter_by(id=tgid).one()
@@ -766,7 +766,7 @@ def _validate_taskgroup(action, formdata):
     return results
 
 taskgroup_dbattrs = 'id,interest_id,taskgroup,description,tasks,positions,users,taskgroups'.split(',')
-taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,positions,users,taskgroups'.split(',')
+taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,positions,users,tgtaskgroups'.split(',')
 taskgroup_dbmapping = dict(zip(taskgroup_dbattrs, taskgroup_formfields))
 taskgroup_formmapping = dict(zip(taskgroup_formfields, taskgroup_dbattrs))
 
@@ -795,9 +795,11 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                         {'data': 'description', 'name': 'description', 'label': 'Description',
                          'className': 'field_req',
                          },
-                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                        # note name tgtaskgroups rather than taskgroups to avoid conflict with name in tasks subform
+                        # see also #55
+                        {'data': 'tgtaskgroups', 'name': 'tgtaskgroups', 'label': 'Task Groups',
                          '_treatment': {
-                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'taskgroups',
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup', 'formfield': 'tgtaskgroups',
                                               'dbfield': 'taskgroups', 'uselist': True,
                                               'queryparams': localinterest_query_params,
                                               }}
