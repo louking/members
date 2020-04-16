@@ -809,6 +809,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                              'relationship': {'fieldmodel': Task, 'labelfield': 'task', 'formfield': 'tasks',
                                               'dbfield': 'tasks', 'uselist': True,
                                               'queryparams': localinterest_query_params,
+                                              'editable' : { 'api' : task },
                                               }}
                          },
                         {'data': 'positions', 'name': 'positions', 'label': 'Positions',

@@ -80,6 +80,7 @@ frontend_common_js = Bundle(
 
     'utils.js', # from loutilities
 
+    'editor.select2.mymethods.js',          # from loutilities
     'datatables.js',                        # from loutilities
     'datatables.dataRender.ellipsis.js',    # from loutilities
     'datatables.dataRender.datetime.js',    # from loutilities
@@ -168,6 +169,7 @@ asset_bundles = {
         # must be before datatables
         'admin/beforedatatables.js',
 
+        'editor.select2.mymethods.js',  # from loutilities
         'datatables.js',                        # from loutilities
         'datatables.dataRender.ellipsis.js',    # from loutilities
         'datatables.dataRender.datetime.js',    # from loutilities
