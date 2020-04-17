@@ -150,10 +150,33 @@ function afterdatatables() {
     // special processing for task field configuration
     } else if (location.pathname.includes('/taskfields')) {
         editor.dependent( 'inputtype', function(val, data, callback) {
-            // show field options only if inputtype is one of the following values
-            return hasoptions.includes(val) ?
-                { show: 'fieldoptions' } :
-                { hide: 'fieldoptions' }
+            var show = [];
+            var hide = [];
+
+            // show fieldoptions only if inputtype is one of the values in hasoptions
+            if (hasoptions.includes(val)) {
+                show.push('fieldoptions');
+            } else {
+                hide.push('fieldoptions');
+            }
+
+            // display only field specifics
+            if (val === 'display') {
+                show.push('displayvalue');
+                hide.push('fieldinfo');
+            } else {
+                hide.push('displayvalue');
+                show.push('fieldinfo');
+            }
+
+            // datetime field specifics
+            if (val === 'datetime') {
+                show.push('override_completion');
+            } else {
+                hide.push('override_completion');
+            }
+
+            return { show: show, hide: hide }
         } )
 
         // force update of options

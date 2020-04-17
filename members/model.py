@@ -139,6 +139,7 @@ class Task(Base):
 # note InputType spans across Interests
 # entries must be coordinated with code which supports each type
 # types must be defined by editor as field type, e.g., see https://editor.datatables.net/reference/field/
+# NOTE: if the text for any of these change or new ones are added, may need to update /static/admin/afterdatatables.js
 INPUT_TYPE_CHECKBOX = 'checkbox'
 INPUT_TYPE_RADIO = 'radio'
 INPUT_TYPE_SELECT2 = 'select2'

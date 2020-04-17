@@ -17,7 +17,7 @@ from ...model import db
 from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
 from ...model import Position, InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
-from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD
+from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
 from .viewhelpers import get_member_tasks
@@ -618,7 +618,8 @@ taskfield = TaskFieldCrud(
                         {'data': 'fieldinfo', 'name': 'fieldinfo', 'label': 'Field Hint',
                          'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
                          },
-                        {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea'},
+                        {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea',
+                         'fieldInfo': 'text to display for {} Input Type (display-only)'.format(INPUT_TYPE_DISPLAY)},
                         {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
                          },
                         {'data': 'uploadurl', 'name': 'uploadurl', 'label': 'Upload URL', 'type': 'readonly'
