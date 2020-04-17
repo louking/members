@@ -1096,15 +1096,15 @@ def tasksummary_validate(action, formdata):
 
     return results
 
-filters = filtercontainerdiv()
-filters += filterdiv('members-external-filter-members', 'Member')
-filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
-filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
-filters += filterdiv('members-external-filter-tasks', 'Task')
-filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
-filters += filterdiv('members-external-filter-statuses', 'Status')
-filters += filterdiv('members-external-filter-completed', 'Last Completed')
-filters += filterdiv('members-external-filter-expires', 'Expires')
+tasksummary_filters = filtercontainerdiv()
+tasksummary_filters += filterdiv('members-external-filter-members', 'Member')
+tasksummary_filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
+tasksummary_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
+tasksummary_filters += filterdiv('members-external-filter-tasks', 'Task')
+tasksummary_filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
+tasksummary_filters += filterdiv('members-external-filter-statuses', 'Status')
+tasksummary_filters += filterdiv('members-external-filter-completed', 'Last Completed')
+tasksummary_filters += filterdiv('members-external-filter-expires', 'Expires')
 
 membercol = 1
 tasksummary_yadcf_options = [
@@ -1125,7 +1125,8 @@ tasksummary = TaskSummary(
                     db = db,
                     model = Task,
                     template = 'datatables.jinja2',
-                    pretablehtml = filters,
+                    pretablehtml = tasksummary_filters,
+                    yadcfoptions=tasksummary_yadcf_options,
                     pagename = 'Task Summary',
                     endpoint = 'admin.tasksummary',
                     endpointvalues={'interest': '<interest>'},
@@ -1231,7 +1232,6 @@ tasksummary = TaskSummary(
                                 }
                             }
                     },
-                    yadcfoptions=tasksummary_yadcf_options,
                 )
 tasksummary.register()
 
@@ -1250,6 +1250,21 @@ history_formmapping['completion'] = lambda tc: dtrender.dt2asc(tc.completion)
 history_formmapping['update_time'] = lambda tc: dttimerender.dt2asc(tc.update_time)
 history_formmapping['updated_by'] = lambda tc: localuser2user(tc.updated_by).name
 
+history_filters = filtercontainerdiv()
+history_filters += filterdiv('members-external-filter-update-time', 'Update Time')
+history_filters += filterdiv('members-external-filter-updated-by', 'Updated By')
+history_filters += filterdiv('members-external-filter-members', 'Member')
+history_filters += filterdiv('members-external-filter-tasks', 'Task')
+history_filters += filterdiv('members-external-filter-completed', 'Completed')
+
+history_yadcf_options = [
+    yadcfoption('update_time:name', 'members-external-filter-update-time', 'range_date'),
+    yadcfoption('updated_by:name', 'members-external-filter-updated-by', 'multi_select', placeholder='Select who updated', width='150px'),
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
+    yadcfoption('completion:name', 'members-external-filter-completed', 'range_date'),
+]
+
 history = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
@@ -1257,6 +1272,8 @@ history = DbCrudApiInterestsRolePermissions(
                     db = db,
                     model = TaskCompletion,
                     template = 'datatables.jinja2',
+                    pretablehtml = history_filters,
+                    yadcfoptions=history_yadcf_options,
                     pagename = 'History',
                     endpoint = 'admin.history',
                     endpointvalues={'interest': '<interest>'},

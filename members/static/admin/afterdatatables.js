@@ -184,5 +184,16 @@ function afterdatatables() {
             editor.field('fieldoptions').update(data.fieldoptions);
             editor.field('fieldoptions').val(data.fieldoptions);
         })
+
+    } else if (location.pathname.includes('/history')) {
+        // set up registered filters (id, default for local storage, transient => don't update local storage
+        fltr_register('members-external-filter-update-time', null, true);
+        fltr_register('members-external-filter-updated-by', null, true);
+        fltr_register('members-external-filter-members', null, true);
+        fltr_register('members-external-filter-tasks', null, true);
+        fltr_register('members-external-filter-completed', null, true);
+
+        // initialize all the filters
+        fltr_init();
     }
 }
