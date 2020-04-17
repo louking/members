@@ -18,7 +18,10 @@ function add_fields(e, node, data, items, type) {
             separator: f.inputtype === 'checkbox' ? ', ' : null,
             ajax: f.uploadurl,
             display: (f.inputtype === 'upload') ? renderfileid() : null,
-        })
+        });
+        if (f.inputtype === 'display') {
+            editor.set(f.fieldname, f.displayvalue);
+        }
     }
 }
 
@@ -33,6 +36,9 @@ function add_field_vals(data, justtypes) {
     iteminprogress = data;
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
+
+        // don't show display-only data
+        if (f.inputtype == 'display') { continue; }
 
         if (justtypes == undefined || justtypes.includes(f.inputtype)) {
             // only add display if data was entered previously
@@ -60,6 +66,10 @@ function add_field_vals(data, justtypes) {
 function clear_field_vals(e, justtypes) {
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
+
+        // don't show display-only data
+        if (f.inputtype == 'display') { continue; }
+
         if (justtypes == undefined || justtypes.includes(f.inputtype)) {
             // was only added if data was entered previously
             if (f.hasOwnProperty('value')) {

@@ -15,7 +15,7 @@ from dominate.tags import a
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
-from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD
+from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -216,6 +216,9 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         override_completion = []
         for tasktaskfield in thistask.fields:
             taskfield = tasktaskfield.taskfield
+            # ignore display-only fields
+            if taskfield.inputtype == INPUT_TYPE_DISPLAY:
+                continue
             if tasktaskfield.need == NEED_REQUIRED:
                 required.append(taskfield.fieldname)
             elif tasktaskfield.need == NEED_ONE_OF:

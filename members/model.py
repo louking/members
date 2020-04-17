@@ -146,9 +146,10 @@ INPUT_TYPE_TEXT = 'text'
 INPUT_TYPE_TEXTAREA = 'textarea'
 INPUT_TYPE_UPLOAD = 'upload'
 INPUT_TYPE_DATE = 'datetime'
+INPUT_TYPE_DISPLAY = 'display'
 input_type_all = (INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2,
                   INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA, INPUT_TYPE_UPLOAD,
-                  INPUT_TYPE_DATE)
+                  INPUT_TYPE_DATE, INPUT_TYPE_DISPLAY)
 INPUT_VALUE_LEN = 4096
 FIELDNAME_ARG = 'fieldname'
 
@@ -160,9 +161,9 @@ class TaskField(Base):
     taskfield           = Column(String(TASKFIELD_LEN))
     fieldname           = Column(String(TASKFIELDNAME_LEN))
     displaylabel        = Column(String(DISPLAYLABEL_LEN))
-    # either displayvalue or inputtype should be set, not both
-    displayvalue        = Column(String(DISPLAYVALUE_LEN))
     inputtype           = Column(Enum(*input_type_all), nullable=True)
+    # if inputtype == 'display' displayvalue must be set
+    displayvalue        = Column(String(DISPLAYVALUE_LEN))
     fieldinfo           = Column(String(FIELDINFO_LEN))
     fieldoptions        = Column(String(FIELDOPTIONS_LEN))
     uploadurl           = Column(String(URL_LEN)) # (upload)
