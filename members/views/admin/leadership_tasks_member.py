@@ -4,6 +4,7 @@ leadership_tasks_member - member task handling
 '''
 
 # standard
+from datetime import date
 
 # pypi
 from flask import g, current_app, request, url_for
@@ -212,12 +213,15 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         # build lists of required and shared fields
         required = []
         one_of = []
+        override_completion = []
         for tasktaskfield in thistask.fields:
             taskfield = tasktaskfield.taskfield
             if tasktaskfield.need == NEED_REQUIRED:
                 required.append(taskfield.fieldname)
             elif tasktaskfield.need == NEED_ONE_OF:
                 one_of.append(taskfield.fieldname)
+            if taskfield.override_completion:
+                override_completion.append(taskfield.fieldname)
 
         # verify required fields were supplied
         for field in required:
@@ -232,6 +236,11 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         if not onefound:
             for field in one_of:
                 results.append({'name':field, 'status': 'one of these must be supplied'})
+
+        # verify fields which override completion date (should only be one if configured properly)
+        for field in override_completion:
+            if formdata[field] > date.today().isoformat():
+                results.append({'name':field, 'status': 'cannot specify date later than today'})
 
         return results
 

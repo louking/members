@@ -3,7 +3,7 @@ leadership_tasks_admin - administrative task handling
 ===========================================
 '''
 # standard
-from datetime import timedelta
+from datetime import timedelta, date
 
 # pypi
 from flask import g, url_for, current_app, request
@@ -1068,6 +1068,33 @@ class ReadOnlySelect2(DteDbRelationship):
         col['opts']['disabled'] = True
         return col
 
+def tasksummary_validate(action, formdata):
+    results = []
+
+    # kludge to get task.id
+    # NOTE: this is only called from 'edit' / put function, and there will be only one id
+    thisid = list(get_request_data(request.form).keys())[0]
+
+    # id is made up of localuser.id, task.id
+    localuserid, taskid = thisid.split(';')
+    task = Task.query.filter_by(id=taskid).one()
+
+    # build list of fields which could override completion date (should only be one)
+    override_completion = []
+    for tasktaskfield in task.fields:
+        taskfield = tasktaskfield.taskfield
+        if taskfield.override_completion:
+            override_completion.append(taskfield.fieldname)
+
+    for field in override_completion:
+        if formdata[field] > date.today().isoformat():
+            results.append({'name':field, 'status': 'cannot specify date later than today'})
+
+    if formdata['lastcompleted'] > date.today().isoformat():
+        results.append({'name':'lastcompleted', 'status': 'cannot specify date later than today'})
+
+    return results
+
 filters = filtercontainerdiv()
 filters += filterdiv('members-external-filter-members', 'Member')
 filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
@@ -1105,6 +1132,7 @@ tasksummary = TaskSummary(
                     dbmapping = tasksummary_dbmapping,
                     formmapping = tasksummary_formmapping, 
                     checkrequired = True,
+                    validate = tasksummary_validate,
                     templateargs = {'tablefiles': lambda: fieldupload.list()},
                     clientcolumns = [
                         {'data': 'member', 'name': 'member', 'label': 'Member',
@@ -1123,6 +1151,7 @@ tasksummary = TaskSummary(
                          },
                         {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
                          'type': 'datetime',
+                         # 'ed': {'opts':{'maxDate':date.today().isoformat()}}
                          },
                         {'data': 'expires', 'name': 'expires', 'label': 'Expires',
                          'type': 'readonly',
