@@ -1,12 +1,3 @@
-###########################################################################################
-# members_init - command line database initialization - clean database initialize tasks
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       12/20/18        Lou King        Create
-#
-#   Copyright 2018 Lou King.  All rights reserved
-###########################################################################################
 '''
 members_init - command line database initialization - clean database initialize tasks
 =========================================================================================
