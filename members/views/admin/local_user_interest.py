@@ -15,8 +15,8 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN
 # interestattrs endpoint
 ###########################################################################################
 
-interestattr_dbattrs = 'id,__readonly__,initial_expiration'.split(',')
-interestattr_formfields = 'rowid,interest,initial_expiration'.split(',')
+interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email'.split(',')
+interestattr_formfields = 'rowid,interest,initial_expiration,from_email'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
 
@@ -43,6 +43,10 @@ interestattr = DbCrudApiRolePermissions(
                          'fieldInfo': 'Expiration date displayed when task was never completed',
                          'className': 'field_req',
                          'type': 'datetime',
+                         },
+                        {'data': 'from_email', 'name': 'from_email', 'label': 'From Email',
+                         'fieldInfo': 'Email address from which automated messages are sent',
+                         'className': 'field_req',
                          },
                     ],
                     servercolumns = None,  # not server side

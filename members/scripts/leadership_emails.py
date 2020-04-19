@@ -108,8 +108,7 @@ def main():
         for member in mem2tasks:
             mem2tasks[member]['tasks'].sort(key=lambda t: t['order'])
 
-        # TODO: add to interestattributes table #59
-        fromlist = 'fsrc.kiosk@gmail.com'
+        fromlist = localinterest().from_email
 
         # allows for debugging of each section separately
         if not args.nomembers:

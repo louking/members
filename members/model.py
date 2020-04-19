@@ -8,7 +8,7 @@ from flask import g
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
-from loutilities.user.model import db, ManageLocalTables
+from loutilities.user.model import db, ManageLocalTables, EMAIL_LEN
 from loutilities.user.tablefiles import FilesMixin
 
 # set up database - SQLAlchemy() must be done after app.config SQLALCHEMY_* assignments
@@ -112,6 +112,7 @@ class LocalInterest(Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer)
     initial_expiration  = Column(Date)
+    from_email          = Column(String(EMAIL_LEN))
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

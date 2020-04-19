@@ -50,6 +50,7 @@ with app.app_context():
     localtestinterest = LocalInterest.query.filter_by(interest_id=testinterest.id).one()
     localtestuser = LocalUser.query.filter_by(user_id=testuser.id, interest_id=localtestinterest.id).one()
     localtestinterest.initial_expiration = date(2020, 4, 1)
+    localtestinterest.from_email = "volunteer@steeplechasers.org"
 
     eventaskgroup = TaskGroup(taskgroup='Even Tasks', description='even tasks description', interest=localtestinterest)
     db.session.add(eventaskgroup)
