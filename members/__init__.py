@@ -1,12 +1,7 @@
-###########################################################################################
-# runningroutes - package
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       12/04/19        Lou King        Create
-#
-#   Copyright 2019 Lou King.  All rights reserved
-###########################################################################################
+'''
+members - package
+====================
+'''
 
 # standard
 import os.path
@@ -117,7 +112,7 @@ def create_app(config_obj, configfiles=None):
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security = UserSecurity(app, user_datastore)
 
-    # Set up Flask-Mail [configuration in <application>.cfg
+    # Set up Flask-Mail [configuration in <application>.cfg]
     mail = Mail(app)
 
     # activate views

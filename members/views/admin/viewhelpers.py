@@ -20,6 +20,13 @@ dttimerender = asctime('%Y-%m-%d %H:%M:%S')
 EXPIRES_SOON = 14 #days
 PERIOD_WINDOW_DISPLAY = 7 # number of days, i.e., on view 2 would be stored as 2*PERIOD_WINDOW_DISPLAY days
 
+STATUS_EXPIRES_SOON = 'expires soon'
+STATUS_OVERDUE = 'overdue'
+STATUS_DONE = 'done'
+STATUS_NO_EXPIRATION = 'no expiration'
+STATUS_OPTIONAL = 'optional'
+STATUS_UP_TO_DATE = 'up to date'
+
 debug = True
 
 def get_task_completion(task, user):
@@ -170,30 +177,30 @@ def _get_expiration(task, taskcompletion):
 
 def _get_status(task, taskcompletion):
     # displayorder needs to match values in beforedatatables.js fn set_cell_status_class.classes
-    displayorder = ['overdue', 'expires soon', 'optional', 'up to date', 'done']
+    displayorder = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
 
     # task is optional
     if task.isoptional:
         if not taskcompletion:
-            thisstatus = 'optional'
+            thisstatus = STATUS_OPTIONAL
         else:
-            thisstatus = 'done'
-        thisexpires = 'no expiration'
+            thisstatus = STATUS_DONE
+        thisexpires = STATUS_NO_EXPIRATION
 
 
     # task is managed periodically
     elif task.period:
         if not task.period and taskcompletion:
-            thisstatus = 'done'
-            thisexpires = 'no expiration'
+            thisstatus = STATUS_DONE
+            thisexpires = STATUS_NO_EXPIRATION
         elif not taskcompletion or taskcompletion.completion + task.period < datetime.today():
-            thisstatus = 'overdue'
+            thisstatus = STATUS_OVERDUE
             thisexpires = _get_expiration(task, taskcompletion)
         elif taskcompletion.completion + (task.period - timedelta(EXPIRES_SOON)) < datetime.today():
-            thisstatus = 'expires soon'
+            thisstatus = STATUS_EXPIRES_SOON
             thisexpires = _get_expiration(task, taskcompletion)
         else:
-            thisstatus = 'up to date'
+            thisstatus = STATUS_UP_TO_DATE
             thisexpires = _get_expiration(task, taskcompletion)
 
     # task expires yearly on a specific date
@@ -204,19 +211,19 @@ def _get_status(task, taskcompletion):
         expiressoon = task.expirysoon
         expiresdate = date(year, month, day)
         if today >= expiresdate-expiressoon and today < expiresdate:
-            thisstatus = 'expires soon'
+            thisstatus = STATUS_EXPIRES_SOON
         elif today > expiresdate:
-            thisstatus = 'overdue'
+            thisstatus = STATUS_OVERDUE
         else:
-            thisstatus = 'up to date'
+            thisstatus = STATUS_UP_TO_DATE
 
     # no period or date of year configured, but not optional
     else:
         if taskcompletion:
-            thisstatus = 'done'
-            thisexpires = 'no expiration'
+            thisstatus = STATUS_DONE
+            thisexpires = STATUS_NO_EXPIRATION
         else:
-            thisstatus = 'overdue'
+            thisstatus = STATUS_OVERDUE
             thisexpires = _get_expiration(task, taskcompletion)
 
     return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
@@ -284,12 +291,12 @@ def get_member_tasks(member):
     # collect all the tasks which are referenced by positions and taskgroups for this member
     for position in member.positions:
         for taskgroup in position.taskgroups:
-            get_tasks(taskgroup, tasks)
+            get_taskgroup_tasks(taskgroup, tasks)
     for taskgroup in member.taskgroups:
-        get_tasks(taskgroup, tasks)
+        get_taskgroup_tasks(taskgroup, tasks)
     return tasks
 
-def get_tasks(taskgroup, tasks):
+def get_taskgroup_tasks(taskgroup, tasks):
     '''
     get tasks recursively for this task group
     :param taskgroup: TaskGroup instance
@@ -299,4 +306,16 @@ def get_tasks(taskgroup, tasks):
     for task in taskgroup.tasks:
         tasks |= {task}
     for taskgroup in taskgroup.taskgroups:
-        get_tasks(taskgroup, tasks)
+        get_taskgroup_tasks(taskgroup, tasks)
+
+def get_taskgroup_members(taskgroup, members):
+    '''
+    get members recursively for this task group
+    :param taskgroup: TaskGroup instance
+    :param members: input and output set of tasks
+    :return: None
+    '''
+    for member in taskgroup.users:
+        members |= {member}
+    for taskgroup in taskgroup.taskgroups:
+        get_taskgroup_members(taskgroup, member)

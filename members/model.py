@@ -45,6 +45,9 @@ FIELDINFO_LEN = 128
 FIELDOPTIONS_LEN = 2048
 URL_LEN = 2047      # https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
 DOY_LEN = 5         # mm-dd
+EMAIL_TEMPLATENAME_LEN = 32
+EMAIL_SUBJECT_LEN = 128
+EMAIL_TEMPLATE_LEN=2048
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -256,6 +259,20 @@ class Files(Base, FilesMixin):
     interest            = relationship("LocalInterest")
     taskcompletion_id   = Column(Integer, ForeignKey('taskcompletion.id'))
     taskcompletion      = relationship("TaskCompletion")
+
+class EmailTemplate(Base):
+    __tablename__ = 'emailtemplate'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('emailtemplates'))
+    templatename        = Column(String(EMAIL_TEMPLATENAME_LEN))
+    subject             = Column(String(EMAIL_SUBJECT_LEN))
+    template            = Column(String(EMAIL_TEMPLATE_LEN))
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
 
 def update_local_tables():
     '''

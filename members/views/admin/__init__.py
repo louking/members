@@ -19,6 +19,7 @@ from . import files
 from . import sysinfo
 
 # leadership task module
+from . import leadership_tasks_superadmin
 from . import leadership_tasks_admin
 from . import leadership_tasks_member
 

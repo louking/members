@@ -82,6 +82,7 @@ def nav_menu():
             userroles.items.append(View('Applications', 'userrole.applications'))
 
             if g.interest:
+                navbar.items.append(View('Email Templates', 'admin.emailtemplates', interest=g.interest))
                 navbar.items.append(View('Files', 'admin.files', interest=g.interest))
 
             navbar.items.append(View('My Account', 'security.change_password'))

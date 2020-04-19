@@ -972,6 +972,23 @@ class TaskMember():
 
 class TaskSummary(DbCrudApiInterestsRolePermissions):
 
+    def getids(self, id):
+        '''
+        return split of id into local user id, task id
+        :param id: id for each TaskMember entry
+        :return: (localuserid, taskid)
+        '''
+        return tuple([int(usertask) for usertask in id.split(';')])
+
+    def setid(self, userid, taskid):
+        '''
+        return combined userid, taskid
+        :param userid: id for each LocalUser entry
+        :param taskid: id for each Task entry
+        :return: id
+        '''
+        return ';'.join([str(userid), str(taskid)])
+
     def open(self):
         locinterest = localinterest()
         localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
@@ -993,7 +1010,7 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
 
             # create/add taskmember to list for all tasks
             for task in iter(tasks):
-                membertaskid = '{};{}'.format(member['localuser'].id, task.id)
+                membertaskid = self.setid(member['localuser'].id, task.id)
                 taskmember = TaskMember(
                     id=membertaskid,
                     task=task, task_taskgroups=task.taskgroups,
@@ -1012,7 +1029,7 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
         :param formdata:
         :return:
         '''
-        memberid, taskid = thisid.split(';')
+        memberid, taskid = self.getids(thisid)
         luser = LocalUser.query.filter_by(id=memberid).one()
         task = Task.query.filter_by(id=taskid).one()
 
@@ -1044,7 +1061,7 @@ class TaskSummary(DbCrudApiInterestsRolePermissions):
         responsedata = []
         for thisid in theseids:
             # id is made up of localuser.id, task.id
-            localuserid, taskid = thisid.split(';')
+            localuserid, taskid = self.getids(thisid)
             localuser = LocalUser.query.filter_by(id=localuserid).one()
             task = Task.query.filter_by(id=taskid).one()
 
@@ -1077,7 +1094,7 @@ def tasksummary_validate(action, formdata):
     thisid = list(get_request_data(request.form).keys())[0]
 
     # id is made up of localuser.id, task.id
-    localuserid, taskid = thisid.split(';')
+    localuserid, taskid = tasksummary.getids(thisid)
     task = Task.query.filter_by(id=taskid).one()
 
     # build list of fields which could override completion date (should only be one)
