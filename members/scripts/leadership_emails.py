@@ -8,7 +8,7 @@ from os.path import join, dirname
 from argparse import ArgumentParser
 
 #pypi
-from flask import g
+from flask import g, url_for
 from jinja2 import Template
 
 # homegrown
@@ -116,9 +116,10 @@ def main():
             emailtemplate = EmailTemplate.query.filter_by(templatename='member-email', interest=localinterest()).one()
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
+            refurl = url_for('admin.taskchecklist', interest=g.interest)
 
             for emailaddr in mem2tasks:
-                html = template.render(**mem2tasks[emailaddr], statuses=[STATUS_EXPIRES_SOON, STATUS_OVERDUE])
+                html = template.render(**mem2tasks[emailaddr], statuses=[STATUS_EXPIRES_SOON, STATUS_OVERDUE], refurl=refurl)
                 tolist = emailaddr
                 cclist = None
 
@@ -145,6 +146,7 @@ def main():
             emailtemplate = EmailTemplate.query.filter_by(templatename='leader-email', interest=localinterest()).one()
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
+            refurl = url_for('admin.tasksummary', interest=g.interest)
 
             # loop through responsible managers, setting up their email
             for manager in responsibility:
@@ -159,7 +161,7 @@ def main():
                         manager2members['members'].append({'name':positionuser.name,
                                                            'tasks':thesetasks})
 
-                html = template.render(**manager2members)
+                html = template.render(**manager2members, refurl=refurl)
                 tolist = manager
                 cclist = None
 
