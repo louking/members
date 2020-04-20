@@ -921,13 +921,13 @@ assigntask.register()
 def addlfields(task, member):
     taskfields = []
     tc = get_task_completion(task, member)
-    if tc:
-        for ttf in task.fields:
-            f = ttf.taskfield
-            thistaskfield = {}
-            for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
-                thistaskfield[key] = getattr(f, key)
-            thistaskfield['fieldoptions'] = get_options(f)
+    for ttf in task.fields:
+        f = ttf.taskfield
+        thistaskfield = {}
+        for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
+            thistaskfield[key] = getattr(f, key)
+        thistaskfield['fieldoptions'] = get_options(f)
+        if tc:
             value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value
             if f.inputtype != INPUT_TYPE_UPLOAD:
                 thistaskfield['value'] = value
@@ -939,7 +939,10 @@ def addlfields(task, member):
                                                         fileid=value),
                                            target='_blank').render()
                 thistaskfield['fileid'] = value
-            taskfields.append(thistaskfield)
+        else:
+            thistaskfield['value'] = None
+        taskfields.append(thistaskfield)
+
     return taskfields
 
 # map id to rowid, retrieve all other required fields
