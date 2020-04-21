@@ -2,7 +2,7 @@
 Leadership Task Member Guide
 ===========================================
 
-.. _set-password-email
+.. _set-password-email:
 
 Set Your Password
 ====================
@@ -16,7 +16,7 @@ Please choose a password you don't use on other sites, and make sure there are l
 i.e., that this is a strong password.
 
 
-.. _task-checklist-view
+.. _task-checklist-view:
 
 Task Checklist
 ====================
@@ -29,6 +29,12 @@ see **Task Checklist** in the menu on the left, make sure **Interest** is set co
 The :term:`status` tells you whether the :term:`task` needs to be completed now (*overdue*), is coming up
 (*expires soon*), is completed (*up to date* or *done*), or if the task is optional (*optional*).
 
+.. image:: images/task-checklist-view.*
+
 When you select a :term:`task` and then **View Task**, a window will open. Some tasks may have one or more
 fields which need to be filled in. Once you have completed the instructions (e.g., to read a particular
 document) and filled in any fields, click **Mark Complete** to tell the system you've completed the task.
+
+.. image:: images/task-checklist-edit.*
+
+
