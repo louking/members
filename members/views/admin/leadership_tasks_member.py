@@ -135,7 +135,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                  'orderable': False,
                  'type': 'readonly',
                  },
-                {'data': 'expires', 'name': 'expires', 'label': 'Expires',
+                {'data': 'expires', 'name': 'expires', 'label': 'Expiration Date',
                  'orderable': False,
                  'type': 'readonly',
                  'className': 'status-field',
