@@ -821,7 +821,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                                               'queryparams': localinterest_query_params,
                                               }}
                          },
-                        {'data': 'users', 'name': 'users', 'label': 'Users',
+                        {'data': 'users', 'name': 'users', 'label': 'Members',
                          '_treatment': {
                              # viadbattr stores the LocalUser id which has user_id=user.id for each of these
                              # and pulls the correct users out of User based on LocalUser table
