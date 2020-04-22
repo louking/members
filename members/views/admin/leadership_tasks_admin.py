@@ -1127,7 +1127,6 @@ taskdetails_filters += filterdiv('members-external-filter-statuses', 'Status')
 taskdetails_filters += filterdiv('members-external-filter-completed', 'Last Completed')
 taskdetails_filters += filterdiv('members-external-filter-expires', 'Expires')
 
-membercol = 1
 taskdetails_yadcf_options = [
     yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
     yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
@@ -1147,7 +1146,7 @@ taskdetails = TaskDetails(
                     model = Task,
                     template = 'datatables.jinja2',
                     pretablehtml = taskdetails_filters,
-                    yadcfoptions=taskdetails_yadcf_options,
+                    yadcfoptions = taskdetails_yadcf_options,
                     pagename = 'Task Details',
                     endpoint = 'admin.taskdetails',
                     endpointvalues={'interest': '<interest>'},
@@ -1263,8 +1262,8 @@ taskdetails.register()
 status_slugs = [slugify(s) for s in STATUS_DISPLAYORDER]
 slug2status = dict(zip(status_slugs, STATUS_DISPLAYORDER))
 status2slug = dict(zip(STATUS_DISPLAYORDER, status_slugs))
-membersummary_dbattrs = 'id,interest_id,member,taskgroups'.split(',') + status_slugs
-membersummary_formfields = 'rowid,interest_id,member,taskgroups'.split(',') + status_slugs
+membersummary_dbattrs = 'id,interest_id,member,member_positions,member_taskgroups'.split(',') + status_slugs
+membersummary_formfields = 'rowid,interest_id,member,member_positions,member_taskgroups'.split(',') + status_slugs
 membersummary_dbmapping = dict(zip(membersummary_dbattrs, membersummary_formfields))
 membersummary_formmapping = dict(zip(membersummary_formfields, membersummary_dbattrs))
 
@@ -1314,7 +1313,8 @@ class MemberSummary(DbCrudApiInterestsRolePermissions):
                 members[name] = MemberMember(
                     id = localuserid,
                     member = name,
-                    taskgroups = thistask['member_taskgroups'],
+                    member_positions = thistask['member_positions'],
+                    member_taskgroups = thistask['member_taskgroups'],
                     interest_id = linterest.id,
                 )
                 for slug in status_slugs:
@@ -1334,6 +1334,17 @@ class MemberSummary(DbCrudApiInterestsRolePermissions):
             therows.append(members[name])
         self.rows = iter(therows)
 
+membersummary_filters = filtercontainerdiv()
+membersummary_filters += filterdiv('members-external-filter-members', 'Member')
+membersummary_filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
+membersummary_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
+
+membersummary_yadcf_options = [
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('member_positions.position:name', 'members-external-filter-positions-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
+    yadcfoption('member_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
+]
+
 membersummary = MemberSummary(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
@@ -1341,6 +1352,8 @@ membersummary = MemberSummary(
                     db = db,
                     model = LocalUser,
                     template = 'datatables.jinja2',
+                    pretablehtml = membersummary_filters,
+                    yadcfoptions = membersummary_yadcf_options,
                     pagename = 'Member Summary',
                     endpoint = 'admin.membersummary',
                     endpointvalues={'interest': '<interest>'},
@@ -1359,13 +1372,29 @@ membersummary = MemberSummary(
                          'label':slug2status[slug]
                          } for slug in status_slugs
                     ] + [
-                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member in Positions',
+                         # 'type': 'readonly',
                          '_treatment': {
-                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
-                                              'formfield': 'taskgroups',
-                                              'dbfield': 'taskgroups', 'uselist': True,
-                                              'queryparams': localinterest_query_params,
-                                              }}
+                             'relationship': {
+                                 'optionspicker' : ReadOnlySelect2(
+                                    fieldmodel = Position, labelfield = 'position',
+                                    formfield = 'member_positions',
+                                    dbfield = 'member_positions', uselist = True,
+                                    queryparams = localinterest_query_params,
+                                 )
+                             }}
+                         },
+                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member in Task Groups',
+                         # 'type': 'readonly',
+                         '_treatment': {
+                             'relationship': {
+                                 'optionspicker' : ReadOnlySelect2(
+                                    fieldmodel = TaskGroup, labelfield = 'taskgroup',
+                                    formfield = 'member_taskgroups',
+                                    dbfield = 'member_taskgroups', uselist = True,
+                                    queryparams = localinterest_query_params,
+                                 )
+                             }}
                          },
                     ],
                     servercolumns = None,  # not server side

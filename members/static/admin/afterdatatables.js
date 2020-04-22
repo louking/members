@@ -122,7 +122,7 @@ function afterdatatables() {
             clear_fields(e);
         });
 
-    // special processing for task summary
+    // special processing for task details
     } else if (location.pathname.includes('/taskdetails')) {
         // set up registered filters (id, default for local storage, transient => don't update local storage
         fltr_register('members-external-filter-members', null, true);
@@ -154,7 +154,17 @@ function afterdatatables() {
             clear_fields(e);
         });
 
-    // special processing for task field configuration
+    // special processing for member summary
+    } else if (location.pathname.includes('/membersummary')) {
+        // set up registered filters (id, default for local storage, transient => don't update local storage
+        fltr_register('members-external-filter-members', null, true);
+        fltr_register('members-external-filter-positions-by-member', null, true);
+        fltr_register('members-external-filter-taskgroups-by-member', null, true);
+
+        // initialize all the filters
+        fltr_init();
+
+     // special processing for task field configuration
     } else if (location.pathname.includes('/taskfields')) {
         editor.dependent( 'inputtype', function(val, data, callback) {
             var show = [];
