@@ -55,7 +55,8 @@ def nav_menu():
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                 leadershipadmin = Subgroup('Leadership Admin')
                 navbar.items.append(leadershipadmin)
-                leadershipadmin.items.append(View('Task Summary', 'admin.tasksummary', interest=g.interest))
+                leadershipadmin.items.append(View('Member Summary', 'admin.membersummary', interest=g.interest))
+                leadershipadmin.items.append(View('Task Details', 'admin.taskdetails', interest=g.interest))
                 leadershipadmin.items.append(View('Assign Tasks', 'admin.assigntasks', interest=g.interest))
                 leadershipadmin.items.append(View('Positions', 'admin.positions', interest=g.interest))
                 leadershipadmin.items.append(View('Task Groups', 'admin.taskgroups', interest=g.interest))

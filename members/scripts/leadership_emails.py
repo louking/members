@@ -12,11 +12,11 @@ from flask import g, url_for
 from jinja2 import Template
 
 # homegrown
-# this is a little trick as the emails have the same information as the Task Summary view
 from members import create_app
 from members.settings import Development
 from members.applogging import setlogging
-from members.views.admin.leadership_tasks_admin import TaskSummary, tasksummary_dbmapping, tasksummary_formmapping
+# this is a little trick as the emails have the same information as the Task Details view
+from members.views.admin.leadership_tasks_admin import TaskDetails, taskdetails_dbmapping, taskdetails_formmapping
 from members.views.admin import bp
 from members.model import db, LocalInterest, Task, EmailTemplate, Position
 from members.views.admin.viewhelpers import localuser2user, localinterest, get_taskgroup_tasks, get_taskgroup_members
@@ -25,13 +25,13 @@ from loutilities.flask_helpers.mailer import sendmail
 
 class ParameterError(Exception): pass
 
-tasksummary = TaskSummary(
+taskdetails = TaskDetails(
     app=bp,  # use blueprint instead of app
     db=db,
     model=Task,
     local_interest_model=LocalInterest,
-    dbmapping=tasksummary_dbmapping,
-    formmapping=tasksummary_formmapping,
+    dbmapping=taskdetails_dbmapping,
+    formmapping=taskdetails_formmapping,
     rule='unused',
     clientcolumns=[
         {'data': 'member', 'name': 'member', 'label': 'Member',
@@ -85,16 +85,16 @@ def main():
         # turn on logging
         setlogging()
 
-        # g hast to be set within app context
+        # g has to be set within app context
         g.interest = args.interest
 
         membertasks = []
-        tasksummary.open()
-        for row in tasksummary.rows:
-            membertask = tasksummary.dte.get_response_data(row)
+        taskdetails.open()
+        for row in taskdetails.rows:
+            membertask = taskdetails.dte.get_response_data(row)
 
             # add user record
-            localuserid, taskid = tasksummary.getids(row.id)
+            localuserid, taskid = taskdetails.getids(row.id)
             membertask['User'] = localuser2user(localuserid)
             membertask['Task'] = Task.query.filter_by(id=taskid).one()
             membertasks.append(membertask)
@@ -145,14 +145,14 @@ def main():
             emailtemplate = EmailTemplate.query.filter_by(templatename='leader-email', interest=localinterest()).one()
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
-            refurl = url_for('admin.tasksummary', interest=g.interest)
+            refurl = url_for('admin.taskdetails', interest=g.interest)
 
             # loop through responsible managers, setting up their email
             for manager in responsibility:
                 manager2members = {'members':[]}
-                # need to convert to ids which are given by tasksummary
+                # need to convert to ids which are given by taskdetails
                 for positionworker in responsibility[manager]['workers']:
-                    resptasks = [tasksummary.setid(positionworker.id, t.id) for t in responsibility[manager]['tasks']]
+                    resptasks = [taskdetails.setid(positionworker.id, t.id) for t in responsibility[manager]['tasks']]
                     positionuser = localuser2user(positionworker)
                     thesetasks = [t for t in mem2tasks[positionuser.email]['tasks']
                                   if t['rowid'] in resptasks and t['status'] in [STATUS_OVERDUE]]

@@ -1,5 +1,5 @@
 function set_cell_status_class(row, data, displayNum, displayIndex, dataIndex) {
-    // the keys for classes need to match the values in status._get_status.displayorder
+    // the keys for classes need to match the values in viewhelpers.STATUS_DISPLAYORDER
     classes = {
         'overdue': 'status-overdue',
         'expires soon': 'status-expires-soon',
@@ -29,4 +29,15 @@ function render_month_date(data, type, row, meta) {
     } else {
         return data
     }
+}
+
+function member_details(e, dt, node, config) {
+    var args = allUrlParams();
+    var member = dt.rows({selected:true}).data()[0].member;
+    args.member = member;
+    var newsearch = $.param(args);
+    var newloclist = window.location.pathname.split('/').slice(0, -1);
+    newloclist.push('taskdetails');
+    var newloc = newloclist.join('/') + '?' + newsearch;
+    window.location = newloc;
 }

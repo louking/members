@@ -123,7 +123,7 @@ function afterdatatables() {
         });
 
     // special processing for task summary
-    } else if (location.pathname.includes('/tasksummary')) {
+    } else if (location.pathname.includes('/taskdetails')) {
         // set up registered filters (id, default for local storage, transient => don't update local storage
         fltr_register('members-external-filter-members', null, true);
         fltr_register('members-external-filter-positions-by-member', null, true);
@@ -136,6 +136,13 @@ function afterdatatables() {
 
         // initialize all the filters
         fltr_init();
+
+        // check if member filter required; only do this if we just arrived at the page
+        var member = urlParam('member');
+        if (member) {
+            var membercol = get_yadcf_col('members-external-filter-members');
+            yadcf.exFilterColumn(_dt_table, [[membercol, member]]);
+        }
 
         // add and clear additional fields appropriately
         editor.on('initEdit', function (e, node, data, items, type) {

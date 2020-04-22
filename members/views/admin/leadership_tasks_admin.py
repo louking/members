@@ -10,6 +10,7 @@ from flask import g, url_for, current_app, request
 from flask_security import current_user
 from sqlalchemy import Enum
 from dominate.tags import a
+from slugify import slugify
 
 # homegrown
 from . import bp
@@ -22,7 +23,7 @@ from .viewhelpers import lastcompleted, get_status, get_order, get_expires, loca
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
 from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
-from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY
+from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY, STATUS_DISPLAYORDER
 
 # this is just to pick up list() function
 from .leadership_tasks_member import fieldupload
@@ -915,7 +916,7 @@ assigntask = DbCrudApiInterestsRolePermissions(
 assigntask.register()
 
 ##########################################################################################
-# tasksummary endpoint
+# taskdetails endpoint
 ###########################################################################################
 
 def addlfields(task, member):
@@ -947,23 +948,23 @@ def addlfields(task, member):
 
 # map id to rowid, retrieve all other required fields
 # no dbmapping because this table is read-only
-tasksummary_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
-tasksummary_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
-tasksummary_dbmapping = dict(zip(tasksummary_dbattrs, tasksummary_formfields))
+taskdetails_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
+taskdetails_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
+taskdetails_dbmapping = dict(zip(taskdetails_dbattrs, taskdetails_formfields))
 
-tasksummary_formmapping = {}
-tasksummary_formmapping['rowid'] = 'id'
-tasksummary_formmapping['task_taskgroups'] = 'task_taskgroups'
-tasksummary_formmapping['member_taskgroups'] = 'member_taskgroups'
-tasksummary_formmapping['member_positions'] = 'member_positions'
-tasksummary_formmapping['member'] = lambda tu: tu.member.name
-tasksummary_formmapping['task'] = lambda tu: tu.task.task
-tasksummary_formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
-tasksummary_formmapping['status'] = lambda tu: get_status(tu.task, tu.member)
-tasksummary_formmapping['order'] = lambda tu: get_order(tu.task, tu.member)
-tasksummary_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
-tasksummary_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
-tasksummary_formmapping['addlfields'] = lambda tu: addlfields(tu.task, tu.member)
+taskdetails_formmapping = {}
+taskdetails_formmapping['rowid'] = 'id'
+taskdetails_formmapping['task_taskgroups'] = 'task_taskgroups'
+taskdetails_formmapping['member_taskgroups'] = 'member_taskgroups'
+taskdetails_formmapping['member_positions'] = 'member_positions'
+taskdetails_formmapping['member'] = lambda tu: tu.member.name
+taskdetails_formmapping['task'] = lambda tu: tu.task.task
+taskdetails_formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
+taskdetails_formmapping['status'] = lambda tu: get_status(tu.task, tu.member)
+taskdetails_formmapping['order'] = lambda tu: get_order(tu.task, tu.member)
+taskdetails_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
+taskdetails_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
+taskdetails_formmapping['addlfields'] = lambda tu: addlfields(tu.task, tu.member)
 
 class TaskMember():
     '''
@@ -973,7 +974,7 @@ class TaskMember():
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-class TaskSummary(DbCrudApiInterestsRolePermissions):
+class TaskDetails(DbCrudApiInterestsRolePermissions):
 
     def getids(self, id):
         '''
@@ -1089,7 +1090,7 @@ class ReadOnlySelect2(DteDbRelationship):
         col['opts']['disabled'] = True
         return col
 
-def tasksummary_validate(action, formdata):
+def taskdetails_validate(action, formdata):
     results = []
 
     # kludge to get task.id
@@ -1097,7 +1098,7 @@ def tasksummary_validate(action, formdata):
     thisid = list(get_request_data(request.form).keys())[0]
 
     # id is made up of localuser.id, task.id
-    localuserid, taskid = tasksummary.getids(thisid)
+    localuserid, taskid = taskdetails.getids(thisid)
     task = Task.query.filter_by(id=taskid).one()
 
     # build list of fields which could override completion date (should only be one)
@@ -1116,18 +1117,18 @@ def tasksummary_validate(action, formdata):
 
     return results
 
-tasksummary_filters = filtercontainerdiv()
-tasksummary_filters += filterdiv('members-external-filter-members', 'Member')
-tasksummary_filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
-tasksummary_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
-tasksummary_filters += filterdiv('members-external-filter-tasks', 'Task')
-tasksummary_filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
-tasksummary_filters += filterdiv('members-external-filter-statuses', 'Status')
-tasksummary_filters += filterdiv('members-external-filter-completed', 'Last Completed')
-tasksummary_filters += filterdiv('members-external-filter-expires', 'Expires')
+taskdetails_filters = filtercontainerdiv()
+taskdetails_filters += filterdiv('members-external-filter-members', 'Member')
+taskdetails_filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
+taskdetails_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
+taskdetails_filters += filterdiv('members-external-filter-tasks', 'Task')
+taskdetails_filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
+taskdetails_filters += filterdiv('members-external-filter-statuses', 'Status')
+taskdetails_filters += filterdiv('members-external-filter-completed', 'Last Completed')
+taskdetails_filters += filterdiv('members-external-filter-expires', 'Expires')
 
 membercol = 1
-tasksummary_yadcf_options = [
+taskdetails_yadcf_options = [
     yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
     yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
     yadcfoption('task_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-task', 'multi_select', placeholder='Select task groups', width='200px'),
@@ -1138,23 +1139,23 @@ tasksummary_yadcf_options = [
     yadcfoption('expires:name', 'members-external-filter-expires', 'range_date'),
 ]
 
-tasksummary = TaskSummary(
+taskdetails = TaskDetails(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
                     model = Task,
                     template = 'datatables.jinja2',
-                    pretablehtml = tasksummary_filters,
-                    yadcfoptions=tasksummary_yadcf_options,
-                    pagename = 'Task Summary',
-                    endpoint = 'admin.tasksummary',
+                    pretablehtml = taskdetails_filters,
+                    yadcfoptions=taskdetails_yadcf_options,
+                    pagename = 'Task Details',
+                    endpoint = 'admin.taskdetails',
                     endpointvalues={'interest': '<interest>'},
-                    rule = '/<interest>/tasksummary',
-                    dbmapping = tasksummary_dbmapping,
-                    formmapping = tasksummary_formmapping, 
+                    rule = '/<interest>/taskdetails',
+                    dbmapping = taskdetails_dbmapping,
+                    formmapping = taskdetails_formmapping,
                     checkrequired = True,
-                    validate = tasksummary_validate,
+                    validate = taskdetails_validate,
                     templateargs = {'tablefiles': lambda: fieldupload.list()},
                     clientcolumns = [
                         {'data': 'member', 'name': 'member', 'label': 'Member',
@@ -1253,7 +1254,139 @@ tasksummary = TaskSummary(
                             }
                     },
                 )
-tasksummary.register()
+taskdetails.register()
+
+##########################################################################################
+# membersummary endpoint
+###########################################################################################
+
+status_slugs = [slugify(s) for s in STATUS_DISPLAYORDER]
+slug2status = dict(zip(status_slugs, STATUS_DISPLAYORDER))
+status2slug = dict(zip(STATUS_DISPLAYORDER, status_slugs))
+membersummary_dbattrs = 'id,interest_id,member,taskgroups'.split(',') + status_slugs
+membersummary_formfields = 'rowid,interest_id,member,taskgroups'.split(',') + status_slugs
+membersummary_dbmapping = dict(zip(membersummary_dbattrs, membersummary_formfields))
+membersummary_formmapping = dict(zip(membersummary_formfields, membersummary_dbattrs))
+
+class MemberMember():
+    '''
+    allows creation of "membermember" object to simulate database behavior
+    '''
+    def __init__(self, **kwargs):
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+class MemberSummary(DbCrudApiInterestsRolePermissions):
+    def open(self):
+        # create another instance of TaskDetails
+        taskdetails = TaskDetails(
+            app=bp,  # use blueprint instead of app
+            db=db,
+            model=Task,
+            local_interest_model=LocalInterest,
+            dbmapping=taskdetails_dbmapping,
+            formmapping=taskdetails_formmapping,
+            rule='unused',
+            clientcolumns=[
+                {'data': 'member', 'name': 'member', 'label': 'Member',
+                 'type': 'readonly',
+                 },
+                {'data': 'status', 'name': 'status', 'label': 'Status',
+                 'type': 'readonly',
+                 'className': 'status-field',
+                 },
+            ],
+        )
+
+        members = {}
+        taskdetails.open()
+        linterest = localinterest()
+        for row in taskdetails.rows:
+            thistask = taskdetails.dte.get_response_data(row)
+            # add user record
+            localuserid, taskid = taskdetails.getids(row.id)
+            thistask['User'] = localuser2user(localuserid)
+            name = thistask['User'].name
+
+            # add member name to members if not already there
+            if name not in members:
+                # note taskgroups should be the same for all task records, so ok to set with first for this member
+                members[name] = MemberMember(
+                    id = localuserid,
+                    member = name,
+                    taskgroups = thistask['member_taskgroups'],
+                    interest_id = linterest.id,
+                )
+                for slug in status_slugs:
+                    setattr(members[name], slug, 0)
+
+            # update status for this record
+            thisslug = status2slug[thistask['status']]
+            count = getattr(members[name], thisslug)
+            setattr(members[name], thisslug, count+1)
+
+        # set rows for response
+        therows = []
+        for name in members:
+            for slug in status_slugs:
+                if (getattr(members[name],slug) == 0):
+                    setattr(members[name],slug,None)
+            therows.append(members[name])
+        self.rows = iter(therows)
+
+membersummary = MemberSummary(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = LocalUser,
+                    template = 'datatables.jinja2',
+                    pagename = 'Member Summary',
+                    endpoint = 'admin.membersummary',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/membersummary',
+                    dbmapping = membersummary_dbmapping,
+                    formmapping = membersummary_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'member', 'name': 'member', 'label': 'Member',
+                         'type':'readonly',
+                         },
+                    ] + [
+                        {'data':slug, 'name':slug,
+                         'type':'readonly',
+                         'class': 'TextCenter',
+                         'label':slug2status[slug]
+                         } for slug in status_slugs
+                    ] + [
+                        {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
+                                              'formfield': 'taskgroups',
+                                              'dbfield': 'taskgroups', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons=[
+                        {
+                            'extend': 'edit',
+                            'text': 'View Member',
+                            'action': {'eval': 'member_details'}
+                        },
+                        'csv'
+                    ],
+
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+membersummary.register()
 
 ##########################################################################################
 # history endpoint

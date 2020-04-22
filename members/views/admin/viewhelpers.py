@@ -27,6 +27,9 @@ STATUS_NO_EXPIRATION = 'no expiration'
 STATUS_OPTIONAL = 'optional'
 STATUS_UP_TO_DATE = 'up to date'
 
+# STATUS_DISPLAYORDER needs to match values in beforedatatables.js fn set_cell_status_class.classes
+STATUS_DISPLAYORDER = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
+
 debug = True
 
 def get_task_completion(task, user):
@@ -176,9 +179,6 @@ def _get_expiration(task, taskcompletion):
 
 
 def _get_status(task, taskcompletion):
-    # displayorder needs to match values in beforedatatables.js fn set_cell_status_class.classes
-    displayorder = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
-
     # task is optional
     if task.isoptional:
         if not taskcompletion:
@@ -226,7 +226,7 @@ def _get_status(task, taskcompletion):
             thisstatus = STATUS_OVERDUE
             thisexpires = _get_expiration(task, taskcompletion)
 
-    return {'status': thisstatus, 'order': displayorder.index(thisstatus), 'expires': thisexpires}
+    return {'status': thisstatus, 'order': STATUS_DISPLAYORDER.index(thisstatus), 'expires': thisexpires}
 
 def get_status(task, user):
     taskcompletion = get_task_completion(task, user)
