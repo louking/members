@@ -20,6 +20,7 @@ from ...model import Position, InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
+from .viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
 from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
@@ -1018,11 +1019,20 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
                 taskmember = TaskMember(
                     id=membertaskid,
                     task=task, task_taskgroups=task.taskgroups,
-                    member=member['member'],
-                    member_positions=member['localuser'].positions,
-                    member_taskgroups=member['localuser'].taskgroups,
+                    member = member['member'],
+                    member_positions = member['localuser'].positions,
                 )
+
+                # drill down to get all the taskgroups
+                member_taskgroups = set()
+                for position in member['localuser'].positions:
+                    get_position_taskgroups(position, member_taskgroups)
+                for taskgroup in member['localuser'].taskgroups:
+                    get_taskgroup_taskgroups(taskgroup, member_taskgroups)
+                taskmember.member_taskgroups = member_taskgroups
+
                 tasksmembers.append(taskmember)
+
         self.rows = iter(tasksmembers)
 
     def updaterow(self, thisid, formdata):
@@ -1044,15 +1054,22 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
 
         member = {'localuser': luser, 'member': User.query.filter_by(id=luser.user_id).one()}
 
-        taskuser = TaskMember(
+        taskmember = TaskMember(
             id=thisid,
             task=task, task_taskgroups=task.taskgroups,
             member=member['member'],
             member_positions = member['localuser'].positions,
-            member_taskgroups=member['localuser'].taskgroups,
         )
 
-        return self.dte.get_response_data(taskuser)
+        # drill down to get all the taskgroups
+        member_taskgroups = set()
+        for position in member['localuser'].positions:
+            get_position_taskgroups(position, member_taskgroups)
+        for taskgroup in member['localuser'].taskgroups:
+            get_taskgroup_taskgroups(taskgroup, member_taskgroups)
+        taskmember.member_taskgroups = member_taskgroups
+
+        return self.dte.get_response_data(taskmember)
 
     def refreshrows(self, ids):
         '''
@@ -1179,7 +1196,7 @@ taskdetails = TaskDetails(
                          'type': 'readonly',
                          'className': 'status-field',
                          },
-                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member in Positions',
+                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member Positions',
                          # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
@@ -1191,7 +1208,7 @@ taskdetails = TaskDetails(
                                  )
                              }}
                          },
-                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member in Task Groups',
+                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
                          # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
@@ -1203,7 +1220,7 @@ taskdetails = TaskDetails(
                                  )
                              }}
                          },
-                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task in Task Groups',
+                        {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task Task Groups',
                          'type': 'readonly',
                          '_treatment': {
                              'relationship': {
@@ -1372,8 +1389,8 @@ membersummary = MemberSummary(
                          'label':slug2status[slug]
                          } for slug in status_slugs
                     ] + [
-                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member in Positions',
-                         # 'type': 'readonly',
+                        {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member Positions',
+                         'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(
@@ -1384,8 +1401,8 @@ membersummary = MemberSummary(
                                  )
                              }}
                          },
-                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member in Task Groups',
-                         # 'type': 'readonly',
+                        {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
+                         'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(

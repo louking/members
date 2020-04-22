@@ -318,4 +318,27 @@ def get_taskgroup_members(taskgroup, members):
     for member in taskgroup.users:
         members |= {member}
     for taskgroup in taskgroup.taskgroups:
-        get_taskgroup_members(taskgroup, member)
+        get_taskgroup_members(taskgroup, members)
+
+def get_taskgroup_taskgroups(taskgroup, taskgroups):
+    '''
+    get members recursively for this task group
+    :param taskgroup: TaskGroup instance
+    :param taskgroups: input and output set of tasks
+    :return: None
+    '''
+    taskgroups |= {taskgroup}
+    for tg in taskgroup.taskgroups:
+        taskgroups |= {tg}
+    for tg in taskgroup.taskgroups:
+        get_taskgroup_taskgroups(tg, taskgroups)
+
+def get_position_taskgroups(position, taskgroups):
+    '''
+    get task groups for this position
+    :param position: Position instance
+    :param taskgroups: input and output set of task groups
+    :return: None
+    '''
+    for taskgroup in position.taskgroups:
+        get_taskgroup_taskgroups(taskgroup, taskgroups)
