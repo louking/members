@@ -10,15 +10,6 @@
   background: none;
 }
 
-/* _rrdb-filter allows yadcf external filters to be on single line  */
-._rrdb-filter {
-  display: inline-block;
-}
-
-._rrdb-table-nowrap {
-    white-space: nowrap;
-}
-
 /* override JQuery.dataTables padding for header */
 .dataTables_wrapper .ui-toolbar {
     padding: 4px;
@@ -43,12 +34,6 @@ div.DTE_Field input[readonly="readonly"] {
 
 div.DTE_Field input._rsc_CRUD_input_short {
     width: 85%;
-}
-
-._rrdb_button_age_cycle {
-    float: right;
-    padding-top: 8px;
-    padding-bottom: 9px;
 }
 
 /* jqueryui progressbar */
@@ -219,90 +204,11 @@ h2              { font-size: 1.2em; }
                   border: 1px solid #aacbe2; }
 .error          { background: #f0d6d6; padding: 0.5em; }
 
-._rrdb-class-standings-data-division,
-._rrdb-class-standings-data-place,
-._rrdb-class-standings-data-race,
-._rrdb-class-standings-data-age,
-._rrdb-class-standings-data-nraces,
-._rrdb-class-standings-data-gender,
-._rrdb-class-standings-data-total
-{
-    text-align: center;
-}
-._rrdb-class-standings-data-race-dropped
-{
-    text-align: center;
-    color: red;
-}
-._rrdb-class-standings-data-overall-award,
-._rrdb-class-standings-data-overall-award a
-{
-    text-align: center;
-    font-weight: bold;
-    color: blue;
-}
-._rrdb-class-standings-data-division-award,
-._rrdb-class-standings-data-division-award a
-{
-    text-align: center;
-    font-weight: bold;
-    color: green;
-}
-._rrdb-class-standings-data-name,
-._rrdb-class-standings-data-name a
-{
-    text-align: left;
-    color: black;
-}
-
-._rrdb-table-header
-{
-   text-align: center;
-   font-weight: bold;
-   font-size: large;
-}
-
-._rrdb-ras-summary
-{
-  font-weight: bold;
-}
-
-table._rrdb-class-importspec
-{
-  border-collapse: collapse;
-}
-
-table._rrdb-class-importspec thead th
-{
-  padding: 3px 4px;
-}
-
-table._rrdb-class-importspec tbody td
-{
-  vertical-align: text-top;
-  padding: 3px 4px;
-}
-
-table._rrdb-class-importspec p:first-child
-{
-  margin-top: 0;
-}
-
-table._rrdb-class-importspec p:last-child
-{
-  margin-bottom: 0;
-}
-
-table._rrdb-class-importspec thead p
-{
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
 label
 {
     margin-right: 0.5em;
 }
+
 label.Label
 {
     display: inline-block;
@@ -450,9 +356,6 @@ div.DTE_Body div.DTE_Body_Content div.DTE_Field > label {
   margin-right: 0px;
 }
 
-._rrdb-class-pfriendly-races a {
-  color: black;
-}
 #customForm fieldset {
     flex: 1;
     flex-direction: column;
