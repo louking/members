@@ -182,6 +182,15 @@ class TaskField(Base):
         'version_id_col' : version_id
     }
 
+
+# https://blog.ramosly.com/sqlalchemy-orm-setting-up-self-referential-many-to-many-relationships-866c97d9308b
+taskgroup_taskgroup_table = Table(
+    'taskgroup_taskgroup', Base.metadata,
+    Column('id', Integer, primary_key=True),
+    Column('parent_id', Integer, ForeignKey('taskgroup.id')),
+    Column('child_id', Integer, ForeignKey('taskgroup.id')),
+)
+
 class TaskGroup(Base):
     __tablename__ = 'taskgroup'
     id                  = Column(Integer(), primary_key=True)
@@ -190,7 +199,11 @@ class TaskGroup(Base):
     taskgroup           = Column(String(TASKGROUP_LEN))
     description         = Column(String(DESCR_LEN))
     parent_id           = Column(Integer, ForeignKey('taskgroup.id'))
-    taskgroups          = relationship('TaskGroup')
+    taskgroups          = relationship('TaskGroup',
+                                       secondary=taskgroup_taskgroup_table,
+                                       primaryjoin=id == taskgroup_taskgroup_table.c.child_id,
+                                       secondaryjoin=id == taskgroup_taskgroup_table.c.parent_id,
+                                       )
 
     tasks               = relationship('Task',
                                        secondary=tasktaskgroup_table,
