@@ -56,7 +56,6 @@ taskdetails = TaskDetails(
 )
 
 def main():
-    # hmm, do we need any arguments?
     parser = ArgumentParser()
     parser.add_argument('interest')
     parser.add_argument('--nomembers', default=False, action='store_const', const=True, help='use --nomembers to skip members')
