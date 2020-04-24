@@ -11,6 +11,7 @@ from flask_security import current_user
 from sqlalchemy import Enum
 from dominate.tags import a
 from slugify import slugify
+from markdown import markdown
 
 # homegrown
 from . import bp
@@ -926,8 +927,11 @@ def addlfields(task, member):
     for ttf in task.fields:
         f = ttf.taskfield
         thistaskfield = {}
-        for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
+        for key in 'taskfield,fieldname,displayvalue,displaylabel,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
+            # displayvalue gets markdown translation
+            if key == 'displayvalue' and getattr(f, key):
+                thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
         thistaskfield['fieldoptions'] = get_options(f)
         if tc:
             value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value

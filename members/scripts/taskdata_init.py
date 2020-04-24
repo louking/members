@@ -156,12 +156,11 @@ def main():
                              'family which I consider might result in or appear to be an actual, apparent or potential '
                              'conflict of interest between such family members or myself on one hand and the Frederick '
                              'Steeplechasers Running Club on the other. '
-                             '<ul>'
-                             '<li>For-profit corporate directorships, positions, and employment with (list)</li>'
-                             '<li>Nonprofit trusteeships of positions: Memberships in the following organizations (list)</li>'
-                             '<li>Contracts, business activities, and investments with or in the following organizations (list)</li>'
-                             '<li>Other relationships and activities (list)</li>'
-                             '</ul>'
+                             '\n'
+                             '\n* For-profit corporate directorships, positions, and employment with (list)'
+                             '\n* Nonprofit trusteeships of positions: Memberships in the following organizations (list)'
+                             '\n* Contracts, business activities, and investments with or in the following organizations (list)'
+                             '\n* Other relationships and activities (list)'
              },
 
             {

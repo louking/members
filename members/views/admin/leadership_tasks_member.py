@@ -62,7 +62,12 @@ def addlfields(task):
         thistaskfield = {}
         for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
+            # displayvalue gets markdown translation
+            if key == 'displayvalue' and getattr(f, key):
+                thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
         thistaskfield['fieldoptions'] = get_options(f)
+
+
         if tc:
             value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value
             if f.inputtype != INPUT_TYPE_UPLOAD:

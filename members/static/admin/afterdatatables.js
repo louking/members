@@ -85,7 +85,11 @@ function set_field_vals() {
         var f = iteminprogress.addlfields[i];
         // upload field value has url, so need to substitute fileid
         if (!f.hasOwnProperty('fileid')) {
-            editor.set(f.fieldname, f.value);
+            if (f.inputtype !== 'display') {
+                editor.set(f.fieldname, f.value);
+            } else {
+                editor.set(f.fieldname, f.displayvalue);
+            }
         } else {
             editor.set(f.fieldname, f.fileid);
         }
