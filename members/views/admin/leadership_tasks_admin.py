@@ -1149,7 +1149,7 @@ taskdetails_filters += filterdiv('members-external-filter-completed', 'Last Comp
 taskdetails_filters += filterdiv('members-external-filter-expires', 'Expires')
 
 taskdetails_yadcf_options = [
-    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='200px'),
     yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
     yadcfoption('task_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-task', 'multi_select', placeholder='Select task groups', width='200px'),
     yadcfoption('member_positions.position:name', 'members-external-filter-positions-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
@@ -1361,7 +1361,7 @@ membersummary_filters += filterdiv('members-external-filter-positions-by-member'
 membersummary_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
 
 membersummary_yadcf_options = [
-    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='200px'),
     yadcfoption('member_positions.position:name', 'members-external-filter-positions-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
     yadcfoption('member_taskgroups.taskgroup:name', 'members-external-filter-taskgroups-by-member', 'multi_select', placeholder='Select task groups', width='200px'),
 ]
@@ -1462,8 +1462,8 @@ history_filters += filterdiv('members-external-filter-completed', 'Completed')
 
 history_yadcf_options = [
     yadcfoption('update_time:name', 'members-external-filter-update-time', 'range_date'),
-    yadcfoption('updated_by:name', 'members-external-filter-updated-by', 'multi_select', placeholder='Select who updated', width='150px'),
-    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='150px'),
+    yadcfoption('updated_by:name', 'members-external-filter-updated-by', 'multi_select', placeholder='Select who updated', width='200px'),
+    yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='200px'),
     yadcfoption('task:name', 'members-external-filter-tasks', 'multi_select', placeholder='Select tasks', width='200px'),
     yadcfoption('completion:name', 'members-external-filter-completed', 'range_date'),
 ]
