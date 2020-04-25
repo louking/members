@@ -1146,7 +1146,7 @@ taskdetails_filters += filterdiv('members-external-filter-tasks', 'Task')
 taskdetails_filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
 taskdetails_filters += filterdiv('members-external-filter-statuses', 'Status')
 taskdetails_filters += filterdiv('members-external-filter-completed', 'Last Completed')
-taskdetails_filters += filterdiv('members-external-filter-expires', 'Expires')
+taskdetails_filters += filterdiv('members-external-filter-expires', 'Expiration Date')
 
 taskdetails_yadcf_options = [
     yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='200px'),
@@ -1196,7 +1196,7 @@ taskdetails = TaskDetails(
                          'type': 'datetime',
                          # 'ed': {'opts':{'maxDate':date.today().isoformat()}}
                          },
-                        {'data': 'expires', 'name': 'expires', 'label': 'Expires',
+                        {'data': 'expires', 'name': 'expires', 'label': 'Expiration Date',
                          'type': 'readonly',
                          'className': 'status-field',
                          },
