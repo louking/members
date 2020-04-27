@@ -11,7 +11,7 @@ Guides
 ==========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    leadership-task-member-guide
    leadership-task-admin-guide
@@ -21,6 +21,7 @@ Reference
 ==========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    leadership-task-admin-reference
+   leadership-task-superadmin-reference

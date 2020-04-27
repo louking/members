@@ -10,7 +10,7 @@ membertility brings together tools for club leadership and club member support. 
 will be added over time.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :caption: Contents:
 
    leadership-task-module
