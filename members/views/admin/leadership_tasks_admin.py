@@ -4,6 +4,7 @@ leadership_tasks_admin - administrative task handling
 '''
 # standard
 from datetime import timedelta, date
+from re import match
 
 # pypi
 from flask import g, url_for, current_app, request
@@ -34,7 +35,7 @@ from loutilities.user.model import User
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.tables import DteDbOptionsPickerBase, DteDbRelationship, get_request_action, get_request_data
-from loutilities.tables import SEPARATOR
+from loutilities.tables import SEPARATOR, REGEX_ISODATE
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 class ParameterError(Exception): pass
@@ -1132,7 +1133,10 @@ def taskdetails_validate(action, formdata):
         if formdata[field] > date.today().isoformat():
             results.append({'name':field, 'status': 'cannot specify date later than today'})
 
-    if formdata['lastcompleted'] > date.today().isoformat():
+    if not match(REGEX_ISODATE, formdata['lastcompleted']):
+        results.append({'name':'lastcompleted', 'status': 'please specify date in yyyy-mm-dd format'})
+
+    elif formdata['lastcompleted'] > date.today().isoformat():
         results.append({'name':'lastcompleted', 'status': 'cannot specify date later than today'})
 
     return results
