@@ -198,10 +198,10 @@ See the :ref:`Task Configuration Guide` for details on how :term:`tasks <task>` 
         indicates if the task is optional or required. If this is set to *yes*, **Expires Soon**, **Period**,
         **Date of Year**, and **Overdue Starts** should be left blank
 
-.. image:: images/task-groups-view.*
+.. image:: images/tasks-view.*
     :align: center
 
-.. image:: images/task-groups-edit.*
+.. image:: images/tasks-edit.*
     :align: center
 
 
