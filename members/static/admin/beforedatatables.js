@@ -39,5 +39,5 @@ function member_details(e, dt, node, config) {
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('taskdetails');
     var newloc = newloclist.join('/') + '?' + newsearch;
-    window.location = newloc;
+    window.open(newloc, '_blank');
 }
