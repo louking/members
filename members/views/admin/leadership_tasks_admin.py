@@ -481,7 +481,7 @@ task = AssociationCrudApi(
                                       ' can be used. Click link for syntax'
                          },
                         {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
-                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
+                         'fieldInfo': 'task groups this task should be associated with',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
                                               'formfield': 'taskgroups',
@@ -588,9 +588,8 @@ taskfield = TaskFieldCrud(
                     formmapping = taskfield_formmapping, 
                     checkrequired = True,
                     clientcolumns = [
-                        {'data': 'taskfield', 'name': 'taskfield', 'label': 'Field Name',
+                        {'data': 'taskfield', 'name': 'taskfield', 'label': 'Field',
                          'className': 'field_req',
-                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
                          '_unique': True,
                          },
                         {'data': 'priority', 'name': 'priority', 'label': 'Priority',
@@ -888,7 +887,7 @@ assigntask = DbCrudApiInterestsRolePermissions(
                          '_unique': True,
                          },
                         {'data': 'positions', 'name': 'positions', 'label': 'Positions',
-                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
+                         'fieldInfo': 'tasks are assigned via position, task groups, or both',
                          '_treatment': {
                              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                                               'dbfield': 'positions', 'uselist': True,
@@ -896,7 +895,7 @@ assigntask = DbCrudApiInterestsRolePermissions(
                                               }}
                          },
                         {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
-                         'fieldInfo': 'tasks are assigned via position taskgroups, taskgroups, or both',
+                         'fieldInfo': 'tasks are assigned via position, task groups, or both',
                          '_treatment': {
                              'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
                                               'formfield': 'taskgroups',
