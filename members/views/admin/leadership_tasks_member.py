@@ -165,6 +165,8 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 # would be the following if selector was accepted
                 # 'order': [['order:name','asc'], ['lastcompleted:name','asc'], ['priority:name','asc']]
                 'order': [[1, 'asc'], [6, 'asc'], [2, 'asc']],
+                'lengthMenu': [10, 25, 50, 100],
+                'pageLength': 25,
             },
             edoptions={
                 'i18n':
