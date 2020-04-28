@@ -651,6 +651,7 @@ taskfield = TaskFieldCrud(
                          'fieldInfo': 'this gets displayed under the field to help the user fill in the form'
                          },
                         {'data': 'displayvalue', 'name': 'displayvalue', 'label': 'Field Value', 'type': 'textarea',
+                         'render': {'eval': '$.fn.dataTable.render.ellipsis( 80 )'},
                          'fieldInfo': 'text to display for {} Input Type (display-only)'.format(INPUT_TYPE_DISPLAY)},
                         {'data': 'fieldname', 'name': 'fieldname', 'label': 'Field Name', 'type': 'readonly'
                          },
