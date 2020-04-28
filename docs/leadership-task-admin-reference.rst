@@ -201,6 +201,9 @@ See the :ref:`Task Configuration Guide` for details on how :term:`tasks <task>` 
 .. image:: images/tasks-view.*
     :align: center
 
+.. image:: images/tasks-create.*
+    :align: center
+
 .. image:: images/tasks-edit.*
     :align: center
 

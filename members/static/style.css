@@ -364,6 +364,7 @@ div.DTE_Body div.DTE_Body_Content div.DTE_Field > label {
 div.row {
     display: flex;
     flex-flow: nowrap;
+    padding-left: 5px;
 }
 
 div.DTE_Field.inhibitlabel > label {

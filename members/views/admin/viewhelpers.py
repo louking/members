@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, date
 
 # pypi
 from flask import g, current_app
+from dateutil.relativedelta import relativedelta
 
 # homegrown
 from members.model import TaskCompletion, LocalUser, LocalInterest
@@ -56,28 +57,6 @@ def lastcompleted(task, user):
     taskcompletion = get_task_completion(task, user)
     return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
 
-def _get_year(thedate, month, day, expirystarts, completed):
-    '''
-    get the year for expiration
-
-    :param thedate: completion date, or if not completed today's date
-    :param month: task.dateofyear month
-    :param day: task.dateofyear day
-    :param expirystarts: timedelta window from month/year
-    :param completed: True if the task completed
-    :return: year
-    '''
-    if not completed:
-        yearadjust = -1
-    else:
-        yearadjust = 0
-    if (thedate > date(thedate.year - 1, month, day) + expirystarts
-            and thedate <= date(thedate.year, month, day) + expirystarts):
-        theyear = thedate.year + yearadjust
-    else:
-        theyear = thedate.year + 1 + yearadjust
-    return theyear
-
 def _get_expiration(task, taskcompletion):
     '''
     task expiration depends on configuration type
@@ -99,7 +78,7 @@ def _get_expiration(task, taskcompletion):
     elif task.period:
         # task completed, return expiration depending on task / completion date
         if taskcompletion:
-            return dtrender.dt2asc(taskcompletion.completion + task.period)
+            return dtrender.dt2asc(taskcompletion.completion + relativedelta(**{task.period_units: task.period}))
 
         # task not completed, return default
         else:
@@ -112,7 +91,7 @@ def _get_expiration(task, taskcompletion):
     # task expires yearly on a specific date
     elif task.dateofyear:
         month, day = [int(md) for md in task.dateofyear.split('-')]
-        expirystarts = task.expirystarts
+        expirystarts = relativedelta(**{task.expirystarts_units:task.expirystarts})
         today = date.today()
         todaymmdd = today.isoformat()[-5:]
 
@@ -193,10 +172,10 @@ def _get_status(task, taskcompletion):
         if not task.period and taskcompletion:
             thisstatus = STATUS_DONE
             thisexpires = STATUS_NO_EXPIRATION
-        elif not taskcompletion or taskcompletion.completion + task.period < datetime.today():
+        elif not taskcompletion or taskcompletion.completion + relativedelta(**{task.period_units: task.period}) < datetime.today():
             thisstatus = STATUS_OVERDUE
             thisexpires = _get_expiration(task, taskcompletion)
-        elif taskcompletion.completion + (task.period - timedelta(EXPIRES_SOON)) < datetime.today():
+        elif taskcompletion.completion + (relativedelta(**{task.period_units: task.period}) - relativedelta(**{task.expirysoon_units: task.expirysoon})) < datetime.today():
             thisstatus = STATUS_EXPIRES_SOON
             thisexpires = _get_expiration(task, taskcompletion)
         else:
@@ -208,7 +187,7 @@ def _get_status(task, taskcompletion):
         thisexpires = _get_expiration(task, taskcompletion)
         year, month, day = [int(ymd) for ymd in thisexpires.split('-')]
         today = date.today()
-        expiressoon = task.expirysoon
+        expiressoon = relativedelta(**{task.expirysoon_units: task.expirysoon})
         expiresdate = date(year, month, day)
         if today >= expiresdate-expiressoon and today < expiresdate:
             thisstatus = STATUS_EXPIRES_SOON

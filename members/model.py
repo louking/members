@@ -119,6 +119,11 @@ class LocalInterest(Base):
         'version_id_col' : version_id
     }
 
+DATE_UNIT_WEEKS = 'weeks'
+DATE_UNIT_MONTHS = 'months'
+DATE_UNIT_YEARS = 'years'
+date_unit_all = (DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS)
+
 class Task(Base):
     __tablename__ = 'task'
     id                  = Column(Integer(), primary_key=True)
@@ -127,10 +132,13 @@ class Task(Base):
     task                = Column(String(TASK_LEN))
     description         = Column(String(DESCR_LEN))
     priority            = Column(Float)
-    expirysoon          = Column(Interval)
-    period              = Column(Interval)          # period or dateofyear, not both
+    expirysoon          = Column(Integer)
+    expirysoon_units    = Column(Enum(*date_unit_all), nullable=True)
+    period              = Column(Integer)          # period or dateofyear, not both
+    period_units        = Column(Enum(*date_unit_all), nullable=True)
     dateofyear          = Column(String(DOY_LEN))   # mm-dd
-    expirystarts        = Column(Interval)          # only used if dateofyear specified
+    expirystarts        = Column(Integer)          # only used if dateofyear specified
+    expirystarts_units  = Column(Enum(*date_unit_all), nullable=True)
     isoptional          = Column(Boolean)
     fields              = relationship('TaskTaskField',
                                        back_populates='task')

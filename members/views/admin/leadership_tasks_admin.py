@@ -21,6 +21,7 @@ from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskT
 from ...model import Position, InputFieldData, Files
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
+from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
@@ -435,17 +436,10 @@ def task_validate(action, formdata):
 
     return results
 
-task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,taskgroups,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,period,dateofyear,expirystarts,isoptional,taskgroups,fields'.split(',')
+task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
-DAYS_PER_PERIOD = 7
-task_dbmapping['period'] = lambda formrow: timedelta(int(formrow['period'])*DAYS_PER_PERIOD) if formrow['period'] else None
-task_formmapping['period'] = lambda dbrow: dbrow.period.days // DAYS_PER_PERIOD if dbrow.period else None
-task_dbmapping['expirysoon'] = lambda formrow: timedelta(int(formrow['expirysoon'])*DAYS_PER_PERIOD) if formrow['expirysoon'] else None
-task_formmapping['expirysoon'] = lambda dbrow: dbrow.expirysoon.days // DAYS_PER_PERIOD if dbrow.expirysoon else None
-task_dbmapping['expirystarts'] = lambda formrow: timedelta(int(formrow['expirystarts'])*DAYS_PER_PERIOD) if formrow['expirystarts'] else None
-task_formmapping['expirystarts'] = lambda dbrow: dbrow.expirystarts.days // DAYS_PER_PERIOD if dbrow.expirystarts else None
 # only take mm-dd portion of date into database
 # TODO: uncommend these when #51 fixed
 # task_dbmapping['dateofyear'] = lambda formrow: formrow['dateofyear'][-5:] if formrow['dateofyear'] else None
@@ -460,7 +454,7 @@ task = AssociationCrudApi(
                     assnmodelfield='task',
                     assnlistfield='fields',
                     version_id_col = 'version_id',  # optimistic concurrency control
-                    template = 'datatables.jinja2',
+                    template = 'tasks.view.jinja2',
                     pagename = 'Tasks',
                     endpoint = 'admin.tasks',
                     endpointvalues={'interest': '<interest>'},
@@ -475,9 +469,11 @@ task = AssociationCrudApi(
                          },
                         {'data': 'priority', 'name': 'priority', 'label': 'Priority',
                          'className': 'field_req',
+                         'class': 'TextCenter',
                          },
                         {'data': 'description', 'name': 'description', 'label': 'Display', 'type': 'textarea',
                          'className': 'field_req',
+                         'render': {'eval': '$.fn.dataTable.render.ellipsis( 80 )'},
                          'fieldInfo': '<a href=https://daringfireball.net/projects/markdown/syntax target=_blank>Markdown</a>' +
                                       ' can be used. Click link for syntax'
                          },
@@ -490,9 +486,18 @@ task = AssociationCrudApi(
                                               'queryparams': localinterest_query_params,
                                               }}
                          },
-                        {'data': 'expirysoon', 'name': 'expirysoon', 'label': 'Expires Soon (weeks)',
-                         'fieldInfo': 'number of weeks before task expires to start indicating "expires soon"',
+                        {'data': 'expirysoon', 'name': 'expirysoon', 'label': 'Expires Soon',
+                         'class': 'TextCenter',
+                         'fieldInfo': 'time before task expires to start indicating "expires soon"',
                          'ed': {'def': EXPIRES_SOON / PERIOD_WINDOW_DISPLAY}
+                         },
+                        {'data': 'expirysoon_units', 'name': 'expirysoon_units', 'label': '',
+                         'type': 'select2',
+                         'className': 'inhibitlabel',
+                         'options': date_unit_all,
+                         'ed' :{
+                             'def': DATE_UNIT_WEEKS
+                         },
                          },
                         {'data': 'fields', 'name': 'fields', 'label': 'Fields',
                          '_treatment': {
@@ -511,8 +516,17 @@ task = AssociationCrudApi(
                                      )
                              }}
                          },
-                        {'data': 'period', 'name': 'period', 'label': 'Period (weeks)',
-                         'fieldInfo': 'Period or Date of Year may be specified. Leave blank if this task doesn\'t need to be done periodically'
+                        {'data': 'period', 'name': 'period', 'label': 'Period',
+                         'fieldInfo': 'Period or Date of Year may be specified. Leave blank if this task doesn\'t need to be done periodically',
+                         'class': 'TextCenter',
+                         },
+                        {'data': 'period_units', 'name': 'period_units', 'label': '',
+                         'type': 'select2',
+                         'className': 'inhibitlabel',
+                         'options': date_unit_all,
+                         'ed' :{
+                             'def': DATE_UNIT_YEARS
+                         },
                          },
                         {'data': 'dateofyear', 'name': 'dateofyear', 'label': 'Date of Year',
                          # TODO: uncomment these when #51 fixed
@@ -523,10 +537,20 @@ task = AssociationCrudApi(
                          # TODO: remove this when #51 fixed
                          'ed': {'label': 'Date of Year (mm-dd)'},
                          },
-                        {'data': 'expirystarts', 'name': 'expirystarts', 'label': 'Overdue Starts (weeks)',
-                         'fieldInfo': 'only used if Date of Year specified. number of weeks after task expires to start indicating "overdue"'
+                        {'data': 'expirystarts', 'name': 'expirystarts', 'label': 'Overdue Starts',
+                         'fieldInfo': 'only used if Date of Year specified. time after task expires to start indicating "overdue"',
+                         'class': 'TextCenter',
+                         },
+                        {'data': 'expirystarts_units', 'name': 'expirystarts_units', 'label': '',
+                         'type': 'select2',
+                         'className': 'inhibitlabel',
+                         'options': date_unit_all,
+                         'ed' :{
+                             'def': DATE_UNIT_MONTHS
+                         },
                          },
                         {'data': 'isoptional', 'name': 'isoptional', 'label': 'Optional Task',
+                         'class': 'TextCenter',
                          '_treatment': {'boolean': {'formfield': 'isoptional', 'dbfield': 'isoptional'}},
                          'ed': {'def': 'no'},
                          },
@@ -540,6 +564,9 @@ task = AssociationCrudApi(
                                         'scrollXInner': "100%",
                                         'scrollY': True,
                                   },
+                    edoptions = {
+                        'template': '#customForm',
+                    }
                     )
 task.register()
 

@@ -6,12 +6,11 @@ run from 3 levels up, like python -m members.scripts.scripts.taskdata_init
 '''
 # standard
 from os.path import join, dirname
-from datetime import timedelta, date, datetime
+from datetime import date, datetime
 from argparse import ArgumentParser
 
 # pypi
 from flask import url_for
-from sqlalchemy.orm import aliased
 
 # homegrown
 from loutilities.transform import Transform
@@ -23,6 +22,7 @@ from members.model import update_local_tables
 from members.model import LocalUser, LocalInterest, Task, TaskGroup, TaskField, TaskTaskField, Position
 from members.model import input_type_all, gen_fieldname, FIELDNAME_ARG
 from members.model import INPUT_TYPE_UPLOAD, INPUT_TYPE_DATE, INPUT_TYPE_DISPLAY, INPUT_TYPE_TEXT, INPUT_TYPE_TEXTAREA
+from members.model import DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
 from members.model import NEED_REQUIRED, NEED_ONE_OF, NEED_OPTIONAL
 from loutilities.user.model import User, Interest
 
@@ -180,25 +180,25 @@ def main():
         db.session.flush()
 
         tasks = [
-            {'task': 'Executive Officer Job Description', 'priority':2, 'period':timedelta(104*7),
+            {'task': 'Executive Officer Job Description', 'priority':2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional':False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description':'Review [Executive Officer Job Description](https://docs.google.com/document/d/14yW5nK_mc9jiutPmniMmzDjLncjxlD7xA7tRruO43MY/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Executive Officer')
              ],
              },
-            {'task': 'Board of Directors Job Description', 'priority':2, 'period':timedelta(104*7),
+            {'task': 'Board of Directors Job Description', 'priority':2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional':False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description':'Review [Board of Directors Job Description](https://docs.google.com/document/d/1rps35T5Z5YHKpI_80ZX7CFKaW7TPhuZYBFckCTSNnho/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board of Directors')
              ],
              },
-            {'task': 'Board Orientation and Operation', 'priority': 1, 'period': timedelta(104 * 7),
+            {'task': 'Board Orientation and Operation', 'priority': 1, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [FSRC Board Orientation and Operation](https://docs.google.com/document/d/1mwz3zpjv2kjk_LukT2KTtEslk3pWujyAU50yrEvIc1M/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
@@ -211,66 +211,66 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Constitution / Bylaws', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Constitution / Bylaws', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [FSRC Constitution / Bylaws](https://drive.google.com/open?id=1bxULc_jEuzUUSxfDWYIOtAvpnA0LXq7O8kkcybCBEQ0)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Conflict of Interest Policy', 'priority': 2, 'period': timedelta(52 * 7),
+            {'task': 'Conflict of Interest Policy', 'priority': 2, 'period': 1, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Conflict of Interest Policy](https://docs.google.com/document/d/1dQcnj-eqwMA9j9k5UuYMlT_3-pImvQxpyPgUIJX9rvo/edit?usp=sharing)',
              'fields': [coifieldneed[ft] + '/' + coifield[ft] for ft in coifieldtype],
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Board Meeting Procedures', 'priority': 1, 'period': timedelta(104 * 7),
+            {'task': 'Board Meeting Procedures', 'priority': 1, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Board Meeting Procedures](https://drive.google.com/open?id=1k1eDwEa641Rdd6fRZcRv4bkMJXfXWtWAoyiyw9jtZc0)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Code of Conduct Policy', 'priority': 2, 'period': timedelta(104 * 7),
+            {'task': 'Code of Conduct Policy', 'priority': 2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Code of Conduct Policy](https://docs.google.com/document/d/11MuwstPD1X_8ivuR4TV6qrpXAfUPHoGNnTqlMVHlFoA/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Social Media Policy', 'priority': 2, 'period': timedelta(104 * 7),
+            {'task': 'Social Media Policy', 'priority': 2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Social Media Policy - Leadership Team](https://docs.google.com/document/d/1_sZYz8SLtepLlAT7V9laD0lGcUckXnslMrm9xlaR0_I/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
              },
-            {'task': 'Executive Board Nomination Process', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Executive Board Nomination Process', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Executive Board Nomination Process](https://docs.google.com/document/d/110KryUEX_77Fj24QJHk9BEbGXAgcPdEIsba8Izwz-AE/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Nomination Process')
              ],
              },
-            {'task': 'Safe Sport Policy', 'priority': 3, 'period': timedelta(52 * 7),
+            {'task': 'Safe Sport Policy', 'priority': 3, 'period': 1, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Safe Sport Policy](https://docs.google.com/document/d/1I9TGaf5FmSZsqIWlguZOXyWsVkAU7Q3kXZ_WijBRkH8/edit?usp=sharing)',
               'taskgroups': [
                   next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
               ],
               },
-            {'task': 'Safe Sport Training', 'priority': 4, 'period': timedelta(104 * 7),
+            {'task': 'Safe Sport Training', 'priority': 4, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2*7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Complete Safe Sport Training',
              'fields': [
                  NEED_REQUIRED + '/' + sscompdatefield,
@@ -280,9 +280,9 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
              ],
              },
-            {'task': 'Training Programs - Youth Participation Policy', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Training Programs - Youth Participation Policy', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review [Training Programs - Youth Participation Policy](https://docs.google.com/document/d/1jjDoqAkfKxFfTN16uMW2-J1ptW8o7DflocloFjjpm0A/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
@@ -302,9 +302,9 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
              ],
              },
-            {'task': 'Background Check', 'priority': 2, 'period': timedelta(104 * 7),
+            {'task': 'Background Check', 'priority': 2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Apply for background check. '
                             'For instructions see [NCSI Self Registration Letter](https://drive.google.com/file/d/0B8Zxg7taJn4FR2RVc2ZiQ2tmeVhiNlRCT01IUnVoRHRhVWIw/view?usp=sharing)',
              'taskgroups': [
@@ -312,18 +312,18 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Bank Account Full Access'),
              ],
              },
-            {'task': 'Race Revenue Proposal', 'priority': 3, 'dateofyear': '11-01', 'expirystarts': timedelta(13*3*7),
+            {'task': 'Race Revenue Proposal', 'priority': 3, 'dateofyear': '11-01', 'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Produce Race Revenue Proposal based on '
                             '[FSRC Event Revenue Policy](https://docs.google.com/document/d/1K-x_xY1b2nWS8qZ2fljauJl_Plbb0qK2ANjy-43cEU8/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Signature Race Director')
              ],
              },
-            {'task': 'Race Policy', 'priority': 3, 'period': timedelta(104 * 7),
+            {'task': 'Race Policy', 'priority': 3, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[FSRC Race Policy](https://docs.google.com/document/d/1UxT1Z9sjcKJyFjgLpfDtkSHQ-lzIam0t5lbxcBAjYGo/edit?usp=sharing)',
              'taskgroups': [
@@ -331,9 +331,9 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Low Key Race Director'),
              ],
              },
-            {'task': 'Severe Weather Cancellation Policy', 'priority': 3, 'period': timedelta(104 * 7),
+            {'task': 'Severe Weather Cancellation Policy', 'priority': 3, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[Severe Weather Cancellation Policy](https://docs.google.com/document/d/1s14YePWI6chccrTtibyBokyigaG-yAx__jpcni611Bk/edit?usp=sharing)',
              'taskgroups': [
@@ -348,9 +348,9 @@ def main():
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Signature Race Director'),
              ],
              },
-            {'task': 'Memorial Scholarship Policy', 'priority': 3, 'period': timedelta(104 * 7),
+            {'task': 'Memorial Scholarship Policy', 'priority': 3, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[FSRC Memorial Scholarship Policy](https://docs.google.com/document/d/1aF-m32Y6x3Nl0AQZWCgsnv2cw25JTLiBb9fzOZ-oK44/edit?usp=sharing)',
              'taskgroups': [
@@ -358,153 +358,153 @@ def main():
              ],
              },
             {'task': 'Annual Report', 'priority': 3, 'dateofyear': '05-01',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Issue Annual Report for review',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'President')
              ],
              },
             {'task': 'Q1 President\'s Message', 'priority': 3, 'dateofyear': '03-01',
-             'expirystarts': timedelta(13 * 2 * 7),
+             'expirystarts': 6, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Write Q1 President\'s Message for Intervals Blog',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'President')
              ],
              },
             {'task': 'Q2 President\'s Message', 'priority': 3, 'dateofyear': '06-01',
-             'expirystarts': timedelta(13 * 2 * 7),
+             'expirystarts': 6, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Write Q2 President\'s Message for Intervals Blog',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'President')
              ],
              },
             {'task': 'Q3 President\'s Message', 'priority': 3, 'dateofyear': '09-01',
-             'expirystarts': timedelta(13 * 2 * 7),
+             'expirystarts': 6, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Write Q3 President\'s Message for Intervals Blog',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'President')
              ],
              },
             {'task': 'Q4 President\'s Message', 'priority': 3, 'dateofyear': '12-01',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Write Q4 President\'s Message for Intervals Blog',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'President')
              ],
              },
 
-            {'task': 'Financial Policies', 'priority': 3, 'period': timedelta(104*7),
+            {'task': 'Financial Policies', 'priority': 3, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[Financial Policies](https://docs.google.com/document/d/1Aa8NCSj20Pb9FgLJB2Q82m9_SLlAc3qBYiFY9sGUzz0/edit)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
-            {'task': 'Sales Tax Exemption', 'priority': 3, 'period': timedelta(104*7),
+            {'task': 'Sales Tax Exemption', 'priority': 3, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Renew sales tax exemption',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Annual Budget', 'priority': 3, 'dateofyear': '02-01',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Manage and develop the proposed annual budget',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': '1099-MISC to Subcontractors', 'priority': 3, 'dateofyear': '01-16',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Issue contractor 1099-MISC to subcontractors',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': '990 Tax Return', 'priority': 3, 'dateofyear': '04-01',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File 990 Tax Return',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Maryland Property Taxes', 'priority': 3, 'dateofyear': '04-15',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File Maryland State Annual Report and Personal Property Tax Return',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Update Maryland Charitable Fundraising Registration', 'priority': 3, 'dateofyear': '04-15',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File Maryland State Annual Update of Registration',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Sales Tax H1', 'priority': 3, 'dateofyear': '06-20',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File H1 Sales Tax Return',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Sales Tax H2', 'priority': 3, 'dateofyear': '01-20',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File H2 Sales Tax Return',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'Frederick City Property Taxes', 'priority': 3, 'dateofyear': '07-31',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'File Frederick City Personal Property Tax Return',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'RRCA Annual Dues, etc', 'priority': 3, 'dateofyear': '12-31',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Renew RRCA Annual Dues, Insurance and Music Licensing',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
              ],
              },
             {'task': 'RRCA Property Insurance', 'priority': 3, 'dateofyear': '12-31',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Renew RRCA Property Insurance',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Finances')
@@ -512,45 +512,45 @@ def main():
              },
 
             {'task': 'Annual FSRC Race Calendar', 'priority': 3, 'dateofyear': '11-30',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Submit annual race calendar to the Board',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Races')
              ],
              },
             {'task': 'RRCA Race Calendar', 'priority': 3, 'dateofyear': '01-31',
-             'expirystarts': timedelta(13 * 3 * 7),
+             'expirystarts':  9, 'expirystarts_units': DATE_UNIT_MONTHS,
              'isoptional': False,
-             'expirysoon': timedelta(4 * 7),
+             'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Update RRCA Race Calendar',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Races')
              ],
              },
 
-            {'task': 'Technology Roles and Responsibilities', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Technology Roles and Responsibilities', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[Technology Roles and Responsibilities](https://docs.google.com/document/d/1p73d2aPZ5ws8Ooul5JAgQYZXMAL2j2mj9NqXJkgpGY8/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Technology Committee Leadership')
              ],
              },
-            {'task': 'Membership Roles and Responsibilities', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Membership Roles and Responsibilities', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[Membership Roles and Responsibilities](https://docs.google.com/document/d/1VAGcgKhi4EVB_vYN2-Q4cxC6x1-0mIlYe5wnYClOtMU/edit?usp=sharing)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Membership Committee Leadership')
              ],
              },
-            {'task': 'Communications Roles and Responsibilities', 'priority': 5, 'period': timedelta(104 * 7),
+            {'task': 'Communications Roles and Responsibilities', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
-             'expirysoon': timedelta(2 * 7),
+             'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
                             '[Communications Roles and Responsibilities](https://docs.google.com/document/d/1F5-k1fqz96xanu_ckI_DfT3UllNiPBrw7pmHz8MNYWA/edit?usp=sharing)',
              'taskgroups': [
