@@ -105,6 +105,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             local_interest_model=LocalInterest,
             roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
             template='datatables.jinja2',
+            templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-member-guide.html'},
             pagename='Task Checklist',
             endpoint='admin.taskchecklist',
             endpointvalues={'interest': '<interest>'},

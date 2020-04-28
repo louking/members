@@ -29,6 +29,7 @@ interestattr = DbCrudApiRolePermissions(
                     model = LocalInterest,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
+                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
                     pagename = 'Interest Attributes',
                     endpoint = 'admin.interestattrs',
                     rule = '/interestattrs',

@@ -15,16 +15,37 @@ user = LocalUserView(
     pagename='members',
     endpoint='userrole.members',
     rule='/members',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
 )
 user.register()
 
 class LocalInterestView(InterestView):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        args = dict(
+            templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+        )
+        args.update(kwargs)
+
+        # initialize inherited class, and a couple of attributes
+        super().__init__(**args)
+
     def editor_method_postcommit(self, form):
         update_local_tables()
 interest = LocalInterestView()
 interest.register()
 
 class LocalRoleView(RoleView):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        args = dict(
+            templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+        )
+        args.update(kwargs)
+
+        # initialize inherited class, and a couple of attributes
+        super().__init__(**args)
+
     def editor_method_postcommit(self, form):
         update_local_tables()
 role = LocalRoleView()

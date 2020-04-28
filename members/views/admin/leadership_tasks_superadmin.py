@@ -37,6 +37,7 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
     model=EmailTemplate,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
     pagename='Email Templates',
     endpoint='admin.emailtemplates',
     endpointvalues={'interest': '<interest>'},
