@@ -15,8 +15,8 @@
 
 {% block metanav %}
     <div class=metanav>
-      {% if session.user_email %}
-        {{ session.user_email }} |
+      {% if current_user.name %}
+        {{ current_user.name }} |
       {% endif %}
 
       <label for="metanav-select-interest" class="interest-label">Interest:</label>
@@ -34,7 +34,7 @@
 
       {% if not frontend_page %}
           <a href="https://members.readthedocs.io/en/latest/" target="_blank" class="ui-button">Admin Guide</a>
-          {% if session._user_id or session.user_id %}
+          {% if current_user.name %}
             <a href="{{ url_for('security.logout') }}" class="ui-button">log out</a>
           {% else %}
             <a href="{{ url_for('security.login') }}" class="ui-button">log in</a>
