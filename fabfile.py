@@ -48,14 +48,14 @@ def deploy(c, branchname='master'):
         raise Exit('branchname {} does not exist'.format(branchname))
 
     c.run('cd {} && git checkout {}'.format(project_dir, branchname))
-    c.run('cd {} && cp -R ../../libs/js  runningroutes/static'.format(project_dir))
+    c.run('cd {} && cp -R ../../libs/js  {}/static'.format(project_dir, APP_NAME))
     # must source bin/activate before each command which must be done under venv
     # because each is a separate process
     c.run('cd {} && source {}/bin/activate && pip install -r requirements.txt'.format(project_dir, venv_dir))
     
-    versions_dir = '{}/runningroutes/versioning/versions'.format(project_dir)
+    versions_dir = '{}/{}/versioning/versions'.format(project_dir, APP_NAME)
     if not c.run('test -d {}'.format(versions_dir), warn=True):
         c.run('mkdir -p {}'.format(versions_dir))
     
-    c.run('cd {} && source {}/bin/activate && alembic -c runningroutes/alembic.ini upgrade head'.format(project_dir, venv_dir))
+    c.run('cd {} && source {}/bin/activate && alembic -c {}/alembic.ini upgrade head'.format(project_dir, venv_dir, APP_NAME))
     c.run('cd {} && touch {}'.format(project_dir, WSGI_SCRIPT))
