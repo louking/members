@@ -1,7 +1,7 @@
 '''
 users_init - command line database initialization - clean database initialize users
 =========================================================================================
-run from 3 levels up, like python -m members.user.scripts.users_init
+run from 3 levels up, like python -m members.scripts.users_init
 
 '''
 # standard
@@ -90,9 +90,10 @@ def init_db(defineowner=True):
     # and we're done, let's accept what we did
     db.session.commit()
 
+
 scriptdir = dirname(__file__)
-# one level up
-scriptfolder = dirname(scriptdir)
+# two levels up
+scriptfolder = dirname(dirname(scriptdir))
 configdir = join(scriptfolder, 'config')
 configfile = "users.cfg"
 configpath = join(configdir, configfile)

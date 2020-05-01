@@ -1,7 +1,7 @@
 '''
 taskdata_init - command line database initialization - initialize test data
 =========================================================================================
-run from 3 levels up, like python -m members.scripts.scripts.taskdata_init
+run from 3 levels up, like python -m members.scripts.taskdata_init
 
 '''
 # standard

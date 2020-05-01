@@ -1,7 +1,7 @@
 '''
 testdata_init - command line database initialization - initialize test data
 =========================================================================================
-run from 3 levels up, like python -m members.scripts.scripts.testdata_init
+run from 3 levels up, like python -m members.scripts.testdata_init
 
 '''
 # standard
