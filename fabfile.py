@@ -53,9 +53,9 @@ def deploy(c, branchname='master'):
     # because each is a separate process
     c.run('cd {} && source {}/bin/activate && pip install -r requirements.txt'.format(project_dir, venv_dir))
     
-    versions_dir = '{}/{}/migrations/versions'.format(project_dir, APP_NAME)
+    versions_dir = '{}/migrations/versions'.format(project_dir)
     if not c.run('test -d {}'.format(versions_dir), warn=True):
-        c.run('mkdir -p {}'.format(versions_dir))
+        c.run('mkdir {}'.format(versions_dir))
 
     c.run('cd {} && source {}/bin/activate && flask db upgrade'.format(project_dir, venv_dir, APP_NAME))
     c.run('cd {} && touch {}'.format(project_dir, WSGI_SCRIPT))
