@@ -21,7 +21,7 @@
 
       <label for="metanav-select-interest" class="interest-label">Interest:</label>
       <select id="metanav-select-interest">
-          {# set in runningroutes.__init__ #}
+          {# set in members.__init__ #}
           {% for interest in user_interests %}
               <option value="{{ interest.interest }}">{{ interest.description }}</option>
           {% endfor %}

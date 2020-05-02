@@ -40,7 +40,6 @@ if False:
     from getpass import getuser
     print('members user = {}'.format(getuser()), file=sys.stderr)
 
-# from runningroutes import app as application
 from members import create_app
 from members.settings import Production
 # userconfigpath first so configpath can override

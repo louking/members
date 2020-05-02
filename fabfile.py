@@ -12,7 +12,7 @@ expecting fabric.json with following content
         "connect_kwargs": {
             "key_filename": sshkeyfilename (export OpenSSH key from puttygen)
         },
-        "user": "runningroutesmgr"
+        "user": "membersmgr"
     }
 
 execute as follows
