@@ -183,7 +183,7 @@ def main():
             {'task': 'Executive Officer Job Description', 'priority':2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional':False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description':'Review [Executive Officer Job Description](https://docs.google.com/document/d/14yW5nK_mc9jiutPmniMmzDjLncjxlD7xA7tRruO43MY/edit?usp=sharing)',
+             'description':'Review [Executive Officer Job Description](https://docs.google.com/document/d/14yW5nK_mc9jiutPmniMmzDjLncjxlD7xA7tRruO43MY/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Executive Officer')
              ],
@@ -191,7 +191,7 @@ def main():
             {'task': 'Board of Directors Job Description', 'priority':2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional':False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description':'Review [Board of Directors Job Description](https://docs.google.com/document/d/1rps35T5Z5YHKpI_80ZX7CFKaW7TPhuZYBFckCTSNnho/edit?usp=sharing)',
+             'description':'Review [Board of Directors Job Description](https://docs.google.com/document/d/1rps35T5Z5YHKpI_80ZX7CFKaW7TPhuZYBFckCTSNnho/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board of Directors')
              ],
@@ -199,7 +199,7 @@ def main():
             {'task': 'Board Orientation and Operation', 'priority': 1, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [FSRC Board Orientation and Operation](https://docs.google.com/document/d/1mwz3zpjv2kjk_LukT2KTtEslk3pWujyAU50yrEvIc1M/edit?usp=sharing)',
+             'description': 'Review [FSRC Board Orientation and Operation](https://docs.google.com/document/d/1mwz3zpjv2kjk_LukT2KTtEslk3pWujyAU50yrEvIc1M/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
@@ -214,7 +214,7 @@ def main():
             {'task': 'Constitution / Bylaws', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [FSRC Constitution / Bylaws](https://drive.google.com/open?id=1bxULc_jEuzUUSxfDWYIOtAvpnA0LXq7O8kkcybCBEQ0)',
+             'description': 'Review [FSRC Constitution / Bylaws](https://docs.google.com/document/d/1bxULc_jEuzUUSxfDWYIOtAvpnA0LXq7O8kkcybCBEQ0/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
@@ -222,7 +222,7 @@ def main():
             {'task': 'Conflict of Interest Policy', 'priority': 2, 'period': 1, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Conflict of Interest Policy](https://docs.google.com/document/d/1dQcnj-eqwMA9j9k5UuYMlT_3-pImvQxpyPgUIJX9rvo/edit?usp=sharing)',
+             'description': 'Review [Conflict of Interest Policy](https://docs.google.com/document/d/1dQcnj-eqwMA9j9k5UuYMlT_3-pImvQxpyPgUIJX9rvo/preview)',
              'fields': [coifieldneed[ft] + '/' + coifield[ft] for ft in coifieldtype],
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
@@ -231,7 +231,7 @@ def main():
             {'task': 'Board Meeting Procedures', 'priority': 1, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Board Meeting Procedures](https://drive.google.com/open?id=1k1eDwEa641Rdd6fRZcRv4bkMJXfXWtWAoyiyw9jtZc0)',
+             'description': 'Review [Board Meeting Procedures](https://docs.google.com/document/d/1k1eDwEa641Rdd6fRZcRv4bkMJXfXWtWAoyiyw9jtZc0/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
@@ -239,7 +239,7 @@ def main():
             {'task': 'Code of Conduct Policy', 'priority': 2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Code of Conduct Policy](https://docs.google.com/document/d/11MuwstPD1X_8ivuR4TV6qrpXAfUPHoGNnTqlMVHlFoA/edit?usp=sharing)',
+             'description': 'Review [Code of Conduct Policy](https://docs.google.com/document/d/11MuwstPD1X_8ivuR4TV6qrpXAfUPHoGNnTqlMVHlFoA/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
@@ -247,7 +247,7 @@ def main():
             {'task': 'Social Media Policy', 'priority': 2, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Social Media Policy - Leadership Team](https://docs.google.com/document/d/1_sZYz8SLtepLlAT7V9laD0lGcUckXnslMrm9xlaR0_I/edit?usp=sharing)',
+             'description': 'Review [Social Media Policy - Leadership Team](https://docs.google.com/document/d/1_sZYz8SLtepLlAT7V9laD0lGcUckXnslMrm9xlaR0_I/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Board Meeting Attendee')
              ],
@@ -255,7 +255,7 @@ def main():
             {'task': 'Executive Board Nomination Process', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Executive Board Nomination Process](https://docs.google.com/document/d/110KryUEX_77Fj24QJHk9BEbGXAgcPdEIsba8Izwz-AE/edit?usp=sharing)',
+             'description': 'Review [Executive Board Nomination Process](https://docs.google.com/document/d/110KryUEX_77Fj24QJHk9BEbGXAgcPdEIsba8Izwz-AE/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Nomination Process')
              ],
@@ -263,7 +263,7 @@ def main():
             {'task': 'Safe Sport Policy', 'priority': 3, 'period': 1, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Safe Sport Policy](https://docs.google.com/document/d/1I9TGaf5FmSZsqIWlguZOXyWsVkAU7Q3kXZ_WijBRkH8/edit?usp=sharing)',
+             'description': 'Review [Safe Sport Policy](https://docs.google.com/document/d/1I9TGaf5FmSZsqIWlguZOXyWsVkAU7Q3kXZ_WijBRkH8/preview)',
               'taskgroups': [
                   next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
               ],
@@ -283,7 +283,7 @@ def main():
             {'task': 'Training Programs - Youth Participation Policy', 'priority': 5, 'period': 2, 'period_units': DATE_UNIT_YEARS,
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
-             'description': 'Review [Training Programs - Youth Participation Policy](https://docs.google.com/document/d/1jjDoqAkfKxFfTN16uMW2-J1ptW8o7DflocloFjjpm0A/edit?usp=sharing)',
+             'description': 'Review [Training Programs - Youth Participation Policy](https://docs.google.com/document/d/1jjDoqAkfKxFfTN16uMW2-J1ptW8o7DflocloFjjpm0A/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Training')
              ],
@@ -316,7 +316,7 @@ def main():
              'isoptional': False,
              'expirysoon':  4, 'expirysoon_units':  DATE_UNIT_WEEKS,
              'description': 'Produce Race Revenue Proposal based on '
-                            '[FSRC Event Revenue Policy](https://docs.google.com/document/d/1K-x_xY1b2nWS8qZ2fljauJl_Plbb0qK2ANjy-43cEU8/edit?usp=sharing)',
+                            '[FSRC Event Revenue Policy](https://docs.google.com/document/d/1K-x_xY1b2nWS8qZ2fljauJl_Plbb0qK2ANjy-43cEU8/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Signature Race Director')
              ],
@@ -325,7 +325,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[FSRC Race Policy](https://docs.google.com/document/d/1UxT1Z9sjcKJyFjgLpfDtkSHQ-lzIam0t5lbxcBAjYGo/edit?usp=sharing)',
+                            '[FSRC Race Policy](https://docs.google.com/document/d/1UxT1Z9sjcKJyFjgLpfDtkSHQ-lzIam0t5lbxcBAjYGo/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Signature Race Director'),
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Low Key Race Director'),
@@ -335,7 +335,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[Severe Weather Cancellation Policy](https://docs.google.com/document/d/1s14YePWI6chccrTtibyBokyigaG-yAx__jpcni611Bk/edit?usp=sharing)',
+                            '[Severe Weather Cancellation Policy](https://docs.google.com/document/d/1s14YePWI6chccrTtibyBokyigaG-yAx__jpcni611Bk/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Signature Race Director'),
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Low Key Race Director'),
@@ -352,7 +352,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[FSRC Memorial Scholarship Policy](https://docs.google.com/document/d/1aF-m32Y6x3Nl0AQZWCgsnv2cw25JTLiBb9fzOZ-oK44/edit?usp=sharing)',
+                            '[FSRC Memorial Scholarship Policy](https://docs.google.com/document/d/1aF-m32Y6x3Nl0AQZWCgsnv2cw25JTLiBb9fzOZ-oK44/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Memorial Scholarship'),
              ],
@@ -534,7 +534,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[Technology Roles and Responsibilities](https://docs.google.com/document/d/1p73d2aPZ5ws8Ooul5JAgQYZXMAL2j2mj9NqXJkgpGY8/edit?usp=sharing)',
+                            '[Technology Roles and Responsibilities](https://docs.google.com/document/d/1p73d2aPZ5ws8Ooul5JAgQYZXMAL2j2mj9NqXJkgpGY8/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Technology Committee Leadership')
              ],
@@ -543,7 +543,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[Membership Roles and Responsibilities](https://docs.google.com/document/d/1VAGcgKhi4EVB_vYN2-Q4cxC6x1-0mIlYe5wnYClOtMU/edit?usp=sharing)',
+                            '[Membership Roles and Responsibilities](https://docs.google.com/document/d/1VAGcgKhi4EVB_vYN2-Q4cxC6x1-0mIlYe5wnYClOtMU/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Membership Committee Leadership')
              ],
@@ -552,7 +552,7 @@ def main():
              'isoptional': False,
              'expirysoon':  2, 'expirysoon_units': DATE_UNIT_WEEKS,
              'description': 'Review '
-                            '[Communications Roles and Responsibilities](https://docs.google.com/document/d/1F5-k1fqz96xanu_ckI_DfT3UllNiPBrw7pmHz8MNYWA/edit?usp=sharing)',
+                            '[Communications Roles and Responsibilities](https://docs.google.com/document/d/1F5-k1fqz96xanu_ckI_DfT3UllNiPBrw7pmHz8MNYWA/preview)',
              'taskgroups': [
                  next(tg['TaskGroup'] for tg in taskgroups if tg['taskgroup'] == 'Communications Committee Leadership')
              ],

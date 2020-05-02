@@ -31,7 +31,7 @@ STATUS_UP_TO_DATE = 'up to date'
 # STATUS_DISPLAYORDER needs to match values in beforedatatables.js fn set_cell_status_class.classes
 STATUS_DISPLAYORDER = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
 
-debug = True
+debug = False
 
 def get_task_completion(task, user):
     localuser = user2localuser(user)
