@@ -65,6 +65,14 @@ def nav_menu():
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
         # deeper functions are only accessible when interest is set
         if g.interest:
+            # leadership member stuff
+            if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)
+                    or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
+                    or current_user.has_role(ROLE_SUPER_ADMIN)):
+                # leadershipmember = Subgroup('Leadership Member')
+                # navbar.items.append(leadershipmember)
+                leadership_member_view(navbar, 'Your Tasks', 'admin.taskchecklist', interest=g.interest)
+
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                 leadershipadmin = Subgroup('Leadership Admin')
@@ -77,14 +85,6 @@ def nav_menu():
                 leadership_admin_view(leadershipadmin, 'Tasks', 'admin.tasks', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Task Fields', 'admin.taskfields', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'History', 'admin.history', interest=g.interest)
-
-            # leadership member stuff
-            if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)
-                    or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
-                    or current_user.has_role(ROLE_SUPER_ADMIN)):
-                # leadershipmember = Subgroup('Leadership Member')
-                # navbar.items.append(leadershipmember)
-                leadership_member_view(navbar, 'Task Checklist', 'admin.taskchecklist', interest=g.interest)
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
