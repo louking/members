@@ -287,18 +287,6 @@ def get_taskgroup_tasks(taskgroup, tasks):
     for taskgroup in taskgroup.taskgroups:
         get_taskgroup_tasks(taskgroup, tasks)
 
-def get_taskgroup_members(taskgroup, members):
-    '''
-    get members recursively for this task group
-    :param taskgroup: TaskGroup instance
-    :param members: input and output set of tasks
-    :return: None
-    '''
-    for member in taskgroup.users:
-        members |= {member}
-    for taskgroup in taskgroup.taskgroups:
-        get_taskgroup_members(taskgroup, members)
-
 def get_taskgroup_taskgroups(taskgroup, taskgroups):
     '''
     get members recursively for this task group
