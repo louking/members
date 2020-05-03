@@ -967,17 +967,26 @@ def addlfields(task, member):
                 thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
         thistaskfield['fieldoptions'] = get_options(f)
         if tc:
-            value = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one().value
-            if f.inputtype != INPUT_TYPE_UPLOAD:
-                thistaskfield['value'] = value
+            # field may exist now but maybe didn't before
+            field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
+
+            # field was found
+            if field:
+                value = field.value
+                if f.inputtype != INPUT_TYPE_UPLOAD:
+                    thistaskfield['value'] = value
+                else:
+                    file = Files.query.filter_by(fileid=value).one()
+                    thistaskfield['value'] = a(file.filename,
+                                               href=url_for('admin.file',
+                                                            interest=g.interest,
+                                                            fileid=value),
+                                               target='_blank').render()
+                    thistaskfield['fileid'] = value
+
+            # field wasn't found
             else:
-                file = Files.query.filter_by(fileid=value).one()
-                thistaskfield['value'] = a(file.filename,
-                                           href=url_for('admin.file',
-                                                        interest=g.interest,
-                                                        fileid=value),
-                                           target='_blank').render()
-                thistaskfield['fileid'] = value
+                thistaskfield['value'] = None
         else:
             thistaskfield['value'] = None
         taskfields.append(thistaskfield)
