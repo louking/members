@@ -11,6 +11,7 @@ track the :term:`members' <member>` completion records.
 This guide describes how a :term:`member` manages their :term:`task` checklist.
 
 
+.. _Your Tasks view:
 .. _Task Checklist view:
 
 Task Checklist view

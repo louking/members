@@ -53,6 +53,14 @@ tables. When users or interests are updated from the application, the local tabl
     may not get refreshed. In this case, the :term:`super admin` must force the update of any entry in the common User or
     Interest table from the application which was not updated automatically, to force the refresh of its local table.
 
+Reset Member Password
+=======================
+There's no way to directly reset a :term:`member` password, but to send the :term:`member` a reset link, simply
+log out, click **Forgot Password**, and enter the :term:`member's <member>` email address.
+
+.. note::
+    This link only works if you are logged out
+
 Interest Attributes
 =====================
 There are certain attributes which are maintained in the application local database (not
