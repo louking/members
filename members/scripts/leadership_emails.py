@@ -18,8 +18,9 @@ from members.applogging import setlogging
 # this is a little trick as the emails have the same information as the Task Details view
 from members.views.admin.leadership_tasks_admin import TaskDetails, taskdetails_dbmapping, taskdetails_formmapping
 from members.views.admin import bp
-from members.model import db, LocalInterest, Task, EmailTemplate, Position
-from members.views.admin.viewhelpers import localuser2user, localinterest, get_taskgroup_tasks, get_taskgroup_members
+from members.model import db, LocalUser, LocalInterest, Task, EmailTemplate, Position
+from members.views.admin.viewhelpers import localuser2user, localinterest, get_taskgroup_tasks
+from members.views.admin.viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from members.views.admin.viewhelpers import STATUS_EXPIRES_SOON, STATUS_OVERDUE
 from loutilities.flask_helpers.mailer import sendmail
 
@@ -125,20 +126,37 @@ def main():
 
         # allows for debugging of each section separately
         if not args.nomanagers:
+            # what groups are each member a part of?
+            member2groups = {}
+            for memberlocal in LocalUser.query.filter_by(active=True, interest=localinterest()).all():
+                memberglobal = localuser2user(memberlocal)
+                member2groups[memberglobal.email] = {'worker': memberlocal, 'taskgroups': set()}
+                # drill down to get all taskgroups the member is responsible for
+                for position in memberlocal.positions:
+                    get_position_taskgroups(position, member2groups[memberglobal.email]['taskgroups'])
+                for taskgroup in memberlocal.taskgroups:
+                    get_taskgroup_taskgroups(taskgroup, member2groups[memberglobal.email]['taskgroups'])
+
             # get list of responsible managers
             responsibility = {}
             positions = Position.query.filter_by(interest=localinterest()).all()
             for position in positions:
                 positiontasks = set()
                 positionworkers = set()
+                theseemailgroups = set(position.emailgroups)
+                for workeremail in member2groups:
+                    # add worker if the worker's taskgroups intersect with these email groups
+                    if theseemailgroups & member2groups[workeremail]['taskgroups']:
+                        positionworkers |= {member2groups[workeremail]['worker']}
                 for emailgroup in position.emailgroups:
                     get_taskgroup_tasks(emailgroup, positiontasks)
-                    get_taskgroup_members(emailgroup, positionworkers)
-                for manager in position.users:
-                    manageruser = localuser2user(manager)
-                    responsibility.setdefault(manageruser.email, {'tasks':set(), 'workers':set()})
-                    responsibility[manageruser.email]['tasks'] |= positiontasks
-                    responsibility[manageruser.email]['workers'] |= positionworkers
+                # only set responsibility if this position has management for some groups
+                if position.emailgroups:
+                    for manager in position.users:
+                        manageruser = localuser2user(manager)
+                        responsibility.setdefault(manageruser.email, {'tasks':set(), 'workers':set()})
+                        responsibility[manageruser.email]['tasks'] |= positiontasks
+                        responsibility[manageruser.email]['workers'] |= positionworkers
 
             # set up template engine
             emailtemplate = EmailTemplate.query.filter_by(templatename='leader-email', interest=localinterest()).one()
@@ -159,11 +177,13 @@ def main():
                         manager2members['members'].append({'name':positionuser.name,
                                                            'tasks':thesetasks})
 
-                html = template.render(**manager2members, refurl=refurl)
-                tolist = manager
-                cclist = None
+                # only send if something to send
+                if manager2members['members']:
+                    html = template.render(**manager2members, refurl=refurl)
+                    tolist = manager
+                    cclist = None
 
-                sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+                    sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 
 
 if __name__ == "__main__":
