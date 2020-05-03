@@ -30,6 +30,15 @@ completed the instructions and filled in any required fields, click **Mark Compl
 completed the task.
 
 .. note::
+    When you click on a document link, Google may tell you
+    **you don’t have permission to access the document, or to verify it’s you and log in again** -- if this happens,
+    you need to click on “Switch accounts” or otherwise log in to
+    the correct account to access the document. In some cases, you may need to "switch accounts" more
+    than once - and the option to switch accounts may only be offered if you click on your personal email link on the
+    access denied screen. Please do not click on “Request Access”, as this will send a request to allow access from your
+    personal gmail account.
+
+.. note::
     If you are marking a :term:`task` completed which was previously completed and had additional
     :term:`fields <field>`, the last :term:`field` entry(ies) you made will be shown when opening
     the :term:`task`.
