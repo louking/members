@@ -11,13 +11,13 @@ track the :term:`members' <member>` completion records.
 This guide describes how a :term:`member` manages their :term:`task` checklist.
 
 
-.. _Your Tasks view:
+.. _Task Checklist view:
 
 Task Checklist view
 ====================
 
 The interface :term:`members <member>` manage their tasks is through the Task Checklist View. If you don't
-see **Your Tasks** in the menu on the left, make sure **Interest** is set correctly at the top of the view.
+see **Task Checklist** in the menu on the left, make sure **Interest** is set correctly at the top of the view.
 
 :term:`Tasks <task>` are marked with their *status*, *expiration date*, and when *last completed*.
 
