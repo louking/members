@@ -597,7 +597,7 @@ class TaskFieldCrud(DbCrudApiInterestsRolePermissions):
         taskfield = TaskField.query.filter_by(id=self.created_id).one()
         taskfield.fieldname = gen_fieldname()
         if taskfield.inputtype == INPUT_TYPE_UPLOAD:
-            taskfield.uploadurl == (url_for('admin.fieldupload', interest=g.interest)
+            taskfield.uploadurl = (url_for('admin.fieldupload', interest=g.interest)
                                           + '?{}={}'.format(FIELDNAME_ARG, taskfield.fieldname))
         return self.dte.get_response_data(taskfield)
 
