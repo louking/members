@@ -55,11 +55,9 @@ tables. When users or interests are updated from the application, the local tabl
 
 Reset Member Password
 =======================
-There's no way to directly reset a :term:`member` password, but to send the :term:`member` a reset link, simply
-log out, click **Forgot Password**, and enter the :term:`member's <member>` email address.
-
-.. note::
-    This link only works if you are logged out
+The :ref:`Members view` can be used to generate a password reset email to the :term:`member`. This does not invalidate
+the current password, but does give the :term:`member` a link to get to the password reset view and change their
+password.
 
 Interest Attributes
 =====================

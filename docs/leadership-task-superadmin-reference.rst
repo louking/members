@@ -133,6 +133,8 @@ The Members view is used to add new user/:term:`members <member>` to the system,
 When a new user/:term:`member` is entered via this view, an email is sent to the configured email
 address. This email contains a link the user/:term:`member` can use to reset their password.
 
+A reset password email can also be sent to the :term:`member` by clicking **Reset Password** from the edit modal.
+
 .. note::
     This data is in the common database. See :ref:`Single Sign-On` for details about how the common database is used.
 ..
@@ -157,6 +159,9 @@ address. This email contains a link the user/:term:`member` can use to reset the
         if *yes*, the :term:`member` may log in and access the system
 
 .. image:: images/members-view.*
+    :align: center
+
+.. image:: images/members-edit.*
     :align: center
 
 
