@@ -7,17 +7,19 @@ members - package
 import os.path
 
 # pypi
-from flask import Flask, send_from_directory, g, session, request, url_for
+from flask import Flask, send_from_directory, g, session, request, url_for, render_template, current_app
 from flask_mail import Mail
 from jinja2 import ChoiceLoader, PackageLoader
 from flask_security import SQLAlchemyUserDatastore, current_user
-from sqlalchemy import desc
+from werkzeug.local import LocalProxy
 
 # homegrown
 import loutilities
 from loutilities.configparser import getitems
 from loutilities.user import UserSecurity
 from loutilities.user.model import Interest, Application, User, Role
+from loutilities.flask_helpers.mailer import sendmail
+from .views.admin.viewhelpers import localinterest
 from .model import update_local_tables, LocalUser, LocalInterest
 
 # define security globals
@@ -105,15 +107,31 @@ def create_app(config_obj, configfiles=None):
     asset_env.init_app(app)
     asset_env.register(asset_bundles)
 
+    # Set up Flask-Mail [configuration in <application>.cfg] and security mailer
+    mail = Mail(app)
+
+    def security_send_mail(subject, recipient, template, **context):
+        # this may be called from view which doesn't reference interest
+        # if so pick up user's first interest to get from_email address
+        if not g.interest:
+            g.interest = context['user'].interests[0].interest if context['user'].interests else None
+        if g.interest:
+            from_email = localinterest().from_email
+        # use default if user didn't have any interests
+        else:
+            from_email = current_app.config['SECURITY_EMAIL_SENDER']
+            # copied from flask_security.utils.send_mail
+            if isinstance(from_email, LocalProxy):
+                from_email = from_email._get_current_object()
+        ctx = ('security/email', template)
+        html = render_template('%s/%s.html' % ctx, **context)
+        text = render_template('%s/%s.txt' % ctx, **context)
+        sendmail(subject, from_email, recipient, html=html, text=text)
+
     # Set up Flask-Security
-    # from loutilities.user.model import User, Role
-    # from .model import LocalUser
     global user_datastore, security
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-    security = UserSecurity(app, user_datastore)
-
-    # Set up Flask-Mail [configuration in <application>.cfg]
-    mail = Mail(app)
+    security = UserSecurity(app, user_datastore, send_mail=security_send_mail)
 
     # activate views
     from .views import userrole as userroleviews
