@@ -10,9 +10,7 @@ from re import match
 from flask import g, url_for, current_app, request
 from flask_security import current_user
 from sqlalchemy import Enum
-from dominate.tags import a
 from slugify import slugify
-from markdown import markdown
 
 # homegrown
 from . import bp
@@ -25,6 +23,7 @@ from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
+from .viewhelpers import get_fieldoptions, get_taskfields
 from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
 from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY, STATUS_DISPLAYORDER
@@ -583,13 +582,7 @@ taskfield_formmapping = dict(zip(taskfield_formfields, taskfield_dbattrs))
 from ...model import INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2
 INPUT_TYPE_HASOPTIONS = [INPUT_TYPE_CHECKBOX, INPUT_TYPE_RADIO, INPUT_TYPE_SELECT2]
 
-def get_options(dbrow):
-    if not dbrow.fieldoptions:
-        return []
-    else:
-        return dbrow.fieldoptions.split(SEPARATOR)
-
-taskfield_formmapping['fieldoptions'] = get_options
+taskfield_formmapping['fieldoptions'] = get_fieldoptions
 
 class TaskFieldCrud(DbCrudApiInterestsRolePermissions):
     def createrow(self, formdata):
@@ -954,44 +947,9 @@ assigntask.register()
 # taskdetails endpoint
 ###########################################################################################
 
-def addlfields(task, member):
-    taskfields = []
+def taskdetails_addlfields(task, member):
     tc = get_task_completion(task, member)
-    for ttf in task.fields:
-        f = ttf.taskfield
-        thistaskfield = {}
-        for key in 'taskfield,fieldname,displayvalue,displaylabel,inputtype,fieldinfo,priority,uploadurl'.split(','):
-            thistaskfield[key] = getattr(f, key)
-            # displayvalue gets markdown translation
-            if key == 'displayvalue' and getattr(f, key):
-                thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
-        thistaskfield['fieldoptions'] = get_options(f)
-        if tc:
-            # field may exist now but maybe didn't before
-            field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
-
-            # field was found
-            if field:
-                value = field.value
-                if f.inputtype != INPUT_TYPE_UPLOAD:
-                    thistaskfield['value'] = value
-                else:
-                    file = Files.query.filter_by(fileid=value).one()
-                    thistaskfield['value'] = a(file.filename,
-                                               href=url_for('admin.file',
-                                                            interest=g.interest,
-                                                            fileid=value),
-                                               target='_blank').render()
-                    thistaskfield['fileid'] = value
-
-            # field wasn't found
-            else:
-                thistaskfield['value'] = None
-        else:
-            thistaskfield['value'] = None
-        taskfields.append(thistaskfield)
-
-    return taskfields
+    return get_taskfields(tc, task)
 
 # map id to rowid, retrieve all other required fields
 # no dbmapping because this table is read-only
@@ -1011,7 +969,7 @@ taskdetails_formmapping['status'] = lambda tu: get_status(tu.task, tu.member)
 taskdetails_formmapping['order'] = lambda tu: get_order(tu.task, tu.member)
 taskdetails_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
 taskdetails_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
-taskdetails_formmapping['addlfields'] = lambda tu: addlfields(tu.task, tu.member)
+taskdetails_formmapping['addlfields'] = lambda tu: taskdetails_addlfields(tu.task, tu.member)
 
 class TaskMember():
     '''
@@ -1491,6 +1449,9 @@ membersummary.register()
 # history endpoint
 ###########################################################################################
 
+def history_addlfields(tc, task):
+    return get_taskfields(tc, task)
+
 history_dbattrs = 'id,interest_id,member,task,completion,update_time,updated_by'.split(',')
 history_formfields = 'rowid,interest_id,member,task,completion,update_time,updated_by'.split(',')
 history_dbmapping = dict(zip(history_dbattrs, history_formfields))
@@ -1501,6 +1462,7 @@ history_formmapping['task'] = lambda tc: tc.task.task
 history_formmapping['completion'] = lambda tc: dtrender.dt2asc(tc.completion)
 history_formmapping['update_time'] = lambda tc: dttimerender.dt2asc(tc.update_time)
 history_formmapping['updated_by'] = lambda tc: localuser2user(tc.updated_by).name
+history_formmapping['addlfields'] = lambda tc: history_addlfields(tc, tc.task)
 
 history_filters = filtercontainerdiv()
 history_filters += filterdiv('members-external-filter-update-time', 'Update Time')

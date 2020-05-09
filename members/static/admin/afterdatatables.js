@@ -32,13 +32,13 @@ function clear_fields(e) {
     }
 }
 
-function add_field_vals(data, justtypes) {
+function add_field_vals(data, justtypes, showdisplay) {
     iteminprogress = data;
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
 
         // don't show display-only data
-        if (f.inputtype == 'display') { continue; }
+        if (showdisplay == undefined && f.inputtype == 'display') { continue; }
 
         if (justtypes == undefined || justtypes.includes(f.inputtype)) {
             // only add display if data was entered previously
@@ -48,7 +48,7 @@ function add_field_vals(data, justtypes) {
                     name:   fieldname,
                     data:   f.fieldname,
                     label:  f.displaylabel + ' (last entry)',
-                    type:   f.inputtype !== 'upload' ? 'readonly' : 'display',
+                    type:   f.inputtype !== 'upload' && f.inputtype !== 'display' ? 'readonly' : 'display',
                     fieldInfo:  f.fieldInfo,
                     className:  'addlfield',
                     options: hasoptions.includes(f.inputtype) ? f.fieldoptions : null,
@@ -57,18 +57,21 @@ function add_field_vals(data, justtypes) {
                     separator: f.inputtype === 'checkbox' ? ', ' : null,
                 })
                 editor.set(fieldname, f.value);
+                if (f.inputtype === 'display') {
+                    editor.set(fieldname, f.displayvalue);
+                }
             }
         }
 
     }
 }
 
-function clear_field_vals(e, justtypes) {
+function clear_field_vals(e, justtypes, showdisplay) {
     for (i=0; i<iteminprogress.addlfields.length; i++) {
         var f = iteminprogress.addlfields[i];
 
         // don't show display-only data
-        if (f.inputtype == 'display') { continue; }
+        if (showdisplay == undefined && f.inputtype == 'display') { continue; }
 
         if (justtypes == undefined || justtypes.includes(f.inputtype)) {
             // was only added if data was entered previously
@@ -206,7 +209,16 @@ function afterdatatables() {
             editor.field('fieldoptions').val(data.fieldoptions);
         })
 
+    // special processing for history
     } else if (location.pathname.includes('/history')) {
+        // add and clear additional fields appropriately
+        editor.on('initEdit', function(e, node, data, items, type) {
+            add_field_vals(data, null, true);
+        });
+        editor.on('close', function (e) {
+            clear_field_vals(e, null, true);
+        });
+
         // set up registered filters (id, default for local storage, transient => don't update local storage
         fltr_register('members-external-filter-update-time', null, true);
         fltr_register('members-external-filter-updated-by', null, true);

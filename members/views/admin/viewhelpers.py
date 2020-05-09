@@ -3,16 +3,19 @@ get_status - get_status helpers for admin views
 '''
 
 # standard
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 
 # pypi
-from flask import g, current_app
+from flask import g, current_app, url_for
 from dateutil.relativedelta import relativedelta
+from markdown import markdown
+from dominate.tags import a
 
 # homegrown
 from members.model import TaskCompletion, LocalUser, LocalInterest
-from loutilities.user.model import User, Interest
 from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD
+from loutilities.user.model import User, Interest
+from loutilities.tables import SEPARATOR
 
 from loutilities.timeu import asctime
 
@@ -258,6 +261,57 @@ def create_taskcompletion(task, localuser, localinterest, formdata):
                 taskcompletion.completion = dtrender.asc2dt(inputfielddata.value)
 
     return taskcompletion
+
+def get_fieldoptions(dbrow):
+    if not dbrow.fieldoptions:
+        return []
+    else:
+        return dbrow.fieldoptions.split(SEPARATOR)
+
+TASKFIELD_KEYS = 'taskfield,fieldname,displayvalue,displaylabel,inputtype,fieldinfo,priority,uploadurl'
+def get_taskfields(tc, task):
+    '''
+    returns the taskfields for a task completion
+    :param tc: TaskCompletion instance
+    :param task: Task instance
+    :return: taskfields (list)
+    '''
+    taskfields = []
+    for ttf in task.fields:
+        f = ttf.taskfield
+        thistaskfield = {}
+        for key in TASKFIELD_KEYS.split(','):
+            thistaskfield[key] = getattr(f, key)
+            # displayvalue gets markdown translation
+            if key == 'displayvalue' and getattr(f, key):
+                thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
+        thistaskfield['fieldoptions'] = get_fieldoptions(f)
+        if tc:
+            # field may exist now but maybe didn't before
+            field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
+
+            # field was found
+            if field:
+                value = field.value
+                if f.inputtype != INPUT_TYPE_UPLOAD:
+                    thistaskfield['value'] = value
+                else:
+                    file = Files.query.filter_by(fileid=value).one()
+                    thistaskfield['value'] = a(file.filename,
+                                               href=url_for('admin.file',
+                                                            interest=g.interest,
+                                                            fileid=value),
+                                               target='_blank').render()
+                    thistaskfield['fileid'] = value
+
+            # field wasn't found
+            else:
+                thistaskfield['value'] = None
+        else:
+            thistaskfield['value'] = None
+        taskfields.append(thistaskfield)
+
+    return taskfields
 
 def get_member_tasks(member):
     '''
