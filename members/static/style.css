@@ -55,14 +55,8 @@ div.DTE_Field input._rsc_CRUD_input_short {
   text-align: left;
   margin: 5px;
   padding: 0;
-  position: absolute;
-  /*left: 10%;*/
-  padding-left:15px;
-  padding-right:15px;
-  /*width:85%;  !* must equal width of .scrollarea width; left plus width = .heading width *!*/
-  float:left;
   font-size: 0.8em;
-  width: 92%;   /* needs to be less than 100% else causes x scroll bar */
+  width: auto;
 }
 
 .body-printerfriendly {
@@ -79,12 +73,14 @@ div.DTE_Field input._rsc_CRUD_input_short {
   font-size: 0.8em;
 }
 
-.pagename       { text-align: center;
-                  margin-bottom: 1em; background: #fafafa;
-                  text-transform: uppercase;
-                  margin: 0;
-                  font: bold 1em verdana,arial,sans-serif;
-                  color: #377ba8; font-weight: bold; }
+.pagename {
+    text-align: center;
+    background: #fafafa;
+    text-transform: uppercase;
+    margin: 0;
+    font: bold 1em verdana,arial,sans-serif;
+    color: #377ba8;
+}
 
 .DTED.ui-dialog {
   min-width: 600px;
@@ -146,10 +142,6 @@ div.DTE_Field.editorFullWidthField > div.DTE_Field_Input {
   text-align: left;
   margin: 0px;
   padding: 0;
-  width:95%;
-  padding-left:15px;
-  padding-right:15px;
-  float:top;
   font-size: 1em;
 }
 
