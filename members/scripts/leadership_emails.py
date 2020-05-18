@@ -118,11 +118,13 @@ def main():
             refurl = url_for('admin.taskchecklist', interest=g.interest)
 
             for emailaddr in mem2tasks:
-                html = template.render(**mem2tasks[emailaddr], statuses=[STATUS_EXPIRES_SOON, STATUS_OVERDUE], refurl=refurl)
-                tolist = emailaddr
-                cclist = None
-
-                sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+                # only send email if there are tasks overdue or upcoming
+                sendforstatus = [STATUS_EXPIRES_SOON, STATUS_OVERDUE]
+                if len([t for t in mem2tasks[emailaddr]['tasks'] if t['status'] in sendforstatus]) > 0:
+                    html = template.render(**mem2tasks[emailaddr], statuses=sendforstatus, refurl=refurl)
+                    tolist = emailaddr
+                    cclist = None
+                    sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 
         # allows for debugging of each section separately
         if not args.nomanagers:
