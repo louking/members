@@ -23,6 +23,9 @@ To download the filtered spreadsheet of members, click the **CSV** button.
     The Club Membership view shows the earliest start date and the latest end date for a club member, regardless
     of any gaps in their membership.
 
+    Data collected for this view only goes back as far as when the club started using RunSignUp
+    for membership management. This may be improved in a future release.
+
 The view has the following filters:
 
     :Start:

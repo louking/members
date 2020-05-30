@@ -7,7 +7,7 @@
           <span class="main-menu-btn-icon"></span> Toggle main menu visibility
         </label>
 
-        {# note smartmenu classes are added using jquery in layout.jinja2 because nav doesn't provide api for that #}
+        {# note smartmenu classes are added using jquery in layout.js because nav doesn't provide api for that #}
         {{ nav.nav_menu.render(id='navigation', renderer='nav_renderer') }}
     {% endif %}
 {% endblock %}
