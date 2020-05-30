@@ -30,7 +30,7 @@ security = None
 app = None
 
 # create application
-def create_app(config_obj, configfiles=None):
+def create_app(config_obj, configfiles=None, local_update=True):
     '''
     apply configuration object, then configuration files
     '''
@@ -89,8 +89,9 @@ def create_app(config_obj, configfiles=None):
         # needs to be set before update_local_tables called and before UserSecurity() instantiated
         g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
 
-        # update LocalUser table
-        update_local_tables()
+        # update LocalUser and LocalInterest tables
+        if local_update:
+            update_local_tables()
 
         # js/css files
         asset_env.append_path(app.static_folder)

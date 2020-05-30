@@ -19,7 +19,10 @@ configpath = os.path.join(os.path.dirname(abspath), 'config', 'members.cfg')
 userconfigpath = os.path.join(os.path.dirname(abspath), 'config', 'users.cfg')
 # userconfigpath first so configpath can override
 configfiles = [userconfigpath, configpath]
-app = create_app(Production(configfiles), configfiles)
+
+# can't do local update when we create app as this would use database and cause
+# sqlalchemy.exc.OperationalError if one of the updating tables needs migration
+app = create_app(Production(configfiles), configfiles, local_update=False)
 
 migrate = Migrate(app, db)
 

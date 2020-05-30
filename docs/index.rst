@@ -14,6 +14,7 @@ will be added over time.
    :caption: Contents:
 
    leadership-task-module
+   membership-module
    membertility-definitions
 
 

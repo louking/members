@@ -27,6 +27,7 @@ from slugify import slugify
 
 # homegrown
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
+from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 
 thisnav = Nav()
 
@@ -64,6 +65,7 @@ def nav_menu():
     leadership_admin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-admin-reference.html#')
     leadership_superadmin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-superadmin-reference.html#')
     leadership_member_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-member-guide.html#')
+    membership_admin_view = add_view('https://members.readthedocs.io/en/latest/membership-admin-guide.html#')
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
@@ -79,7 +81,7 @@ def nav_menu():
 
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
-                leadershipadmin = Subgroup('Leadership Admin')
+                leadershipadmin = Subgroup('Tasks')
                 navbar.items.append(leadershipadmin)
                 leadership_admin_view(leadershipadmin, 'Member Summary', 'admin.membersummary', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Task Details', 'admin.taskdetails', interest=g.interest)
@@ -90,9 +92,15 @@ def nav_menu():
                 leadership_admin_view(leadershipadmin, 'Task Fields', 'admin.taskfields', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'History', 'admin.history', interest=g.interest)
 
+            # membership admin stuff
+            if current_user.has_role(ROLE_MEMBERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                membershipadmin = Subgroup('Membership')
+                navbar.items.append(membershipadmin)
+                membership_admin_view(membershipadmin, 'Club Members', 'admin.clubmembers', interest=g.interest)
+
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
-            userroles = Subgroup('Members/Roles')
+            userroles = Subgroup('Super')
             navbar.items.append(userroles)
             leadership_superadmin_view(userroles, 'Members', 'userrole.members')
             leadership_superadmin_view(userroles, 'Interest Attributes', 'admin.interestattrs')
@@ -101,11 +109,11 @@ def nav_menu():
             leadership_superadmin_view(userroles, 'Applications', 'userrole.applications')
 
             if g.interest:
-                leadership_superadmin_view(navbar, 'Email Templates', 'admin.emailtemplates', interest=g.interest)
-                leadership_superadmin_view(navbar, 'Files', 'admin.files', interest=g.interest)
+                leadership_superadmin_view(userroles, 'Email Templates', 'admin.emailtemplates', interest=g.interest)
+                leadership_superadmin_view(userroles, 'Files', 'admin.files', interest=g.interest)
 
             navbar.items.append(View('My Account', 'security.change_password'))
-            navbar.items.append(View('Debug', 'admin.debug'))
+            userroles.items.append(View('Debug', 'admin.debug'))
 
         # finally for non ROLE_SUPER_ADMIN
         else:

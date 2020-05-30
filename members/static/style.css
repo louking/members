@@ -379,6 +379,12 @@ label.interest-label {
     font-weight: bold;
 }
 
+/* yadcf display control */
+.yadcf-filter-range-date {
+    min-height: 26px; /* somehow matches select2 min-height of 32px */
+    border-radius: 4px;
+}
+
 /* hide some features for small screens, match bootstrap breakpoint */
 @media screen and (max-width: 767.98px) {
     /* but this does not match bootstrap classes, see https://getbootstrap.com/docs/4.1/utilities/display/#hiding-elements */

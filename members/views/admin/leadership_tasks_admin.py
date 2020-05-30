@@ -1,5 +1,5 @@
 '''
-leadership_tasks_admin - administrative task handling
+leadership_tasks_admin - leadership task administrative handling
 ===========================================
 '''
 # standard

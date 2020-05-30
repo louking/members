@@ -16,7 +16,7 @@ This guide describes how a :term:`member` manages their :term:`task` checklist.
 Task Checklist view
 ====================
 
-The interface :term:`members <member>` manage their tasks is through the Task Checklist View. If you don't
+The leadership :term:`members <member>` manage their tasks is through the Task Checklist View. If you don't
 see **Task Checklist** in the menu, make sure **Interest** is set correctly at the top of the view.
 
 :term:`Tasks <task>` are marked with their *status*, *expiration date*, and when *last completed*.

@@ -22,4 +22,5 @@ from . import sysinfo
 from . import leadership_tasks_superadmin
 from . import leadership_tasks_admin
 from . import leadership_tasks_member
+from . import membership_admin
 

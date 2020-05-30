@@ -48,6 +48,8 @@ DOY_LEN = 5         # mm-dd
 EMAIL_TEMPLATENAME_LEN = 32
 EMAIL_SUBJECT_LEN = 128
 EMAIL_TEMPLATE_LEN=2048
+SERVICE_LEN=32
+SERVICE_ID_LEN=32
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -107,12 +109,16 @@ class LocalUser(Base):
     }
 
 # note update_local_tables only copies Interests for current application (g.loutility)
+CLUB_SERVICE_RUNSIGNUP = 'runsignup'
+all_club_services = [CLUB_SERVICE_RUNSIGNUP]
 class LocalInterest(Base):
     __tablename__ = 'localinterest'
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer)
     initial_expiration  = Column(Date)
     from_email          = Column(String(EMAIL_LEN))
+    club_service        = Column(String(SERVICE_LEN))
+    service_id          = Column(String(SERVICE_ID_LEN))
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

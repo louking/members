@@ -6,7 +6,7 @@ Leadership Task Superadmin Reference
 
 Applications view
 ====================
-**Navigation:** Members/Roles > Applications
+**Navigation:** Super > Applications
 
 The Applications view has one entry per **loutilities** application. This should only be changed by the software development team.
 
@@ -21,7 +21,7 @@ The Applications view has one entry per **loutilities** application. This should
 
 Email Templates view
 ======================
-**Navigation:** Email Templates
+**Navigation:** Super > Email Templates
 
 The Email Templates view has one entry per system email type. For details of the substitution variable
 usage, see the indicated software module(s).
@@ -53,7 +53,7 @@ usage, see the indicated software module(s).
 
 Files view
 =================
-**Navigation:** Files
+**Navigation:** Super Files
 
 The Files view gives the superadmin visibility into the files which were uploaded into the system.
 
@@ -65,7 +65,7 @@ The Files view gives the superadmin visibility into the files which were uploade
 
 Interests view
 ===============
-**Navigation:** Members/Roles > Interests
+**Navigation:** Super > Interests
 
 The Interests view gives the superadmin control over what :term:`interests <interest>` are available to what
 applications, and to control what users/:term:`members <member>` are able to access what :term:`interests <interest>`
@@ -98,7 +98,7 @@ applications, and to control what users/:term:`members <member>` are able to acc
 
 Interest Attributes view
 ===========================
-**Navigation:** Members/Roles > Interest Attributes
+**Navigation:** Super > Interest Attributes
 
 The Interest Attributes view allows the superadmin to control certain attributes which may be specified by
 :term:`interest`.
@@ -125,7 +125,7 @@ The Interest Attributes view allows the superadmin to control certain attributes
 
 Members view
 ===============
-**Navigation:** Members/Roles > Members
+**Navigation:** Super > Members
 
 The Members view is used to add new user/:term:`members <member>` to the system, and to assign their
 :term:`security roles <security role>` and :term:`interests <interest>`.
@@ -169,7 +169,7 @@ A reset password email can also be sent to the :term:`member` by clicking **Rese
 
 Roles view
 =============
-**Navigation:** Members/Roles > Roles
+**Navigation:** Super > Roles
 
 The Roles view is used to define :term:`security roles <security role>` and assign them to specific applications.
 This must be coordinated with the software developement and is therefore best left to the software development

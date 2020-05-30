@@ -74,3 +74,12 @@ File Naming and Storage
 ==========================
 Files are named on upload but stored based on a system-created file id. This allows multiple files with the same name to
 exist separately within the system. The association between filename and file id can be seen using the :ref:`Files view`.
+
+New Member Instructions
+=========================
+When someone new needs to be added to the system, the following should be done:
+
+* send suitable welcome message which describes the system, why they're being added, and that they'll be receiving
+  password reset instructions
+* create the member using :ref:`Members view`, assigning appropriate roles and interests
+* give new member their position(s) using :ref:`Assign Tasks view`

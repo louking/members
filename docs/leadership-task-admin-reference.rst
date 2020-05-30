@@ -9,7 +9,7 @@ This page gives a reference to all **membertility** views which are available to
 
 Assign Tasks view
 =================
-**Navigation:** Leadership Admin > Assign Tasks
+**Navigation:** Tasks > Assign Tasks
 
 :term:`Tasks <task>` are assigned to :term:`members <member>` indirectly by associating the :term:`member` with
 a :term:`position` or :term:`task group`.
@@ -32,7 +32,7 @@ or :term:`task group` associations.
 
 History view
 ================
-**Navigation:** Leadership Admin > Task Fields
+**Navigation:** Tasks > Task Fields
 
 The History view can be used to see the history of :term:`tasks <task>` which have been marked completed.
 Since :term:`tasks <task>` can be marked completed by :term:`leadership admins <leadership admin>` as well
@@ -70,7 +70,7 @@ The view has the following filters:
 
 Member Summary view
 ===================
-**Navigation:** Leadership Admin > Member Summary
+**Navigation:** Tasks > Member Summary
 
 The Member Summary view gives an overview of each :term:`member`, showing the number of :term:`tasks <task>` in
 each :term:`status`. Additionally this view shows the :term:`positions <position>` each member holds, and the
@@ -99,7 +99,7 @@ The view has the following filters:
 
 Positions view
 ==============
-**Navigation:** Leadership Admin > Positions
+**Navigation:** Tasks > Positions
 
 The Positions view is used to define all the :term:`positions <position>` within the organization. The
 :term:`leadership admin` can assign :term:`members <member>` to a position from this view, or from the
@@ -140,7 +140,7 @@ for any *overdue* tasks within specific :term:`task groups <task group>`.
 
 Tasks view
 ===========
-**Navigation:** Leadership Admin > Tasks
+**Navigation:** Tasks > Tasks
 
 The Tasks view is used to define the :term:`tasks <task>` which are done within the organization.
 
@@ -212,7 +212,7 @@ See the :ref:`Task Configuration Guide` for details on how :term:`tasks <task>` 
 
 Task Details view
 =================
-**Navigation:** Leadership Admin > Task Details
+**Navigation:** Tasks > Task Details
 
 The Task Details view gives the :term:`leadership admin` full visibility into all of the :term:`tasks <task>` in
 the system. Each :term:`task` is on a separate line, and can be viewed in more detail by selecting it and clicking
@@ -263,7 +263,7 @@ The view has the following filters:
 
 Task Fields view
 =================
-**Navigation:** Leadership Admin > Task Fields
+**Navigation:** Tasks > Task Fields
 
 Some :term:`tasks <task>` may require additional :term:`fields <field>` to be displayed/collected on the
 :ref:`Task Checklist view` Task form. These must be configured here.
@@ -341,7 +341,7 @@ Some examples of how the form changes with different **Input Type** selections
 
 Task Groups view
 =================
-**Navigation:** Leadership Admin > Task Groups
+**Navigation:** Tasks > Task Groups
 
 The Task Groups view is used to define how :term:`tasks <task>` are grouped within the organization.
 

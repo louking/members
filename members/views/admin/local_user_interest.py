@@ -7,6 +7,7 @@ localinterest - local user and interest attribute views
 from . import bp
 from ...model import db
 from ...model import LocalInterest
+from ...model import all_club_services
 from loutilities.user.model import Interest
 from loutilities.tables import DbCrudApiRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN
@@ -15,8 +16,8 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN
 # interestattrs endpoint
 ###########################################################################################
 
-interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email'.split(',')
-interestattr_formfields = 'rowid,interest,initial_expiration,from_email'.split(',')
+interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id'.split(',')
+interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
 
@@ -47,6 +48,16 @@ interestattr = DbCrudApiRolePermissions(
                          },
                         {'data': 'from_email', 'name': 'from_email', 'label': 'From Email',
                          'fieldInfo': 'Email address from which automated messages are sent',
+                         'className': 'field_req',
+                         },
+                        {'data': 'club_service', 'name': 'club_service', 'label': 'Club Service',
+                         'fieldInfo': 'Service from which club member data is downloaded',
+                         'className': 'field_req',
+                         'type': 'select2',
+                         'options': all_club_services,
+                         },
+                        {'data': 'service_id', 'name': 'service_id', 'label': 'Service ID',
+                         'fieldInfo': 'ID which Club Service uses for club member access',
                          'className': 'field_req',
                          },
                     ],
