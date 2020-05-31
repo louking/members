@@ -1135,7 +1135,6 @@ def taskdetails_validate(action, formdata):
         elif formdata[field] > date.today().isoformat():
             results.append({'name':field, 'status': 'cannot specify date later than today'})
 
-
     if not match(REGEX_ISODATE, formdata['lastcompleted']):
         results.append({'name':'lastcompleted', 'status': 'please specify date in yyyy-mm-dd format'})
 
