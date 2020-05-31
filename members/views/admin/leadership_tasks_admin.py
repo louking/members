@@ -1130,8 +1130,11 @@ def taskdetails_validate(action, formdata):
             override_completion.append(taskfield.fieldname)
 
     for field in override_completion:
-        if formdata[field] > date.today().isoformat():
+        if not match(REGEX_ISODATE, formdata[field]):
+            results.append({'name': field, 'status': 'please specify date in yyyy-mm-dd format'})
+        elif formdata[field] > date.today().isoformat():
             results.append({'name':field, 'status': 'cannot specify date later than today'})
+
 
     if not match(REGEX_ISODATE, formdata['lastcompleted']):
         results.append({'name':'lastcompleted', 'status': 'please specify date in yyyy-mm-dd format'})
