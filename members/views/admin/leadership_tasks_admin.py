@@ -418,7 +418,7 @@ def task_validate(action, formdata):
 
     # TODO: remove this when #51 fixed
     from re import compile
-    # datepattern = '^(19|20)\d\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$'
+    # datepattern = compile('^(19|20)\d\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
     datepattern = compile('^(0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
     if formdata['dateofyear'] and not datepattern.match(formdata['dateofyear']):
         results.append({'name': 'dateofyear', 'status': 'must be formatted as MM-DD'})

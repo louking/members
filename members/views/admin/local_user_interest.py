@@ -2,6 +2,9 @@
 localinterest - local user and interest attribute views
 ===========================================================
 '''
+# standard
+from datetime import date
+from re import compile
 
 # homegrown
 from . import bp
@@ -16,10 +19,21 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN
 # interestattrs endpoint
 ###########################################################################################
 
+def interestattr_validate(action, formdata):
+    results = []
+
+    datepattern = compile('^(19|20)\d\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
+    if formdata['initial_expiration'] and not datepattern.match(formdata['initial_expiration']):
+        results.append({'name': 'initial_expiration', 'status': 'must be formatted as YYYY-MM-DD'})
+
+    return results
+
 interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id'.split(',')
 interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
+interestattr_dbmapping['initial_expiration'] = lambda formrow: date(*[int(f) for f in formrow['initial_expiration'].split('-')])
+interestattr_formmapping['initial_expiration'] = lambda dbrow: dbrow.initial_expiration.isoformat() if dbrow.initial_expiration else None
 
 interestattr_formmapping['interest'] = lambda li: Interest.query.filter_by(id=li.interest_id).one().description
 
@@ -37,6 +51,7 @@ interestattr = DbCrudApiRolePermissions(
                     dbmapping = interestattr_dbmapping,
                     formmapping = interestattr_formmapping,
                     checkrequired = True,
+                    validate = interestattr_validate,
                     clientcolumns = [
                         {'data': 'interest', 'name': 'interest', 'label': 'Interest',
                          'type': 'readonly',
