@@ -45,11 +45,13 @@ FIELDINFO_LEN = 128
 FIELDOPTIONS_LEN = 2048
 URL_LEN = 2047      # https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
 DOY_LEN = 5         # mm-dd
-EMAIL_TEMPLATENAME_LEN = 32
+TEMPLATENAME_LEN = 32
 EMAIL_SUBJECT_LEN = 128
 EMAIL_TEMPLATE_LEN=2048
 SERVICE_LEN=32
 SERVICE_ID_LEN=32
+TITLE_LEN=128
+TAG_LEN = 32
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -293,7 +295,7 @@ class EmailTemplate(Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('emailtemplates'))
-    templatename        = Column(String(EMAIL_TEMPLATENAME_LEN))
+    templatename        = Column(String(TEMPLATENAME_LEN))
     subject             = Column(String(EMAIL_SUBJECT_LEN))
     template            = Column(String(EMAIL_TEMPLATE_LEN))
 
@@ -302,6 +304,135 @@ class EmailTemplate(Base):
         'version_id_col': version_id
     }
 
+class DocTemplate(Base):
+    __tablename__ = 'doctemplate'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('doctemplates'))
+    templatename        = Column(String(TEMPLATENAME_LEN))
+    template            = Column(Text)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class Meeting(Base):
+    __tablename__ = 'meeting'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('meetings'))
+    purpose             = Column(String(DESCR_LEN))
+    date                = Column(Date)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class Invite(Base):
+    __tablename__ = 'invite'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('invites'))
+    user_id             = Column(Integer, ForeignKey('localuser.id'))
+    user                = relationship('LocalUser', backref=backref('invites'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('invites'))
+    attending           = Column(Boolean, default=False)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class StatusReport(Base):
+    __tablename__ = 'statusreport'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('statusreports'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('statusreports'))
+    order               = Column(Integer)
+    title               = Column(String(TITLE_LEN))
+    statusreport        = Column(Text)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+# also "discussion point"
+class AgendaItem(Base):
+    __tablename__ = 'agendaitem'
+    id = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('agendaitems'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('agendaitems'))
+    order               = Column(Integer)
+    title               = Column(String(TITLE_LEN))
+    agendaitem          = Column(Text)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+ACTION_STATUS_OPEN = 'open'
+ACTION_STATUS_INPROGRESS = 'inprogress'
+ACTION_STATUS_CLOSED   = 'closed'
+action_all = [ACTION_STATUS_OPEN, ACTION_STATUS_INPROGRESS, ACTION_STATUS_CLOSED]
+class ActionItem(Base):
+    __tablename__ = 'actionitem'
+    id = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('actionitems'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('actionitems'))
+    agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
+    agendaitem          = relationship('AgendaItem', backref=backref('actionitems'))
+    order               = Column(Integer)
+    assignee_id         = Column(Integer, ForeignKey('localuser.id'))
+    assignee            = relationship('LocalUser', backref=backref('actionitems'))
+    action              = Column(Text)
+    status              = Column(Enum(*action_all))
+    comments            = Column(Text)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+# https://docs.sqlalchemy.org/en/13/orm/basic_relationships.html#many-to-many
+positiontag_table = Table('position_tag', Base.metadata,
+    Column( 'position_id', Integer, ForeignKey('position.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+localusertag_table = Table('localuser_tag', Base.metadata,
+    Column( 'localuser_id', Integer, ForeignKey('localuser.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+
+class Tag(Base):
+    __tablename__ =  'tag'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('tags'))
+    tag                 = Column( String(TAG_LEN) )
+    description         = Column( String(DESCR_LEN) )
+
+    # tag attachments (https://docs.sqlalchemy.org/en/13/orm/basic_relationships.html#many-to-many)
+    positions           = relationship( 'Position', secondary=positiontag_table, backref='tags', lazy=True )
+    users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
+
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
+
+# supporting functions
 def update_local_tables():
     '''
     keep LocalUser table consistent with external db User table

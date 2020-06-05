@@ -22,14 +22,14 @@ jq_ver = '3.4.1'
 jq_ui_ver = '1.12.1'
 
 # dataTables
-dt_datatables_ver = '1.10.20'
-dt_editor_ver = '1.9.2'
-dt_buttons_ver = '1.6.1'
-dt_colvis_ver = '1.6.1'
-dt_fixedcolumns_ver = '3.3.0'
+dt_buttons_ver = '1.6.2' # also used for colvis and html5
+dt_datatables_ver = '1.10.21'
+dt_editor_ver = '1.9.3'
+dt_fixedcolumns_ver = '3.3.1'
+dt_responsive_ver = '2.2.5'
+dt_rowreorder_ver = '1.2.7'
 dt_select_ver = '1.3.1'
-dt_responsive_ver = '2.2.3'
-# dt_editor_plugin_fieldtype_ver = '?'
+jszip_ver = '2.5.0'
 
 # select2
 # NOTE: patch to jquery ui required, see https://github.com/select2/select2/issues/1246#issuecomment-17428249
@@ -116,7 +116,6 @@ asset_bundles = {
         'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
         'js/Responsive-{ver}/css/responsive.dataTables.css'.format(ver=dt_responsive_ver),
         'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
-        'js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver),
         'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
         'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
         'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
@@ -140,21 +139,21 @@ asset_bundles = {
         'js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver),
         'js/lodash-{ver}/lodash.js'.format(ver=lodash_ver),
 
+        'js/JSZip-{ver}/jszip.js'.format(ver=jszip_ver),
         'js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver),
         'js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver),
-        'js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver),
-
-        'js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.html5.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_colvis_ver), 
-
-        'js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver),
-
         'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
         'js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver),
-
+        'js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver),
+        'js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver),
+        'js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver),
+        'js/Buttons-{ver}/js/buttons.html5.js'.format(ver=dt_buttons_ver),
+        'js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver),
+        'js/Responsive-{ver}/js/dataTables.responsive.js'.format(ver=dt_responsive_ver),
+        'js/RowReorder-{ver}/js/dataTables.rowReorder.js'.format(ver=dt_rowreorder_ver),
         'js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver),
+
+        'js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver),
 
         # select2 is required for use by Editor forms and interest navigation
         'js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver),
@@ -197,11 +196,15 @@ asset_bundles = {
         'js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver),
         'js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver),
         'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
+
         'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
+        'js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver),
         'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
         'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
-        'js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver),
+        'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
+        'js/RowReorder-{ver}/css/rowReorder.jqueryui.css'.format(ver=dt_rowreorder_ver),
         'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
+        
         'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
         'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
 

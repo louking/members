@@ -27,7 +27,7 @@ from slugify import slugify
 
 # homegrown
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
+from loutilities.user.roles import ROLE_ORGANIZATION_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN
 
 thisnav = Nav()
 
@@ -62,10 +62,12 @@ def nav_menu():
             navmenu.items.append(View(text, endpoint, **kwargs))
             contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
 
+    org_admin_view = add_view('https://members.readthedocs.io/en/latest/organization-admin-reference.html#')
     leadership_admin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-admin-reference.html#')
     leadership_superadmin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-superadmin-reference.html#')
     leadership_member_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-member-guide.html#')
     membership_admin_view = add_view('https://members.readthedocs.io/en/latest/membership-admin-guide.html#')
+    meetings_admin_view = add_view('https://members.readthedocs.io/en/latest/meetings-admin-reference.html#')
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
@@ -75,9 +77,20 @@ def nav_menu():
             if (current_user.has_role(ROLE_LEADERSHIP_MEMBER)
                     or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
-                # leadershipmember = Subgroup('Leadership Member')
-                # navbar.items.append(leadershipmember)
                 leadership_member_view(navbar, 'Task Checklist', 'admin.taskchecklist', interest=g.interest)
+
+            # organization admin stuff
+            if current_user.has_role(ROLE_ORGANIZATION_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                orgadmin = Subgroup('Organization')
+                navbar.items.append(orgadmin)
+                org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
+                org_admin_view(orgadmin, 'Assign Positions', 'admin.assignpositions', interest=g.interest)
+
+            # meetings admin stuff
+            if current_user.has_role(ROLE_MEETINGS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                meetingsadmin = Subgroup('Meetings')
+                navbar.items.append(meetingsadmin)
+                meetings_admin_view(meetingsadmin, 'Tags', 'admin.tags', interest=g.interest)
 
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
@@ -85,8 +98,6 @@ def nav_menu():
                 navbar.items.append(leadershipadmin)
                 leadership_admin_view(leadershipadmin, 'Member Summary', 'admin.membersummary', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Task Details', 'admin.taskdetails', interest=g.interest)
-                leadership_admin_view(leadershipadmin, 'Assign Tasks', 'admin.assigntasks', interest=g.interest)
-                leadership_admin_view(leadershipadmin, 'Positions', 'admin.positions', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Task Groups', 'admin.taskgroups', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Tasks', 'admin.tasks', interest=g.interest)
                 leadership_admin_view(leadershipadmin, 'Task Fields', 'admin.taskfields', interest=g.interest)

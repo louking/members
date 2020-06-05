@@ -18,9 +18,17 @@ from . import local_user_interest
 from . import files
 from . import sysinfo
 
+# organization module
+from . import organization_admin
+
+# meetings module
+from . import meetings_admin
+
 # leadership task module
 from . import leadership_tasks_superadmin
 from . import leadership_tasks_admin
 from . import leadership_tasks_member
+
+# membership module
 from . import membership_admin
 

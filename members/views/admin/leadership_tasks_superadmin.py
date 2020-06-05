@@ -5,7 +5,6 @@ leadership_tasks_superadmin - administrative task handling for superuser
 # standard
 
 # pypi
-from flask import g, url_for, current_app, request
 
 # homegrown
 from . import bp
