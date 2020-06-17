@@ -105,11 +105,19 @@ function add_fields_and_set_vals(e, node, data, items, type) {
     set_field_vals();
 }
 
+// for fontawesome child row handling
+// see http://live.datatables.net/bihawepu/1/edit
+// from https://datatables.net/examples/api/row_details.html bindrid comment
+function render_plus() {
+    return '<i class="fa fa-plus-square" aria-hidden="true"></i>';
+}
+
 function afterdatatables() {
     console.log('afterdatatables()');
 
-    // handle editor substitution before submitting
-    register_group_for_editor('interest', '#metanav-select-interest');
+    // handle group substitution before submitting
+    register_group_for_editor('interest', '#metanav-select-interest', editor);
+    // required for serverside -> register_group_for_datatable() is in beforedatatables.js
 
     // always make sure embedded links in input field open in a new tab
     editor.on('opened', function(e, type){
@@ -228,5 +236,42 @@ function afterdatatables() {
 
         // initialize all the filters
         fltr_init();
+
+    // special processing for meeting
+    } else if (location.pathname.includes('/meeting') && !location.pathname.includes('/meetings')) {
+        // initialize fontawesome child row handling
+        // see http://live.datatables.net/bihawepu/1/edit
+        // from https://datatables.net/examples/api/row_details.html bindrid comment
+
+        // Add event listener for opening and closing details
+        $('#datatable tbody').on('click', 'td.details-control', function () {
+            var tr = $(this).closest('tr');
+            var tdi = tr.find("i.fa");
+            var row = _dt_table.row(tr);
+
+            if (row.child.isShown()) {
+                // This row is already open - close it
+                row.child.hide();
+                tr.removeClass('shown');
+                tdi.first().removeClass('fa-minus-square');
+                tdi.first().addClass('fa-plus-square');
+            }
+            else {
+                // Open this row
+                row.child('test show row').show();
+                tr.addClass('shown');
+                tdi.first().removeClass('fa-plus-square');
+                tdi.first().addClass('fa-minus-square');
+            }
+        });
+
+        _dt_table.on("user-select", function (e, dt, type, cell, originalEvent) {
+            if ($(cell.node()).hasClass("details-control")) {
+                e.preventDefault();
+            }
+        });
+
+
     }
+
 }

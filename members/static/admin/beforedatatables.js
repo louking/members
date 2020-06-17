@@ -1,5 +1,11 @@
+$( function () {
+    // if groups are being used, need to set up translation variables before datatables is initialized
+    // required for datatables option {serverside:true}
+    register_group_for_datatable('interest', '#metanav-select-interest');
+});
+
 function set_cell_status_class(row, data, displayNum, displayIndex, dataIndex) {
-    // the keys for classes need to match the values in viewhelpers.STATUS_DISPLAYORDER
+    // the keys for classes need to match the values in viewhelpers(.py).STATUS_DISPLAYORDER
     classes = {
         'overdue': 'status-overdue',
         'expires soon': 'status-expires-soon',
@@ -31,6 +37,7 @@ function render_month_date(data, type, row, meta) {
     }
 }
 
+// view member from member summary view
 function member_details(e, dt, node, config) {
     var args = allUrlParams();
     var member = dt.rows({selected:true}).data()[0].member;
@@ -38,6 +45,18 @@ function member_details(e, dt, node, config) {
     var newsearch = $.param(args);
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('taskdetails');
+    var newloc = newloclist.join('/') + '?' + newsearch;
+    window.open(newloc, '_blank');
+}
+
+// view meeting from meetings view
+function meeting_details(e, dt, node, config) {
+    var args = allUrlParams();
+    var meetingid = dt.rows({selected:true}).data()[0].rowid;
+    args.meetingid = meetingid;
+    var newsearch = $.param(args);
+    var newloclist = window.location.pathname.split('/').slice(0, -1);
+    newloclist.push('meeting');
     var newloc = newloclist.join('/') + '?' + newsearch;
     window.open(newloc, '_blank');
 }

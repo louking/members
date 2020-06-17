@@ -52,6 +52,7 @@ SERVICE_LEN=32
 SERVICE_ID_LEN=32
 TITLE_LEN=128
 TAG_LEN = 32
+INVITE_KEY_LEN = 16
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -339,7 +340,13 @@ class Invite(Base):
     user                = relationship('LocalUser', backref=backref('invites'))
     meeting_id          = Column(Integer, ForeignKey('meeting.id'))
     meeting             = relationship('Meeting', backref=backref('invites'))
+    # invitations for a meeting are all tied to the same agenda item for the meeting
+    agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
+    agendaitem          = relationship('AgendaItem', backref=backref('invites'))
+    invitekey           = Column(String(INVITE_KEY_LEN))
     attending           = Column(Boolean, default=False)
+    attended            = Column(Boolean, default=False)
+    activeinvite        = Column(Boolean, default=True)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -404,6 +411,50 @@ class ActionItem(Base):
         'version_id_col': version_id
     }
 
+MOTION_STATUS_OPEN = 'open'
+MOTION_STATUS_TABLED = 'tabled'
+MOTION_STATUS_APPROVED = 'approved'
+MOTION_STATUS_REJECTED = 'rejected'
+motion_all = [MOTION_STATUS_OPEN, MOTION_STATUS_TABLED, MOTION_STATUS_APPROVED, MOTION_STATUS_REJECTED]
+class Motion(Base):
+    __tablename__ = 'motion'
+    id = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('motions'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('motions'))
+    agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
+    agendaitem          = relationship('AgendaItem', backref=backref('motions'))
+    motion              = Column(Text)
+    status              = Column(Enum(*motion_all))
+    comments            = Column(Text)
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+MOTIONVOTE_STATUS_APPROVED = 'approved'
+MOTIONVOTE_STATUS_REJECTED = 'rejected'
+MOTIONVOTE_STATUS_ABSTAINED = 'abstained'
+MOTIONVOTE_STATUS_NOVOTE = 'novote'
+motionvote_all = [MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_REJECTED, MOTIONVOTE_STATUS_ABSTAINED, MOTIONVOTE_STATUS_NOVOTE]
+class MotionVote(Base):
+    __tablename__ = 'motionvote'
+    id = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('motionvotes'))
+    motion_id           = Column(Integer, ForeignKey('motion.id'))
+    motion              = relationship('Motion', backref=backref('motionvotes'))
+    user_id             = Column(Integer, ForeignKey('localuser.id'))
+    user                = relationship('LocalUser', backref=backref('motionvotes'))
+    vote                = Column(Enum(*motionvote_all))
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
 # https://docs.sqlalchemy.org/en/13/orm/basic_relationships.html#many-to-many
 positiontag_table = Table('position_tag', Base.metadata,
     Column( 'position_id', Integer, ForeignKey('position.id' ) ),
@@ -411,6 +462,10 @@ positiontag_table = Table('position_tag', Base.metadata,
     )
 localusertag_table = Table('localuser_tag', Base.metadata,
     Column( 'localuser_id', Integer, ForeignKey('localuser.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+meetingtag_table = Table('meeting_tag', Base.metadata,
+    Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
 
@@ -425,6 +480,7 @@ class Tag(Base):
     # tag attachments (https://docs.sqlalchemy.org/en/13/orm/basic_relationships.html#many-to-many)
     positions           = relationship( 'Position', secondary=positiontag_table, backref='tags', lazy=True )
     users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
+    meetings            = relationship( 'Meeting', secondary=meetingtag_table, backref='tags', lazy=True )
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

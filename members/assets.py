@@ -46,6 +46,7 @@ moment_ver = '2.24.0'       # moment.js (see https://momentjs.com/)
 lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)
 d3_ver = '5.14.2'           # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
+fa_ver = '5.13.0'           # https://fontawesome.com/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
@@ -207,6 +208,9 @@ asset_bundles = {
         
         'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
         'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
+
+        'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver),
+        'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver),
 
         'datatables.css',   # from loutilities
         'editor.css',       # from loutilities
