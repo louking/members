@@ -47,6 +47,7 @@ lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)
 d3_ver = '5.14.2'           # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
+nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
@@ -164,6 +165,9 @@ asset_bundles = {
         # date time formatting for datatables editor, per https://editor.datatables.net/reference/field/datetime
         'js/moment-{ver}/moment.js'.format(ver=moment_ver),
 
+        # javascript templating
+        'js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver),
+
         # d3
         'js/d3-{ver}/d3.v5.js'.format(ver=d3_ver),
 
@@ -176,15 +180,17 @@ asset_bundles = {
 
         'editor.select2.mymethods.js',          # from loutilities
         'datatables.js',                        # from loutilities
+
+        # must be after datatables.js
         'datatables.dataRender.ellipsis.js',    # from loutilities
         'datatables.dataRender.datetime.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
         'editor.fieldType.display.js',          # from loutilities
         'filters.js',                           # from loutilities
-
-        # must be after datatables.js
         'utils.js',                             # from loutilities
-        'user/admin/groups.js',
+        'user/admin/groups.js',                 # from loutilities
+
+        'admin/editor.buttons.invites.js',
         'admin/afterdatatables.js',
 
         output='gen/admin.js',

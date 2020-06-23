@@ -271,7 +271,8 @@ function afterdatatables() {
             }
         });
 
-
+        // need on 'preInvites' to translate interest for Send Invites button
+        editor.on( 'preInvites', translate_editor_group );
     }
 
 }

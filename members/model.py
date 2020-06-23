@@ -8,7 +8,7 @@ from flask import g
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
-from loutilities.user.model import db, ManageLocalTables, EMAIL_LEN
+from loutilities.user.model import db, LocalUserMixin, ManageLocalTables, EMAIL_LEN
 from loutilities.user.tablefiles import FilesMixin
 
 # set up database - SQLAlchemy() must be done after app.config SQLALCHEMY_* assignments
@@ -98,13 +98,11 @@ class TaskTaskField(Base):
     taskfield           = relationship('TaskField', back_populates='tasks')
 
 # copied by update_local_tables
-class LocalUser(Base):
+class LocalUser(LocalUserMixin, Base):
     __tablename__ = 'localuser'
     id                  = Column(Integer(), primary_key=True)
-    user_id             = Column(Integer)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('users'))
-    active              = Column(Boolean)
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -331,6 +329,11 @@ class Meeting(Base):
         'version_id_col': version_id
     }
 
+INVITE_RESPONSE_NO_RESPONSE = 'response pending'
+INVITE_RESPONSE_ATTENDING = 'attending'
+INVITE_RESPONSE_NOT_ATTENDING = 'not attending'
+invite_response_all = (INVITE_RESPONSE_NO_RESPONSE, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NOT_ATTENDING)
+
 class Invite(Base):
     __tablename__ = 'invite'
     id                  = Column(Integer(), primary_key=True)
@@ -344,7 +347,7 @@ class Invite(Base):
     agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
     agendaitem          = relationship('AgendaItem', backref=backref('invites'))
     invitekey           = Column(String(INVITE_KEY_LEN))
-    attending           = Column(Boolean, default=False)
+    response            = Column(Enum(*invite_response_all), default=INVITE_RESPONSE_NO_RESPONSE)
     attended            = Column(Boolean, default=False)
     activeinvite        = Column(Boolean, default=True)
 

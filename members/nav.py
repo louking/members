@@ -91,6 +91,7 @@ def nav_menu():
                 meetingsadmin = Subgroup('Meetings')
                 navbar.items.append(meetingsadmin)
                 meetings_admin_view(meetingsadmin, 'Meetings', 'admin.meetings', interest=g.interest)
+                meetings_admin_view(meetingsadmin, 'Invites', 'admin.invites', interest=g.interest)
                 meetings_admin_view(meetingsadmin, 'Tags', 'admin.tags', interest=g.interest)
 
             # leadership admin stuff
