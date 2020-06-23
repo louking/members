@@ -26,6 +26,10 @@ Glossary
         :term:`task groups <task group>`, and :term:`positions <position>`, as well as assign
         :term:`members <member>` to :term:`positions <position>`
 
+    meeting
+        get-together either physically, virtually via teleconference, or by email, where business is discussed
+        for which minutes are required, action items may be generated, and/or decisions made (by motion / vote)
+
     member
         a club member that serves in a volunteer position that requires specific and trackable training
         and orientation
