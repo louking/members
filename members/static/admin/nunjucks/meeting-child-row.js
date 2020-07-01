@@ -55,14 +55,14 @@ else {
 output += "\r\n    <div class=\"childrow-display\">\r\n        ";
 if(runtime.contextOrFrameLookup(context, frame, "agendaitem")) {
 output += "\r\n            <div class=\"DTE_Label\">Summary</div>\r\n            <div class=\"DTE_Field_Input\">";
-output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "agendaitem"), env.opts.autoescape);
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "agendaitem")), env.opts.autoescape);
 output += "</div>\r\n        ";
 ;
 }
 output += "\r\n        ";
 if(runtime.contextOrFrameLookup(context, frame, "discussion")) {
 output += "\r\n            <div class=\"DTE_Label\">Discussion</div>\r\n            <div class=\"DTE_Field_Input\">";
-output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "discussion"), env.opts.autoescape);
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "discussion")), env.opts.autoescape);
 output += "</div>\r\n        ";
 ;
 }

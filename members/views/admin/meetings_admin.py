@@ -445,10 +445,20 @@ meeting = MeetingView(
          'className': 'field_req',
          },
         {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Agenda Item',
+         'type': 'ckeditorInline',
          'visible': False,
+         'opts': {
+             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
+                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
+         }
          },
         {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
+         'type': 'ckeditorInline',
          'visible': False,
+         'opts': {
+             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
+                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
+         }
          },
     ],
     childrowoptions= {

@@ -48,6 +48,8 @@ d3_ver = '5.14.2'           # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
+cke_type='inline'           # https://ckeditor.com/ckeditor-5/
+cke_ver='20.0.0'            # https://ckeditor.com/ckeditor-5/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
@@ -165,18 +167,20 @@ asset_bundles = {
         # date time formatting for datatables editor, per https://editor.datatables.net/reference/field/datetime
         'js/moment-{ver}/moment.js'.format(ver=moment_ver),
 
-        # javascript templating and templates
-        'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
-        'admin/nunjucks/meeting-child-row.js',
-
         # d3
         'js/d3-{ver}/d3.v5.js'.format(ver=d3_ver),
+
+        # ckeditor
+        'js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type),
 
         'admin/layout.js',
         'layout.js',
 
         # must be before datatables
+        'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
+        'admin/nunjucks/meeting-child-row.js',
         'admin/beforedatatables.js',
+        'editor.ckeditor5.js',
         'user/admin/beforedatatables.js',       # from loutilities
         'editor.select2.mymethods.js',          # from loutilities
         'editor.displayController.onPage.js',   # from loutilities
