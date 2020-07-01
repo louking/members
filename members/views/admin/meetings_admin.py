@@ -403,8 +403,8 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
-meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem'.split(',')
-meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem'.split(',')
+meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion'.split(',')
+meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion'.split(',')
 meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
 meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
 
@@ -444,14 +444,26 @@ meeting = MeetingView(
         {'data': 'title', 'name': 'title', 'label': 'Title',
          'className': 'field_req',
          },
+        {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Agenda Item',
+         'visible': False,
+         },
+        {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
+         'visible': False,
+         },
     ],
+    childrowoptions= {
+        'template': 'meeting-child-row.njk',
+        'showeditor': True,
+        'childelementargs': [
+            dict(name='invites', type='_table', args=dict(table=invites)),
+        ],
+    },
     serverside=True,
     idSrc='rowid',
     buttons=[
         # 'editor' gets eval'd to editor instance
         {'extend':'newInvites', 'editor': {'eval':'editor'}},
         'create',
-        'editRefresh',
         'remove',
         'csv'
     ],

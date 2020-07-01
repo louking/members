@@ -1,0 +1,38 @@
+{# row is being edited #}
+{% if _showedit %}
+    {# normal case unless invites is present #}
+    {% if not invites %}
+        {# see https://datatables.net/blog/2017-06-30 #}
+        {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
+        {# standardize on id childrow-editform for use by onPageDisplay #}
+        <div id="childrow-editform"></div>
+
+        {% for t in tables %}
+            <h2>{{ t.name }}</h2>
+            <table id="childrow-table-{{ t.name }}"></table>
+        {% endfor %}
+
+    {# if invites is present only show the invites table #}
+    {% else %}
+        {{ invites }}
+    {% endif %}
+
+{# row just needs to be displayed #}
+{% else %}
+    <div class="childrow-display">
+        {% if agendaitem %}
+            <div class="DTE_Label">Summary</div>
+            <div class="DTE_Field_Input">{{ agendaitem }}</div>
+        {% endif %}
+        {% if discussion %}
+            <div class="DTE_Label">Discussion</div>
+            <div class="DTE_Field_Input">{{ discussion }}</div>
+        {% endif %}
+    </div>
+    {# TODO: figure out how to only display tables #}
+    {% for t in tables %}
+        <h2>{{ t.name }}</h2>
+        <table id="childrow-table-{{ t.name }}"></table>
+    {% endfor %}
+
+{% endif %}

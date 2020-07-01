@@ -383,6 +383,7 @@ class AgendaItem(Base):
     order               = Column(Integer)
     title               = Column(String(TITLE_LEN))
     agendaitem          = Column(Text)
+    discussion          = Column(Text)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

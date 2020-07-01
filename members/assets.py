@@ -165,8 +165,9 @@ asset_bundles = {
         # date time formatting for datatables editor, per https://editor.datatables.net/reference/field/datetime
         'js/moment-{ver}/moment.js'.format(ver=moment_ver),
 
-        # javascript templating
-        'js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver),
+        # javascript templating and templates
+        'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
+        'admin/nunjucks/meeting-child-row.js',
 
         # d3
         'js/d3-{ver}/d3.v5.js'.format(ver=d3_ver),
@@ -177,8 +178,10 @@ asset_bundles = {
         # must be before datatables
         'admin/beforedatatables.js',
         'user/admin/beforedatatables.js',       # from loutilities
-
         'editor.select2.mymethods.js',          # from loutilities
+        'editor.displayController.onPage.js',   # from loutilities
+        'datatables-childrow.js',               # from loutilities
+
         'datatables.js',                        # from loutilities
 
         # must be after datatables.js
