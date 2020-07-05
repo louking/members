@@ -22,7 +22,7 @@ from .viewhelpers import dtrender, localinterest, localuser2user
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action
+from loutilities.tables import _editormethod, get_request_action, CHILDROW_TYPE_TABLE
 from loutilities.timeu import asctime
 isotime = asctime('%Y-%m-%d')
 
@@ -444,7 +444,7 @@ meeting = MeetingView(
         {'data': 'title', 'name': 'title', 'label': 'Title',
          'className': 'field_req',
          },
-        {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Agenda Item',
+        {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Summary',
          'type': 'ckeditorInline',
          'visible': False,
          'opts': {
@@ -465,7 +465,7 @@ meeting = MeetingView(
         'template': 'meeting-child-row.njk',
         'showeditor': True,
         'childelementargs': [
-            dict(name='invites', type='_table', args=dict(table=invites)),
+            dict(name='invites', type=CHILDROW_TYPE_TABLE, table=invites, args=dict()),
         ],
     },
     serverside=True,

@@ -212,6 +212,7 @@ asset_bundles = {
         'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
 
         'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
+        'js/Editor-{ver}/css/editor.dataTables.css'.format(ver=dt_editor_ver),
         'js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver),
         'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
         'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
