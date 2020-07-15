@@ -9,45 +9,7 @@ output += "\r\n";
 if(runtime.contextOrFrameLookup(context, frame, "_showedit")) {
 output += "\r\n    ";
 output += "\r\n    ";
-if(!runtime.contextOrFrameLookup(context, frame, "invites")) {
-output += "\r\n        ";
-output += "\r\n        ";
-output += "\r\n        ";
-output += "\r\n        <div id=\"childrow-editform\"></div>\r\n\r\n        ";
-frame = frame.push();
-var t_3 = runtime.contextOrFrameLookup(context, frame, "tables");
-if(t_3) {t_3 = runtime.fromIterator(t_3);
-var t_2 = t_3.length;
-for(var t_1=0; t_1 < t_3.length; t_1++) {
-var t_4 = t_3[t_1];
-frame.set("t", t_4);
-frame.set("loop.index", t_1 + 1);
-frame.set("loop.index0", t_1);
-frame.set("loop.revindex", t_2 - t_1);
-frame.set("loop.revindex0", t_2 - t_1 - 1);
-frame.set("loop.first", t_1 === 0);
-frame.set("loop.last", t_1 === t_2 - 1);
-frame.set("loop.length", t_2);
-output += "\r\n            <h2>";
-output += runtime.suppressValue(runtime.memberLookup((t_4),"name"), env.opts.autoescape);
-output += "</h2>\r\n            <table id=\"childrow-table-";
-output += runtime.suppressValue(runtime.memberLookup((t_4),"name"), env.opts.autoescape);
-output += "\"></table>\r\n        ";
-;
-}
-}
-frame = frame.pop();
-output += "\r\n\r\n    ";
-output += "\r\n    ";
-;
-}
-else {
-output += "\r\n        ";
-output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "invites"), env.opts.autoescape);
-output += "\r\n    ";
-;
-}
-output += "\r\n\r\n";
+output += "\r\n    <div id=\"childrow-editform\"></div>\r\n\r\n";
 output += "\r\n";
 ;
 }
@@ -66,34 +28,39 @@ output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.cont
 output += "</div>\r\n        ";
 ;
 }
-output += "\r\n    </div>\r\n    ";
-output += "\r\n    ";
+output += "\r\n    </div>\r\n";
+;
+}
+output += "\r\n\r\n";
+output += "\r\n";
+output += "\r\n<div class=\"childrow-display\">\r\n    ";
 frame = frame.push();
-var t_7 = runtime.contextOrFrameLookup(context, frame, "tables");
-if(t_7) {t_7 = runtime.fromIterator(t_7);
-var t_6 = t_7.length;
-for(var t_5=0; t_5 < t_7.length; t_5++) {
-var t_8 = t_7[t_5];
-frame.set("t", t_8);
-frame.set("loop.index", t_5 + 1);
-frame.set("loop.index0", t_5);
-frame.set("loop.revindex", t_6 - t_5);
-frame.set("loop.revindex0", t_6 - t_5 - 1);
-frame.set("loop.first", t_5 === 0);
-frame.set("loop.last", t_5 === t_6 - 1);
-frame.set("loop.length", t_6);
-output += "\r\n        <h2>";
-output += runtime.suppressValue(runtime.memberLookup((t_8),"name"), env.opts.autoescape);
-output += "</h2>\r\n        <table id=\"childrow-table-";
-output += runtime.suppressValue(runtime.memberLookup((t_8),"name"), env.opts.autoescape);
-output += "\"></table>\r\n    ";
+var t_3 = runtime.contextOrFrameLookup(context, frame, "tables");
+if(t_3) {t_3 = runtime.fromIterator(t_3);
+var t_2 = t_3.length;
+for(var t_1=0; t_1 < t_3.length; t_1++) {
+var t_4 = t_3[t_1];
+frame.set("table", t_4);
+frame.set("loop.index", t_1 + 1);
+frame.set("loop.index0", t_1);
+frame.set("loop.revindex", t_2 - t_1);
+frame.set("loop.revindex0", t_2 - t_1 - 1);
+frame.set("loop.first", t_1 === 0);
+frame.set("loop.last", t_1 === t_2 - 1);
+frame.set("loop.length", t_2);
+output += "\r\n        <div class=\"DTE_Label\">";
+output += runtime.suppressValue(runtime.memberLookup((t_4),"label"), env.opts.autoescape);
+output += "</div>\r\n        <table id=\"childrow-table-";
+output += runtime.suppressValue(runtime.memberLookup((t_4),"name"), env.opts.autoescape);
+output += "-";
+output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "rowid"), env.opts.autoescape);
+output += "\"></table>\r\n";
+output += "\r\n    ";
 ;
 }
 }
 frame = frame.pop();
-output += "\r\n\r\n";
-;
-}
+output += "\r\n</div>\r\n";
 if(parentTemplate) {
 parentTemplate.rootRenderFunc(env, context, frame, runtime, cb);
 } else {

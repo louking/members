@@ -4,9 +4,10 @@ meetings_admin - administrative task handling for meetings admin
 '''
 # standard
 from uuid import uuid4
+from urllib.parse import urlencode, urlunparse
 
 # pypi
-from flask import request
+from flask import g, request, url_for
 from dominate.tags import p, div, table, tr, td, h1, h2
 from sqlalchemy import func
 
@@ -24,6 +25,7 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
 from loutilities.tables import _editormethod, get_request_action, CHILDROW_TYPE_TABLE
 from loutilities.timeu import asctime
+
 isotime = asctime('%Y-%m-%d')
 
 class ParameterError(Exception): pass
@@ -247,6 +249,7 @@ invites.register()
 ###########################################################################################
 
 class MeetingView(DbCrudApiInterestsRolePermissions):
+
     def __init__(self, **kwargs):
         args = dict(
             pretablehtml = self.format_pretablehtml
@@ -262,16 +265,16 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
 
         :return: boolean
         '''
-        if 'meetingid' not in request.args:
+        if 'meeting_id' not in request.args:
             return False
-        meetingid = request.args['meetingid']
+        meetingid = request.args['meeting_id']
         meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
         if not meeting:
             return False
         return super().permission()
 
     def format_pretablehtml(self):
-        meetingid = request.args['meetingid']
+        meetingid = request.args['meeting_id']
         meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
         html = h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
         return html.render()
@@ -289,7 +292,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
             self.responsekeys['invites'].append(thisinvite)
 
     def get_invites(self):
-        meetingid = request.args['meetingid']
+        meetingid = request.args['meeting_id']
         meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
 
         if not meeting:
@@ -325,7 +328,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         return list(invitestates.values()), list(invites.values())
 
     def generateinvites(self):
-        meetingid = request.args['meetingid']
+        meetingid = request.args['meeting_id']
         meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
 
         if not meeting:
@@ -335,7 +338,8 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         # also use this later to deactivate any invites which are not still needed
         previnvites = Invite.query.filter_by(interest=localinterest(), meeting=meeting).all()
         if not previnvites:
-            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='')
+            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
+                                    is_attendee_only=True)
             db.session.add(agendaitem)
         # all of the invites should have the same agendaitem, so just use the first
         else:
@@ -375,13 +379,45 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         add meeting_id to query parameters
         '''
         super().beforequery()
-        self.queryparams['meeting_id'] = request.args['meetingid']
+        self.queryparams['meeting_id'] = request.args['meeting_id']
         # this is here to set invites for initial page load
-        self.updateinvites()
+        # self.updateinvites()
+
+    def updatetables(self, rows):
+        # todo: can this be part of configuration, or method to call per row or for all rows?
+        for row in rows:
+            tables = []
+            if row['is_attendee_only'] == 'yes':
+                tables.append({
+                    'name': 'invites',
+                    'label': 'Invites',
+                    'url': (
+                        url_for('admin.invites', interest=g.interest) + '/rest?' +
+                        urlencode(
+                            {
+                                'meeting_id': request.args['meeting_id'],
+                                'agendaitem_id': row['rowid']
+                            }
+                         ))
+                })
+
+            elif row['is_action_only'] == 'yes':
+                pass
+
+            else:
+                pass
+
+            if tables:
+                row['tables'] = tables
 
     def editor_method_postcommit(self, form):
         # this is here in case invites changed during edit action
-        self.updateinvites()
+        # self.updateinvites()
+        self.updatetables(self._responsedata)
+
+    def open(self):
+        super().open()
+        self.updatetables(self.output_result['data'])
 
     @_editormethod(checkaction='create,checkinvites,sendinvites,refresh', formrequest=True)
     def post(self):
@@ -399,12 +435,12 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
             super().do_post()
 
     def createrow(self, formdata):
-        formdata['meeting_id'] = request.args['meetingid']
+        formdata['meeting_id'] = request.args['meeting_id']
         output = super().createrow(formdata)
         return output
 
-meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion'.split(',')
-meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion'.split(',')
+meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
+meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
 meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
 meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
 
@@ -444,6 +480,16 @@ meeting = MeetingView(
         {'data': 'title', 'name': 'title', 'label': 'Title',
          'className': 'field_req',
          },
+        {'data': 'is_attendee_only', 'name': 'is_attendee_only', 'label': 'Attendee Only',
+         'type': 'hidden',
+         '_treatment': {'boolean': {'formfield': 'is_attendee_only', 'dbfield': 'is_attendee_only'}},
+         'visible': False,
+         },
+        {'data': 'is_action_only', 'name': 'is_action_only', 'label': 'Action Only',
+         'type': 'hidden',
+         '_treatment': {'boolean': {'formfield': 'is_action_only', 'dbfield': 'is_action_only'}},
+         'visible': False,
+         },
         {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Summary',
          'type': 'ckeditorInline',
          'visible': False,
@@ -465,7 +511,12 @@ meeting = MeetingView(
         'template': 'meeting-child-row.njk',
         'showeditor': True,
         'childelementargs': [
-            dict(name='invites', type=CHILDROW_TYPE_TABLE, table=invites, args=dict()),
+            {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
+                 'args':{
+                     'dthidecols':['date', 'purpose'],
+                     'edhidecols':['date', 'purpose'],
+                 }
+             },
         ],
     },
     serverside=True,

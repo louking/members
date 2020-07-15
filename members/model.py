@@ -384,6 +384,8 @@ class AgendaItem(Base):
     title               = Column(String(TITLE_LEN))
     agendaitem          = Column(Text)
     discussion          = Column(Text)
+    is_attendee_only    = Column(Boolean, nullable=False, default=False)
+    is_action_only      = Column(Boolean, nullable=False, default=False)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

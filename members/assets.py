@@ -28,7 +28,7 @@ dt_editor_ver = '1.9.3'
 dt_fixedcolumns_ver = '3.3.1'
 dt_responsive_ver = '2.2.5'
 dt_rowreorder_ver = '1.2.7'
-dt_select_ver = '1.3.1'
+dt_select_ver = '1.3.1-preXhr-patch'
 jszip_ver = '2.5.0'
 
 # select2
