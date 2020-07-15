@@ -483,11 +483,12 @@ meeting = MeetingView(
         {'data': 'is_attendee_only', 'name': 'is_attendee_only', 'label': 'Attendee Only',
          'type': 'hidden',
          '_treatment': {'boolean': {'formfield': 'is_attendee_only', 'dbfield': 'is_attendee_only'}},
+         'ed': {'type': 'hidden'},  # applied after _treatment
          'visible': False,
          },
         {'data': 'is_action_only', 'name': 'is_action_only', 'label': 'Action Only',
-         'type': 'hidden',
          '_treatment': {'boolean': {'formfield': 'is_action_only', 'dbfield': 'is_action_only'}},
+         'ed': {'type': 'hidden'},  # applied after _treatment
          'visible': False,
          },
         {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Summary',
@@ -513,8 +514,16 @@ meeting = MeetingView(
         'childelementargs': [
             {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
                  'args':{
-                     'dthidecols':['date', 'purpose'],
-                     'edhidecols':['date', 'purpose'],
+                     'columns': {
+                         'datatable': {
+                             'date': {'visible': False}, 'purpose': {'visible': False},
+                             'response': {'visible': False}, 'activeinvite': {'visible': False}
+                         },
+                         'editor': {
+                             'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                             'response': {'type': 'hidden'}, 'activeinvite': {'type': 'hidden'}
+                         },
+                     }
                  }
              },
         ],
