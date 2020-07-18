@@ -184,7 +184,16 @@ invites_dbmapping = dict(zip(invites_dbattrs, invites_formfields))
 invites_formmapping = dict(zip(invites_formfields, invites_dbattrs))
 # invites_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
 
-invites = DbCrudApiInterestsRolePermissions(
+class InvitesView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add meeting_id to query parameters
+        '''
+        super().beforequery()
+        if 'meeting_id' in request.args:
+            self.queryparams['meeting_id'] = request.args['meeting_id']
+
+invites = InvitesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -219,12 +228,12 @@ invites = DbCrudApiInterestsRolePermissions(
          'options': invite_response_all,
          },
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',
-         'class': 'TextCenter',
+         'className': 'TextCenter',
          '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
          'ed': {'def': 'no'},
          },
         {'data': 'activeinvite', 'name': 'activeinvite', 'label': 'Invited',
-         'class': 'TextCenter',
+         'className': 'TextCenter',
          '_treatment': {'boolean': {'formfield': 'activeinvite', 'dbfield': 'activeinvite'}},
          'ed': {'def': 'no'},
          },
@@ -380,8 +389,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         '''
         super().beforequery()
         self.queryparams['meeting_id'] = request.args['meeting_id']
-        # this is here to set invites for initial page load
-        # self.updateinvites()
 
     def updatetables(self, rows):
         # todo: can this be part of configuration, or method to call per row or for all rows?
@@ -518,14 +525,20 @@ meeting = MeetingView(
                  'args':{
                      'columns': {
                          'datatable': {
+                             # uses data field as key
                              'date': {'visible': False}, 'purpose': {'visible': False},
                              'response': {'visible': False}, 'activeinvite': {'visible': False}
                          },
                          'editor': {
+                             # uses name field as key
                              'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
                              'response': {'type': 'hidden'}, 'activeinvite': {'type': 'hidden'}
                          },
-                     }
+                     },
+                     'inline' : {
+                         # uses name field as key; value is used for editor.inline() options
+                         'attended': {'submitOnBlur': True}
+                     },
                  }
              },
         ],
