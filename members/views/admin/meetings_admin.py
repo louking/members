@@ -511,6 +511,8 @@ meeting = MeetingView(
     childrowoptions= {
         'template': 'meeting-child-row.njk',
         'showeditor': True,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest',
         'childelementargs': [
             {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
                  'args':{
