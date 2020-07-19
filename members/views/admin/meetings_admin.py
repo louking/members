@@ -19,6 +19,7 @@ from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
 from .viewhelpers import dtrender, localinterest, localuser2user
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -190,8 +191,25 @@ class InvitesView(DbCrudApiInterestsRolePermissions):
         add meeting_id to query parameters
         '''
         super().beforequery()
+
+        # add meeting_id to filters if requested
         if 'meeting_id' in request.args:
             self.queryparams['meeting_id'] = request.args['meeting_id']
+
+        # need to remove this filter in case of previous filter
+        else:
+            self.queryparams.pop('meeting_id', None)
+
+invites_filters = filtercontainerdiv()
+# invites_filters += filterdiv('invites-external-filter-date', 'Date')
+invites_filters += filterdiv('invites-external-filter-name', 'Name')
+# invites_filters += filterdiv('invites-external-filter-attended', 'Attended')
+
+invites_yadcf_options = [
+    # yadcfoption('date:name', 'invites-external-filter-date', 'range_date'),
+    yadcfoption('name:name', 'invites-external-filter-name', 'multi_select', placeholder='Select names', width='200px'),
+    # yadcfoption('attended:name', 'invites-external-filter-attended', 'select', placeholder='Select', width='100px'),
+]
 
 invites = InvitesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
@@ -202,6 +220,8 @@ invites = InvitesView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pretablehtml=invites_filters.render(),
+    yadcfoptions=invites_yadcf_options,
     pagename='Invites',
     endpoint='admin.invites',
     endpointvalues={'interest': '<interest>'},
