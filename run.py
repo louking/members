@@ -40,7 +40,7 @@ if debug:
     with app.app_context():
         pass
         print('listing routes from run.py')
-        list_routes(app)
+        # list_routes(app)
 
 if __name__ == "__main__":
     if "--setup" in sys.argv:
