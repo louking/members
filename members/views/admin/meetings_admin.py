@@ -14,10 +14,11 @@ from sqlalchemy import func
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Tag, Position, Invite
-from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote
+from ...model import LocalInterest, LocalUser, Tag, Position
+from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
+from ...model import action_all, ACTION_STATUS_OPEN, motion_all, MOTION_STATUS_OPEN, motionvote_all, MOTIONVOTE_STATUS_NOVOTE
 from .viewhelpers import dtrender, localinterest, localuser2user
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
@@ -173,12 +174,6 @@ meetings.register()
 # invites endpoint
 ###########################################################################################
 
-# class InvitesView(DbCrudApiInterestsRolePermissions):
-#     '''
-#     special processing for nested server attributes
-#     '''
-
-
 invites_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,user.name,user.email,agendaitem.agendaitem,invitekey,response,attended,activeinvite'.split(',')
 invites_formfields = 'rowid,interest_id,purpose,date,name,email,agendaitem,invitekey,response,attended,activeinvite'.split(',')
 invites_dbmapping = dict(zip(invites_dbattrs, invites_formfields))
@@ -193,12 +188,15 @@ class InvitesView(DbCrudApiInterestsRolePermissions):
         super().beforequery()
 
         # add meeting_id to filters if requested
-        if 'meeting_id' in request.args:
-            self.queryparams['meeting_id'] = request.args['meeting_id']
+        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
 
-        # need to remove this filter in case of previous filter
-        else:
-            self.queryparams.pop('meeting_id', None)
+        # remove empty parameters from query filters
+        delfields = []
+        for field in self.queryparams:
+            if self.queryparams[field] == None:
+                delfields.append(field)
+        for field in delfields:
+            del self.queryparams[field]
 
 invites_filters = filtercontainerdiv()
 # invites_filters += filterdiv('invites-external-filter-date', 'Date')
@@ -272,6 +270,219 @@ invites = InvitesView(
     },
 )
 invites.register()
+
+##########################################################################################
+# actionitems endpoint
+###########################################################################################
+
+actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,meeting.date,action,comments,status,assignee'.split(',')
+actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,agendaitem'.split(',')
+actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
+actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
+# actionitems_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+
+class ActionItemsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add meeting_id to query parameters
+        '''
+        super().beforequery()
+
+        # add filters if requested
+        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        self.queryparams['agendaitem_id'] = request.args.get('agendaitem_id', None)
+
+        # remove empty parameters from query filters
+        delfields = []
+        for field in self.queryparams:
+            if self.queryparams[field] == None:
+                delfields.append(field)
+        for field in delfields:
+            del self.queryparams[field]
+
+actionitems_filters = filtercontainerdiv()
+actionitems_filters += filterdiv('actionitems-external-filter-date', 'Date')
+actionitems_filters += filterdiv('actionitems-external-filter-name', 'Name')
+actionitems_filters += filterdiv('actionitems-external-filter-status', 'Status')
+
+actionitems_yadcf_options = [
+    yadcfoption('date:name', 'actionitems-external-filter-date', 'range_date'),
+    yadcfoption('name:name', 'actionitems-external-filter-name', 'multi_select', placeholder='Select names', width='200px'),
+    yadcfoption('status:name', 'actionitems-external-filter-status', 'select', placeholder='Select', width='100px'),
+]
+
+actionitems = ActionItemsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=ActionItem,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pretablehtml=actionitems_filters.render(),
+    yadcfoptions=actionitems_yadcf_options,
+    pagename='Action Items',
+    endpoint='admin.actionitems',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/actionitems',
+    dbmapping=actionitems_dbmapping,
+    formmapping=actionitems_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
+         'type': 'readonly',
+         },
+        {'data': 'date', 'name': 'date', 'label': 'Date',
+         'type': 'readonly',
+         '_ColumnDT_args' : {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d')}
+         },
+        {'data': 'action', 'name': 'action', 'label': 'Action',
+         'type': 'ckeditorInline',
+         },
+        {'data': 'comments', 'name': 'comments', 'label': 'Comments',
+         'type': 'ckeditorInline',
+         },
+        {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
+         '_treatment': {
+             # viadbattr stores the LocalUser id which has user_id=user.id for each of these
+             # and pulls the correct users out of User based on LocalUser table
+             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
+                              'formfield': 'assignee', 'dbfield': 'assignee',
+                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'uselist': False}}
+         },
+        {'data': 'status', 'name': 'status', 'label': 'Status',
+         'type': 'select2',
+         'options': action_all,
+         'ed': {'def': ACTION_STATUS_OPEN}
+         },
+        # meeting_id and agendaitem_id are required for tying to meeting view row
+        # put these last so as not to confuse indexing between datatables (python vs javascript)
+        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'agendaitem_id', 'name': 'agendaitem_id', 'label': 'Agenda Item ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+    ],
+    serverside=True,
+    idSrc='rowid',
+    buttons=[
+        'create',
+        'editRefresh',
+        'csv'
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+actionitems.register()
+
+##########################################################################################
+# motions endpoint
+###########################################################################################
+
+motions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion,comments,status,meeting_id,agendaitem_id'.split(',')
+motions_formfields = 'rowid,interest_id,purpose,date,motion,comments,status,meeting_id,agendaitem_id'.split(',')
+motions_dbmapping = dict(zip(motions_dbattrs, motions_formfields))
+motions_formmapping = dict(zip(motions_formfields, motions_dbattrs))
+# motions_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+
+class MotionsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add meeting_id to query parameters
+        '''
+        super().beforequery()
+
+        # add filters if requested
+        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        self.queryparams['agendaitem_id'] = request.args.get('agendaitem_id', None)
+
+        # remove empty parameters from query filters
+        delfields = []
+        for field in self.queryparams:
+            if self.queryparams[field] == None:
+                delfields.append(field)
+        for field in delfields:
+            del self.queryparams[field]
+
+motions_filters = filtercontainerdiv()
+motions_filters += filterdiv('motions-external-filter-date', 'Date')
+
+motions_yadcf_options = [
+    yadcfoption('date:name', 'motions-external-filter-date', 'range_date'),
+]
+
+motions = MotionsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=Motion,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pretablehtml=motions_filters.render(),
+    yadcfoptions=motions_yadcf_options,
+    pagename='Action Items',
+    endpoint='admin.motions',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/motions',
+    dbmapping=motions_dbmapping,
+    formmapping=motions_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
+         'type': 'readonly',
+         },
+        {'data': 'date', 'name': 'date', 'label': 'Date',
+         'type': 'readonly',
+         '_ColumnDT_args' : {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d')}
+         },
+        {'data': 'motion', 'name': 'motion', 'label': 'Motion',
+         'type': 'ckeditorInline',
+         },
+        {'data': 'comments', 'name': 'comments', 'label': 'Comments',
+         'type': 'ckeditorInline',
+         },
+        {'data': 'status', 'name': 'status', 'label': 'Status',
+         'type': 'select2',
+         'options': motion_all,
+         'ed': {'def': MOTION_STATUS_OPEN}
+         },
+        # meeting_id and agendaitem_id are required for tying to meeting view row
+        # put these last so as not to confuse indexing between datatables (python vs javascript)
+        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'agendaitem_id', 'name': 'agendaitem_id', 'label': 'Agenda Item ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+    ],
+    serverside=True,
+    idSrc='rowid',
+    buttons=[
+        'create',
+        'editRefresh',
+        'csv'
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+motions.register()
 
 ##########################################################################################
 # meeting endpoint
@@ -432,7 +643,40 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 pass
 
             else:
-                pass
+                tables.append({
+                    'name': 'actionitems',
+                    'label': 'Action Items',
+                    'url': (
+                        url_for('admin.actionitems', interest=g.interest) + '/rest?' +
+                        urlencode(
+                            {
+                                'meeting_id': request.args['meeting_id'],
+                                'agendaitem_id': row['rowid']
+                            }
+                         )),
+                    'createfieldvals':
+                        {
+                            'meeting_id': request.args['meeting_id'],
+                            'agendaitem_id': row['rowid']
+                        }
+                })
+                tables.append({
+                    'name': 'motions',
+                    'label': 'Motions',
+                    'url': (
+                        url_for('admin.motions', interest=g.interest) + '/rest?' +
+                        urlencode(
+                            {
+                                'meeting_id': request.args['meeting_id'],
+                                'agendaitem_id': row['rowid']
+                            }
+                         )),
+                    'createfieldvals':
+                        {
+                            'meeting_id': request.args['meeting_id'],
+                            'agendaitem_id': row['rowid']
+                        }
+                })
 
             if tables:
                 row['tables'] = tables
@@ -560,6 +804,34 @@ meeting = MeetingView(
                          'attended': {'submitOnBlur': True}
                      },
                  }
+             },
+            {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems,
+             'args': {
+                 'columns': {
+                     'datatable': {
+                         # uses data field as key
+                         'date': {'visible': False}, 'purpose': {'visible': False},
+                     },
+                     'editor': {
+                         # uses name field as key
+                         'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                     },
+                 },
+             }
+             },
+            {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions,
+             'args': {
+                 'columns': {
+                     'datatable': {
+                         # uses data field as key
+                         'date': {'visible': False}, 'purpose': {'visible': False},
+                     },
+                     'editor': {
+                         # uses name field as key
+                         'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                     },
+                 },
+             }
              },
         ],
     },
