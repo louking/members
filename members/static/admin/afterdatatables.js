@@ -239,38 +239,6 @@ function afterdatatables() {
 
     // special processing for meeting
     } else if (location.pathname.includes('/meeting') && !location.pathname.includes('/meetings')) {
-        // initialize fontawesome child row handling
-        // see http://live.datatables.net/bihawepu/1/edit
-        // from https://datatables.net/examples/api/row_details.html bindrid comment
-
-        // // Add event listener for opening and closing details
-        // $('#datatable tbody').on('click', 'td.details-control', function () {
-        //     var tr = $(this).closest('tr');
-        //     var tdi = tr.find("i.fa");
-        //     var row = _dt_table.row(tr);
-        //
-        //     if (row.child.isShown()) {
-        //         // This row is already open - close it
-        //         row.child.hide();
-        //         tr.removeClass('shown');
-        //         tdi.first().removeClass('fa-minus-square');
-        //         tdi.first().addClass('fa-plus-square');
-        //     }
-        //     else {
-        //         // Open this row
-        //         row.child('test show row').show();
-        //         tr.addClass('shown');
-        //         tdi.first().removeClass('fa-plus-square');
-        //         tdi.first().addClass('fa-minus-square');
-        //     }
-        // });
-        //
-        // _dt_table.on("user-select", function (e, dt, type, cell, originalEvent) {
-        //     if ($(cell.node()).hasClass("details-control")) {
-        //         e.preventDefault();
-        //     }
-        // });
-
         // need on 'preInvites' to translate interest for Send Invites button
         editor.on( 'preInvites', translate_editor_group );
     }
