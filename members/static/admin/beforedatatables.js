@@ -53,7 +53,7 @@ function member_details(e, dt, node, config) {
 function meeting_details(e, dt, node, config) {
     var args = allUrlParams();
     var meetingid = dt.rows({selected:true}).data()[0].rowid;
-    args.meetingid = meetingid;
+    args.meeting_id = meetingid;
     var newsearch = $.param(args);
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('meeting');
