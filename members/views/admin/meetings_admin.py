@@ -302,12 +302,12 @@ class ActionItemsView(DbCrudApiInterestsRolePermissions):
 
 actionitems_filters = filtercontainerdiv()
 actionitems_filters += filterdiv('actionitems-external-filter-date', 'Date')
-actionitems_filters += filterdiv('actionitems-external-filter-name', 'Name')
+actionitems_filters += filterdiv('actionitems-external-filter-assignee', 'Assignee')
 actionitems_filters += filterdiv('actionitems-external-filter-status', 'Status')
 
 actionitems_yadcf_options = [
     yadcfoption('date:name', 'actionitems-external-filter-date', 'range_date'),
-    yadcfoption('name:name', 'actionitems-external-filter-name', 'multi_select', placeholder='Select names', width='200px'),
+    yadcfoption('assignee.name:name', 'actionitems-external-filter-assignee', 'multi_select', placeholder='Select names', width='200px'),
     yadcfoption('status:name', 'actionitems-external-filter-status', 'select', placeholder='Select', width='100px'),
 ]
 
