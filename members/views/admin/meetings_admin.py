@@ -199,14 +199,14 @@ class InvitesView(DbCrudApiInterestsRolePermissions):
             del self.queryparams[field]
 
 invites_filters = filtercontainerdiv()
-# invites_filters += filterdiv('invites-external-filter-date', 'Date')
+invites_filters += filterdiv('invites-external-filter-date', 'Date')
 invites_filters += filterdiv('invites-external-filter-name', 'Name')
-# invites_filters += filterdiv('invites-external-filter-attended', 'Attended')
+invites_filters += filterdiv('invites-external-filter-attended', 'Attended')
 
 invites_yadcf_options = [
-    # yadcfoption('date:name', 'invites-external-filter-date', 'range_date'),
+    yadcfoption('date:name', 'invites-external-filter-date', 'range_date'),
     yadcfoption('name:name', 'invites-external-filter-name', 'multi_select', placeholder='Select names', width='200px'),
-    # yadcfoption('attended:name', 'invites-external-filter-attended', 'select', placeholder='Select', width='100px'),
+    yadcfoption('attended:name', 'invites-external-filter-attended', 'select', placeholder='Select', width='100px'),
 ]
 
 invites = InvitesView(
@@ -233,7 +233,8 @@ invites = InvitesView(
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'readonly',
-         '_ColumnDT_args' : {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d')}
+         '_ColumnDT_args' :
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
          },
         {'data': 'name', 'name': 'name', 'label': 'Name',
          'type': 'readonly',
@@ -335,7 +336,8 @@ actionitems = ActionItemsView(
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'readonly',
-         '_ColumnDT_args' : {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d')}
+         '_ColumnDT_args' :
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
          },
         {'data': 'action', 'name': 'action', 'label': 'Action',
          'type': 'ckeditorInline',
@@ -444,7 +446,8 @@ motions = MotionsView(
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'readonly',
-         '_ColumnDT_args' : {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d')}
+         '_ColumnDT_args' :
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
          },
         {'data': 'motion', 'name': 'motion', 'label': 'Motion',
          'type': 'ckeditorInline',
