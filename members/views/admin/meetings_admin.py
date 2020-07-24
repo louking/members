@@ -806,6 +806,10 @@ meeting = MeetingView(
                          # uses name field as key; value is used for editor.inline() options
                          'attended': {'submitOnBlur': True}
                      },
+                     'updatedtopts': {
+                         'dom': 'Bfrt',
+                         'paging': False,
+                     }
                  }
              },
             {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems,
@@ -820,6 +824,10 @@ meeting = MeetingView(
                          'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
                      },
                  },
+                 'updatedtopts': {
+                     'dom': 'Bfrt',
+                     'paging': False,
+                 }
              }
              },
             {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions,
@@ -834,6 +842,10 @@ meeting = MeetingView(
                          'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
                      },
                  },
+                 'updatedtopts': {
+                     'dom': 'Bfrt',
+                     'paging': False,
+                 }
              }
              },
         ],
