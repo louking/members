@@ -450,6 +450,8 @@ class MotionVote(Base):
     id = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('motionvotes'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('motionvotes'))
     motion_id           = Column(Integer, ForeignKey('motion.id'))
     motion              = relationship('Motion', backref=backref('motionvotes'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
@@ -474,6 +476,10 @@ meetingtag_table = Table('meeting_tag', Base.metadata,
     Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
+meetingvotetag_table = Table('meetingvote_tag', Base.metadata,
+    Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
 
 class Tag(Base):
     __tablename__ =  'tag'
@@ -487,6 +493,7 @@ class Tag(Base):
     positions           = relationship( 'Position', secondary=positiontag_table, backref='tags', lazy=True )
     users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
     meetings            = relationship( 'Meeting', secondary=meetingtag_table, backref='tags', lazy=True )
+    meetingvotes        = relationship( 'Meeting', secondary=meetingvotetag_table, backref='votetags', lazy=True )
 
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

@@ -363,3 +363,20 @@ def get_position_taskgroups(position, taskgroups):
     '''
     for taskgroup in position.taskgroups:
         get_taskgroup_taskgroups(taskgroup, taskgroups)
+
+def get_tags_users(tags, users):
+    '''
+    get users which have specified tag
+
+    :param tags: list of tags to search for
+    :param users: input and output set of localusers
+    :return: None
+    '''
+
+    # collect all the users which have the indicated tags
+    for tag in tags:
+        for position in tag.positions:
+            for user in position.users:
+                users |= {user}
+        for user in tag.users:
+            users |= {user}

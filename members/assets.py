@@ -178,7 +178,7 @@ asset_bundles = {
 
         # must be before datatables
         'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
-        'admin/nunjucks/meeting-child-row.js',
+        'admin/nunjucks/*.js',
         'admin/beforedatatables.js',
         'editor.ckeditor5.js',
         'user/admin/beforedatatables.js',       # from loutilities

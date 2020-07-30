@@ -4,11 +4,11 @@ meetings_admin - administrative task handling for meetings admin
 '''
 # standard
 from uuid import uuid4
-from urllib.parse import urlencode, urlunparse
+from urllib.parse import urlencode
 
 # pypi
 from flask import g, request, url_for
-from dominate.tags import p, div, table, tr, td, h1, h2
+from dominate.tags import h1
 from sqlalchemy import func
 
 # homegrown
@@ -18,8 +18,9 @@ from ...model import LocalInterest, LocalUser, Tag, Position
 from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
-from ...model import action_all, ACTION_STATUS_OPEN, motion_all, MOTION_STATUS_OPEN, motionvote_all, MOTIONVOTE_STATUS_NOVOTE
-from .viewhelpers import dtrender, localinterest, localuser2user
+from ...model import action_all, ACTION_STATUS_OPEN, motion_all, MOTION_STATUS_OPEN, motionvote_all
+from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
+from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
@@ -106,8 +107,8 @@ tag.register()
 # meetings endpoint
 ###########################################################################################
 
-meetings_dbattrs = 'id,interest_id,date,purpose,tags'.split(',')
-meetings_formfields = 'rowid,interest_id,date,purpose,tags'.split(',')
+meetings_dbattrs = 'id,interest_id,date,purpose,tags,votetags'.split(',')
+meetings_formfields = 'rowid,interest_id,date,purpose,tags,votetags'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
@@ -138,11 +139,19 @@ meetings = DbCrudApiInterestsRolePermissions(
          'type': 'datetime',
          'className': 'field_req',
          },
-        {'data': 'tags', 'name': 'tags', 'label': 'Tags',
-         'fieldInfo': 'members who have these tags, either directly or via position, will be invited',
+        {'data': 'tags', 'name': 'tags', 'label': 'Invite Tags',
+         'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'tags',
                               'dbfield': 'tags', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'votetags', 'name': 'votetags', 'label': 'Vote Tags',
+         'fieldInfo': 'members who have these tags, either directly or via position, can vote on motions',
+         '_treatment': {
+             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'votetags',
+                              'dbfield': 'votetags', 'uselist': True,
                               'queryparams': localinterest_query_params,
                               }}
          },
@@ -227,6 +236,8 @@ invites = InvitesView(
     dbmapping=invites_dbmapping,
     formmapping=invites_formmapping,
     checkrequired=True,
+    tableidtemplate ='invites-{{ meeting_id }}',
+    # rowidtemplate ='invites-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -330,6 +341,8 @@ actionitems = ActionItemsView(
     dbmapping=actionitems_dbmapping,
     formmapping=actionitems_formmapping,
     checkrequired=True,
+    tableidtemplate ='actionitems-{{ meeting_id }}',
+    # rowidtemplate ='actionitems-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -387,6 +400,105 @@ actionitems = ActionItemsView(
 actionitems.register()
 
 ##########################################################################################
+# motionsvote endpoint
+###########################################################################################
+
+motionvotes_dbattrs = 'id,interest_id,meeting.date,motion.motion,user.name,vote,meeting_id,motion_id'.split(',')
+motionvotes_formfields = 'rowid,interest_id,date,motion,user,vote,meeting_id,motion_id'.split(',')
+motionvotes_dbmapping = dict(zip(motionvotes_dbattrs, motionvotes_formfields))
+motionvotes_formmapping = dict(zip(motionvotes_formfields, motionvotes_dbattrs))
+# motionsvote_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+
+class MotionVotesView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add meeting_id to query parameters
+        '''
+        super().beforequery()
+
+        # add filters if requested
+        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        self.queryparams['motion_id'] = request.args.get('motion_id', None)
+
+        # remove empty parameters from query filters
+        delfields = []
+        for field in self.queryparams:
+            if self.queryparams[field] == None:
+                delfields.append(field)
+        for field in delfields:
+            del self.queryparams[field]
+
+motionvotes_filters = filtercontainerdiv()
+motionvotes_filters += filterdiv('motionvotes-external-filter-date', 'Date')
+
+motionvotes_yadcf_options = [
+    yadcfoption('date:name', 'motionvotes-external-filter-date', 'range_date'),
+]
+
+motionvotes = MotionVotesView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=MotionVote,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pretablehtml=motionvotes_filters.render(),
+    yadcfoptions=motionvotes_yadcf_options,
+    pagename='Motion Votes',
+    endpoint='admin.motionvotes',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/motionvotes',
+    dbmapping=motionvotes_dbmapping,
+    formmapping=motionvotes_formmapping,
+    checkrequired=True,
+    tableidtemplate ='motionvotes-{{ meeting_id }}',
+    # rowidtemplate ='motionvotes-{{ meeting_id }}-{{ agendaitem_id }}',
+    clientcolumns=[
+        {'data': 'motion', 'name': 'motion', 'label': 'Motion',
+         'type': 'readonly',
+         },
+        {'data': 'date', 'name': 'date', 'label': 'Date',
+         'type': 'readonly',
+         '_ColumnDT_args' :
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
+         },
+        {'data': 'user', 'name': 'user', 'label': 'Member',
+         'type':'readonly',
+         },
+        {'data': 'vote', 'name': 'vote', 'label': 'Vote',
+         'type': 'select2',
+         'options': motionvote_all,
+         },
+        # meeting_id and motion_id are required for tying to motion view row
+        # put these last so as not to confuse indexing between datatables (python vs javascript)
+        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'motion_id', 'name': 'motion_id', 'label': 'Motion ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+    ],
+    serverside=True,
+    idSrc='rowid',
+    buttons=[
+        'create',
+        'editRefresh',
+        'csv'
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+motionvotes.register()
+
+##########################################################################################
 # motions endpoint
 ###########################################################################################
 
@@ -415,6 +527,71 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
         for field in delfields:
             del self.queryparams[field]
 
+    def updatetables(self, rows):
+        for row in rows:
+            context = {
+                'motion_id': row['rowid'],
+                'meeting_id': row['meeting_id']
+            }
+
+            tablename = 'motionvotes'
+            tables = [
+                {
+                    'name': tablename,
+                    'label': 'Votes',
+                    'url': (
+                        url_for('admin.motionvotes', interest=g.interest) + '/rest?' +
+                        urlencode(context)
+                    ),
+                    'tableid': self.childtables[tablename]['table'].tableid(**context)
+                }]
+
+            row['tables'] = tables
+
+            tableid = self.tableid(**context)
+            if tableid:
+                row['tableid'] = tableid
+
+    def editor_method_postcommit(self, form):
+        # this is here in case invites changed during edit action
+        # self.updateinvites()
+        self.updatetables(self._responsedata)
+
+    def open(self):
+        super().open()
+        self.updatetables(self.output_result['data'])
+
+    def deleterow(self, thisid):
+        MotionVote.query.filter_by(motion_id=thisid).delete()
+        return super().deleterow(thisid)
+
+    def createrow(self, formdata):
+        meeting_id = formdata['meeting_id']
+        output = super().createrow(formdata)
+
+        # create motionvotes records
+        ## first figure out who is allowed to vote for this meeting
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
+        users = set()
+        get_tags_users(meeting.votetags, users)
+
+        ## retrieve the motion we've just created
+        motion = Motion.query.filter_by(id=self.created_id).one()
+
+        ## for each user, create a voting record
+        for user in users:
+            vote = MotionVote(interest=localinterest(), meeting=meeting, motion=motion, user=user)
+            invite = Invite.query.filter_by(meeting=meeting, user=user).one()
+            # if user is attending the meeting, assume they approve, otherwise no vote
+            if invite.attended:
+                vote.vote = MOTIONVOTE_STATUS_APPROVED
+            else:
+                vote.vote = MOTIONVOTE_STATUS_NOVOTE
+            db.session.add(vote)
+        # db.session.commit()
+
+        return output
+
 motions_filters = filtercontainerdiv()
 motions_filters += filterdiv('motions-external-filter-date', 'Date')
 
@@ -433,14 +610,27 @@ motions = MotionsView(
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
     pretablehtml=motions_filters.render(),
     yadcfoptions=motions_yadcf_options,
-    pagename='Action Items',
+    pagename='Motions',
     endpoint='admin.motions',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/motions',
     dbmapping=motions_dbmapping,
     formmapping=motions_formmapping,
     checkrequired=True,
+    tableidtemplate ='motions-{{ meeting_id }}',
+    # rowidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
+        {'data':'', # needs to be '' else get exception converting options from meetings render_template
+                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+         'name':'details-control',
+         'className': 'details-control',
+         'orderable': False,
+         'defaultContent': '',
+         'width': '15px',
+         'label': '',
+         'type': 'hidden',  # only affects editor modal
+         'render': {'eval':'render_plus'},
+         },
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
          },
@@ -471,6 +661,36 @@ motions = MotionsView(
          'visible': False,
          },
     ],
+    childrowoptions= {
+        'template': 'motion-child-row.njk',
+        'showeditor': True,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest',
+        'childelementargs': [
+            {'name':'motionvotes', 'type':CHILDROW_TYPE_TABLE, 'table':motionvotes,
+                 'args':{
+                     'columns': {
+                         'datatable': {
+                             # uses data field as key
+                             'date': {'visible': False}, 'motion': {'visible': False},
+                         },
+                         'editor': {
+                             # uses name field as key
+                             'date': {'type': 'hidden'}, 'motion': {'type': 'hidden'},
+                         },
+                     },
+                     'inline' : {
+                         # uses name field as key; value is used for editor.inline() options
+                         'vote': {'submitOnBlur': True}
+                     },
+                     'updatedtopts': {
+                         'dom': 'frt',
+                         'paging': False,
+                     }
+                 }
+             },
+        ],
+    },
     serverside=True,
     idSrc='rowid',
     buttons=[
@@ -628,61 +848,53 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         # todo: can this be part of configuration, or method to call per row or for all rows?
         for row in rows:
             tables = []
+            context = {
+                'meeting_id': request.args['meeting_id'],
+                'agendaitem_id': row['rowid']
+            }
             if row['is_attendee_only'] == 'yes':
+                tablename = 'invites'
                 tables.append({
-                    'name': 'invites',
+                    'name': tablename,
                     'label': 'Invites',
                     'url': (
                         url_for('admin.invites', interest=g.interest) + '/rest?' +
-                        urlencode(
-                            {
-                                'meeting_id': request.args['meeting_id'],
-                                'agendaitem_id': row['rowid']
-                            }
-                         ))
+                        urlencode(context)
+                    ),
+                    'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
 
             elif row['is_action_only'] == 'yes':
-                pass
+                raise NotImplementedError('need action only implementation')
 
             else:
+                tablename = 'actionitems'
                 tables.append({
-                    'name': 'actionitems',
+                    'name': tablename,
                     'label': 'Action Items',
                     'url': (
                         url_for('admin.actionitems', interest=g.interest) + '/rest?' +
-                        urlencode(
-                            {
-                                'meeting_id': request.args['meeting_id'],
-                                'agendaitem_id': row['rowid']
-                            }
-                         )),
-                    'createfieldvals':
-                        {
-                            'meeting_id': request.args['meeting_id'],
-                            'agendaitem_id': row['rowid']
-                        }
+                        urlencode(context)),
+                    'createfieldvals': context,
+                    'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
+                tablename = 'motions'
                 tables.append({
-                    'name': 'motions',
+                    'name': tablename,
                     'label': 'Motions',
                     'url': (
                         url_for('admin.motions', interest=g.interest) + '/rest?' +
-                        urlencode(
-                            {
-                                'meeting_id': request.args['meeting_id'],
-                                'agendaitem_id': row['rowid']
-                            }
-                         )),
-                    'createfieldvals':
-                        {
-                            'meeting_id': request.args['meeting_id'],
-                            'agendaitem_id': row['rowid']
-                        }
+                        urlencode(context)),
+                    'createfieldvals': context,
+                    'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
 
             if tables:
                 row['tables'] = tables
+
+            tableid = self.tableid(**context)
+            if tableid:
+                row['tableid'] = tableid
 
     def editor_method_postcommit(self, form):
         # this is here in case invites changed during edit action
@@ -737,6 +949,8 @@ meeting = MeetingView(
     dbmapping=meeting_dbmapping,
     formmapping=meeting_formmapping,
     checkrequired=True,
+    tableidtemplate='meeting-{{ meeting_id }}',
+    # rowidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data':None,
          'name':'details-control',

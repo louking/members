@@ -3,19 +3,6 @@
     {# see https://datatables.net/blog/2017-06-30 #}
     {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
     <div id="childrow-editform-{{ tableid }}" class="childrow-editform"></div>
-
-{# row just needs to be displayed #}
-{% else %}
-    <div class="childrow-display">
-        {% if agendaitem %}
-            <div class="DTE_Label">Summary</div>
-            <div class="DTE_Field_Input">{{ agendaitem | safe }}</div>
-        {% endif %}
-        {% if discussion %}
-            <div class="DTE_Label">Discussion</div>
-            <div class="DTE_Field_Input">{{ discussion | safe }}</div>
-        {% endif %}
-    </div>
 {% endif %}
 
 {# always display any tables #}
