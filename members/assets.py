@@ -24,7 +24,7 @@ jq_ui_ver = '1.12.1'
 # dataTables
 dt_buttons_ver = '1.6.2' # also used for colvis and html5
 dt_datatables_ver = '1.10.21'
-dt_editor_ver = '1.9.3'
+dt_editor_ver = '1.9.4'
 dt_fixedcolumns_ver = '3.3.1'
 dt_responsive_ver = '2.2.5'
 dt_rowreorder_ver = '1.2.7'

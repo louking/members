@@ -981,6 +981,11 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
 
     def createrow(self, formdata):
         formdata['meeting_id'] = request.args['meeting_id']
+        max = db.session.query(func.max(AgendaItem.order)).filter_by(**self.queryparams).filter(*self.queryfilters).one()
+        if max[0]:
+            formdata['order'] = max[0] + 1
+        else:
+            formdata['order'] = 1
         output = super().createrow(formdata)
         return output
 
@@ -1016,7 +1021,8 @@ meeting = MeetingView(
          'render': {'eval':'render_plus'},
          },
         {'data': 'order', 'name': 'order', 'label': 'Order',
-         'className': 'field_req',
+         'type': 'hidden',
+         'className': 'reorder',
          },
         {'data': 'title', 'name': 'title', 'label': 'Title',
          'className': 'field_req',
@@ -1132,7 +1138,13 @@ meeting = MeetingView(
         'scrollXInner': "100%",
         'scrollY': True,
         'order': [[1,'asc']],
-    },
+        'rowReorder': {
+            'dataSrc': 'order',
+            'selector': 'td.reorder',
+            'snapX': True,
+        },
+
+},
 )
 meeting.register()
 
