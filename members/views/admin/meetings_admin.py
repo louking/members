@@ -1022,10 +1022,12 @@ meeting = MeetingView(
          },
         {'data': 'order', 'name': 'order', 'label': 'Order',
          'type': 'hidden',
-         'className': 'reorder',
+         'dt': {
+             'visible': False
+         }
          },
         {'data': 'title', 'name': 'title', 'label': 'Title',
-         'className': 'field_req',
+         'className': 'field_req reorder',
          },
         {'data': 'is_attendee_only', 'name': 'is_attendee_only', 'label': 'Attendee Only',
          'type': 'hidden',
