@@ -323,6 +323,7 @@ class Meeting(Base):
     interest            = relationship('LocalInterest', backref=backref('meetings'))
     purpose             = Column(String(DESCR_LEN))
     date                = Column(Date)
+    show_actions_since  = Column(Date)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -411,6 +412,8 @@ class ActionItem(Base):
     action              = Column(Text)
     status              = Column(Enum(*action_all))
     comments            = Column(Text)
+    update_time         = Column(DateTime)
+    updated_by          = Column(Integer)   # localuser.id
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

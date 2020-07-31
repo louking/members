@@ -5,9 +5,11 @@ meetings_admin - administrative task handling for meetings admin
 # standard
 from uuid import uuid4
 from urllib.parse import urlencode
+from datetime import datetime
 
 # pypi
 from flask import g, request, url_for
+from flask_security import current_user
 from dominate.tags import h1
 from sqlalchemy import func
 
@@ -107,14 +109,31 @@ tag.register()
 # meetings endpoint
 ###########################################################################################
 
-meetings_dbattrs = 'id,interest_id,date,purpose,tags,votetags'.split(',')
-meetings_formfields = 'rowid,interest_id,date,purpose,tags,votetags'.split(',')
+meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags'.split(',')
+meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
 meetings_formmapping['date'] = lambda dbrow: dtrender.dt2asc(dbrow.date)
+meetings_dbmapping['show_actions_since'] = lambda formrow: dtrender.asc2dt(formrow['show_actions_since'])
+meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow.show_actions_since)
 
-meetings = DbCrudApiInterestsRolePermissions(
+class MeetingsView(DbCrudApiInterestsRolePermissions):
+    def createrow(self, formdata):
+        """
+        create the meeting, adding an agenda item for outstanding action items
+
+        :param formdata: form from user
+        :return: output for create row response
+        """
+        output = super().createrow(formdata)
+        meeting = Meeting.query.filter_by(id=self.created_id).one()
+        agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=2, title='Action Items', agendaitem='',
+                                is_action_only=True)
+        db.session.add(agendaitem)
+        return output
+
+meetings = MeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -136,6 +155,10 @@ meetings = DbCrudApiInterestsRolePermissions(
          'type': 'textarea',
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
+         'type': 'datetime',
+         'className': 'field_req',
+         },
+        {'data': 'show_actions_since', 'name': 'show_actions_since', 'label': 'Show Actions Since',
          'type': 'datetime',
          'className': 'field_req',
          },
@@ -174,7 +197,7 @@ meetings = DbCrudApiInterestsRolePermissions(
         'scrollX': True,
         'scrollXInner': "100%",
         'scrollY': True,
-        'order': [2,'desc'],
+        'order': [1,'desc'],
     },
 )
 meetings.register()
@@ -236,8 +259,7 @@ invites = InvitesView(
     dbmapping=invites_dbmapping,
     formmapping=invites_formmapping,
     checkrequired=True,
-    tableidtemplate ='invites-{{ meeting_id }}',
-    # rowidtemplate ='invites-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='invites-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -287,8 +309,8 @@ invites.register()
 # actionitems endpoint
 ###########################################################################################
 
-actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,meeting.date,action,comments,status,assignee'.split(',')
-actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,agendaitem'.split(',')
+actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,meeting.date,action,comments,status,assignee,update_time,updated_by'.split(',')
+actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,update_time,updated_by'.split(',')
 actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
 actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
 # actionitems_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
@@ -311,6 +333,28 @@ class ActionItemsView(DbCrudApiInterestsRolePermissions):
                 delfields.append(field)
         for field in delfields:
             del self.queryparams[field]
+
+        # optionally determine filter for show actions since
+        show_actions_since = request.args.get('show_actions_since', None)
+        if show_actions_since:
+            show_actions_since = dtrender.asc2dt(show_actions_since)
+            self.queryfilters = [ActionItem.update_time >= show_actions_since]
+
+    def _get_localuser(self):
+        # TODO: process request.args to see if different user is needed
+        return LocalUser.query.filter_by(user_id=current_user.id, interest=localinterest()).one()
+
+    def log_update(self, formdata):
+        formdata['updated_by'] = self._get_localuser().id
+        formdata['update_time'] = datetime.now()
+
+    def createrow(self, formdata):
+        self.log_update(formdata)
+        return super().createrow(formdata)
+
+    def updaterow(self, thisid, formdata):
+        self.log_update(formdata)
+        return super().updaterow(thisid, formdata)
 
 actionitems_filters = filtercontainerdiv()
 actionitems_filters += filterdiv('actionitems-external-filter-date', 'Date')
@@ -341,8 +385,7 @@ actionitems = ActionItemsView(
     dbmapping=actionitems_dbmapping,
     formmapping=actionitems_formmapping,
     checkrequired=True,
-    tableidtemplate ='actionitems-{{ meeting_id }}',
-    # rowidtemplate ='actionitems-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='actionitems-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -353,15 +396,15 @@ actionitems = ActionItemsView(
              {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
          },
         {'data': 'action', 'name': 'action', 'label': 'Action',
+         'className': 'field_req',
          'type': 'ckeditorInline',
          },
         {'data': 'comments', 'name': 'comments', 'label': 'Comments',
          'type': 'ckeditorInline',
          },
         {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
+         'className': 'field_req',
          '_treatment': {
-             # viadbattr stores the LocalUser id which has user_id=user.id for each of these
-             # and pulls the correct users out of User based on LocalUser table
              'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
                               'formfield': 'assignee', 'dbfield': 'assignee',
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
@@ -453,8 +496,7 @@ motionvotes = MotionVotesView(
     dbmapping=motionvotes_dbmapping,
     formmapping=motionvotes_formmapping,
     checkrequired=True,
-    tableidtemplate ='motionvotes-{{ meeting_id }}',
-    # rowidtemplate ='motionvotes-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='motionvotes-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'motion', 'name': 'motion', 'label': 'Motion',
          'type': 'readonly',
@@ -617,8 +659,7 @@ motions = MotionsView(
     dbmapping=motions_dbmapping,
     formmapping=motions_formmapping,
     checkrequired=True,
-    tableidtemplate ='motions-{{ meeting_id }}',
-    # rowidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data':'', # needs to be '' else get exception converting options from meetings render_template
                     # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -710,6 +751,11 @@ motions.register()
 ##########################################################################################
 # meeting endpoint
 ###########################################################################################
+
+meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
+meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
+meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
+meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
 
 class MeetingView(DbCrudApiInterestsRolePermissions):
 
@@ -865,7 +911,20 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 })
 
             elif row['is_action_only'] == 'yes':
-                raise NotImplementedError('need action only implementation')
+                tablename = 'actionitems'
+                meeting = Meeting.query.filter_by(id=context['meeting_id']).one()
+                # don't use context for url query, as we want action items from all meetings
+                actionscontext = {'show_actions_since': meeting.show_actions_since}
+                tables.append({
+                    'name': tablename,
+                    'label': 'Updated Action Items',
+                    'url': (
+                        url_for('admin.actionitems', interest=g.interest) + '/rest?' +
+                        urlencode(actionscontext)
+                    ),
+                    # but use context for table id for uniqueness
+                    'tableid': self.childtables[tablename]['table'].tableid(**context)
+                })
 
             else:
                 tablename = 'actionitems'
@@ -925,11 +984,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
-meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
-meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
-meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
-meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
-
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
 #   http://live.datatables.net/bihawepu/1/edit
@@ -949,8 +1003,7 @@ meeting = MeetingView(
     dbmapping=meeting_dbmapping,
     formmapping=meeting_formmapping,
     checkrequired=True,
-    tableidtemplate='meeting-{{ meeting_id }}',
-    # rowidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data':None,
          'name':'details-control',
