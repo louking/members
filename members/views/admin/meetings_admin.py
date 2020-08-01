@@ -496,7 +496,7 @@ motionvotes = MotionVotesView(
     dbmapping=motionvotes_dbmapping,
     formmapping=motionvotes_formmapping,
     checkrequired=True,
-    tableidtemplate ='motionvotes-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='motionvotes-{{ meeting_id }}-{{ motion_id }}',
     clientcolumns=[
         {'data': 'motion', 'name': 'motion', 'label': 'Motion',
          'type': 'readonly',
