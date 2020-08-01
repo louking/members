@@ -105,13 +105,6 @@ function add_fields_and_set_vals(e, node, data, items, type) {
     set_field_vals();
 }
 
-// for fontawesome child row handling
-// see http://live.datatables.net/bihawepu/1/edit
-// from https://datatables.net/examples/api/row_details.html bindrid comment
-function render_plus() {
-    return '<i class="fa fa-plus-square" aria-hidden="true"></i>';
-}
-
 function afterdatatables() {
     console.log('afterdatatables()');
 

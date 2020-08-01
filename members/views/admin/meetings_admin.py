@@ -664,7 +664,7 @@ motions = MotionsView(
     dbmapping=motions_dbmapping,
     formmapping=motions_formmapping,
     checkrequired=True,
-    tableidtemplate ='motions-{{ meeting_id }}-{{ agenda_id }}',
+    tableidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
     clientcolumns=[
         {'data':'', # needs to be '' else get exception converting options from meetings render_template
                     # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -675,6 +675,7 @@ motions = MotionsView(
          'width': '15px',
          'label': '',
          'type': 'hidden',  # only affects editor modal
+         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
          'render': {'eval':'render_plus'},
          },
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
@@ -1023,6 +1024,7 @@ meeting = MeetingView(
          'width': '15px',
          'label': '',
          'type': 'hidden',  # only affects editor modal
+         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
          'render': {'eval':'render_plus'},
          },
         {'data': 'order', 'name': 'order', 'label': 'Order',
