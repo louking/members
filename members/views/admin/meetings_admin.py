@@ -572,8 +572,9 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
     def updatetables(self, rows):
         for row in rows:
             context = {
+                'meeting_id': row['meeting_id'],
+                'agendaitem_id': row['agendaitem_id'],
                 'motion_id': row['rowid'],
-                'meeting_id': row['meeting_id']
             }
 
             tablename = 'motionvotes'
@@ -622,8 +623,12 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
 
         ## for each user, create a voting record
         for user in users:
+            invite = Invite.query.filter_by(meeting=meeting, user=user).one_or_none()
+
+            # this user wasn't invited to the meeting
+            if not invite: continue
+
             vote = MotionVote(interest=localinterest(), meeting=meeting, motion=motion, user=user)
-            invite = Invite.query.filter_by(meeting=meeting, user=user).one()
             # if user is attending the meeting, assume they approve, otherwise no vote
             if invite.attended:
                 vote.vote = MOTIONVOTE_STATUS_APPROVED
@@ -659,7 +664,7 @@ motions = MotionsView(
     dbmapping=motions_dbmapping,
     formmapping=motions_formmapping,
     checkrequired=True,
-    tableidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidtemplate ='motions-{{ meeting_id }}-{{ agenda_id }}',
     clientcolumns=[
         {'data':'', # needs to be '' else get exception converting options from meetings render_template
                     # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -1022,12 +1027,11 @@ meeting = MeetingView(
          },
         {'data': 'order', 'name': 'order', 'label': 'Order',
          'type': 'hidden',
-         'dt': {
-             'visible': False
-         }
+         'className': 'reorder',
+         'width': '20px',
          },
         {'data': 'title', 'name': 'title', 'label': 'Title',
-         'className': 'field_req reorder',
+         'className': 'field_req',
          },
         {'data': 'is_attendee_only', 'name': 'is_attendee_only', 'label': 'Attendee Only',
          'type': 'hidden',
