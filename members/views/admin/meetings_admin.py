@@ -669,10 +669,9 @@ motions = MotionsView(
         {'data':'', # needs to be '' else get exception converting options from meetings render_template
                     # TypeError: '<' not supported between instances of 'str' and 'NoneType'
          'name':'details-control',
-         'className': 'details-control',
+         'className': 'details-control shrink-to-fit',
          'orderable': False,
          'defaultContent': '',
-         'width': '15px',
          'label': '',
          'type': 'hidden',  # only affects editor modal
          'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
@@ -1018,19 +1017,18 @@ meeting = MeetingView(
     clientcolumns=[
         {'data':None,
          'name':'details-control',
-         'className': 'details-control',
+         'className': 'details-control shrink-to-fit',
          'orderable': False,
          'defaultContent': '',
-         'width': '15px',
          'label': '',
          'type': 'hidden',  # only affects editor modal
          'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
          'render': {'eval':'render_plus'},
          },
-        {'data': 'order', 'name': 'order', 'label': 'Order',
+        {'data': 'order', 'name': 'order', 'label': 'Reorder',
          'type': 'hidden',
-         'className': 'reorder',
-         'width': '20px',
+         'className': 'reorder shrink-to-fit',
+         'render': {'eval':'render_grip'},
          },
         {'data': 'title', 'name': 'title', 'label': 'Title',
          'className': 'field_req',
