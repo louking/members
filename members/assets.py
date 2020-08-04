@@ -92,6 +92,7 @@ frontend_common_js = Bundle(
     'datatables.dataRender.ellipsis.js',    # from loutilities
     'datatables.dataRender.datetime.js',    # from loutilities
     'editor.buttons.editrefresh.js',        # from loutilities
+    'editor.buttons.editchildrowrefresh.js',# from loutilities
     'filters.js',                           # from loutilities
 
     filters='jsmin',
@@ -192,6 +193,7 @@ asset_bundles = {
         'datatables.dataRender.ellipsis.js',    # from loutilities
         'datatables.dataRender.datetime.js',    # from loutilities
         'editor.buttons.editrefresh.js',        # from loutilities
+        'editor.buttons.editchildrowrefresh.js',  # from loutilities
         'editor.fieldType.display.js',          # from loutilities
         'filters.js',                           # from loutilities
         'utils.js',                             # from loutilities

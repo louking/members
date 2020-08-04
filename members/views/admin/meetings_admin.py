@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from datetime import datetime
 
 # pypi
-from flask import g, request, url_for
+from flask import g, request, url_for, current_app
 from flask_security import current_user
 from dominate.tags import h1
 from sqlalchemy import func
@@ -28,7 +28,7 @@ from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action, CHILDROW_TYPE_TABLE
+from loutilities.tables import _editormethod, get_request_action, rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.timeu import asctime
 
 isotime = asctime('%Y-%m-%d')
@@ -582,10 +582,7 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
                 {
                     'name': tablename,
                     'label': 'Votes',
-                    'url': (
-                        url_for('admin.motionvotes', interest=g.interest) + '/rest?' +
-                        urlencode(context)
-                    ),
+                    'url': rest_url_for('admin.motionvotes', interest=g.interest, urlargs=context),
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 }]
 
@@ -908,10 +905,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tables.append({
                     'name': tablename,
                     'label': 'Invites',
-                    'url': (
-                        url_for('admin.invites', interest=g.interest) + '/rest?' +
-                        urlencode(context)
-                    ),
+                    'url': rest_url_for('admin.invites', interest=g.interest, urlargs=context),
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
 
@@ -923,10 +917,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tables.append({
                     'name': tablename,
                     'label': 'Updated Action Items',
-                    'url': (
-                        url_for('admin.actionitems', interest=g.interest) + '/rest?' +
-                        urlencode(actionscontext)
-                    ),
+                    'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=context),
                     # but use context for table id for uniqueness
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
@@ -936,9 +927,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tables.append({
                     'name': tablename,
                     'label': 'Action Items',
-                    'url': (
-                        url_for('admin.actionitems', interest=g.interest) + '/rest?' +
-                        urlencode(context)),
+                    'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=context),
                     'createfieldvals': context,
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
@@ -946,9 +935,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tables.append({
                     'name': tablename,
                     'label': 'Motions',
-                    'url': (
-                        url_for('admin.motions', interest=g.interest) + '/rest?' +
-                        urlencode(context)),
+                    'url': rest_url_for('admin.motions', interest=g.interest, urlargs=context),
                     'createfieldvals': context,
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
@@ -1135,6 +1122,7 @@ meeting = MeetingView(
         # 'editor' gets eval'd to editor instance
         {'extend':'newInvites', 'editor': {'eval':'editor'}},
         'create',
+        'editChildRowRefresh',
         'remove',
         'csv'
     ],
