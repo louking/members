@@ -172,10 +172,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 'scrollXInner': "100%",
                 'scrollY': True,
                 'rowCallback': {'eval': 'set_cell_status_class'},
-                # note id is column 0 to datatables
-                # would be the following if selector was accepted
-                # 'order': [['order:name','asc'], ['lastcompleted:name','asc'], ['priority:name','asc']]
-                'order': [[1, 'asc'], [6, 'asc'], [2, 'asc']],
+                'order': [['order:name', 'asc'], ['expires:name', 'asc'], ['priority:name', 'asc']],
                 'lengthMenu': [10, 25, 50, 100],
                 'pageLength': 25,
             },

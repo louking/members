@@ -1124,7 +1124,7 @@ taskdetails = TaskDetails(
                         'scrollY': True,
                         'rowCallback': {'eval': 'set_cell_status_class'},
                         # note id is column 0 to datatables, col 2 (display order) hidden
-                        'order': [[1, 'asc'], [2, 'asc'], [6, 'asc']],
+                        'order': [['member:name', 'asc'], ['order:name', 'asc'], ['expires:name', 'asc']],
                     },
                     edoptions={
                         'i18n':
@@ -1387,7 +1387,7 @@ history = DbCrudApiInterestsRolePermissions(
                         'scrollX': True,
                         'scrollXInner': "100%",
                         'scrollY': True,
-                        'order': [[1, 'desc']],
+                        'order': [['update_time:name', 'desc']],
                     },
                     edoptions={
                         'i18n':

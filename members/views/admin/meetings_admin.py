@@ -197,7 +197,7 @@ meetings = MeetingsView(
         'scrollX': True,
         'scrollXInner': "100%",
         'scrollY': True,
-        'order': [1,'desc'],
+        'order': [['date:name','desc']],
     },
 )
 meetings.register()
@@ -1131,7 +1131,7 @@ meeting = MeetingView(
         'scrollX': True,
         'scrollXInner': "100%",
         'scrollY': True,
-        'order': [[1,'asc']],
+        'order': [['order:name','asc']],
         'rowReorder': {
             'dataSrc': 'order',
             'selector': 'td.reorder',
