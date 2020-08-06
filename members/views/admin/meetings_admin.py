@@ -917,7 +917,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tables.append({
                     'name': tablename,
                     'label': 'Updated Action Items',
-                    'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=context),
+                    'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=actionscontext),
                     # but use context for table id for uniqueness
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
