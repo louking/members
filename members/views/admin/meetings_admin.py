@@ -4,11 +4,10 @@ meetings_admin - administrative task handling for meetings admin
 '''
 # standard
 from uuid import uuid4
-from urllib.parse import urlencode
 from datetime import datetime
 
 # pypi
-from flask import g, request, url_for, current_app
+from flask import g, request
 from flask_security import current_user
 from dominate.tags import h1
 from sqlalchemy import func
@@ -712,6 +711,7 @@ motions = MotionsView(
         'childelementargs': [
             {'name':'motionvotes', 'type':CHILDROW_TYPE_TABLE, 'table':motionvotes,
                  'args':{
+                     'buttons': ['create', 'editRefresh', 'remove'],
                      'columns': {
                          'datatable': {
                              # uses data field as key
@@ -729,7 +729,7 @@ motions = MotionsView(
                      'updatedtopts': {
                          'dom': 'frt',
                          'paging': False,
-                     }
+                     },
                  }
              },
         ],
@@ -738,7 +738,7 @@ motions = MotionsView(
     idSrc='rowid',
     buttons=[
         'create',
-        'editRefresh',
+        'editChildRowRefresh',
         'csv'
     ],
     dtoptions={
@@ -1056,6 +1056,7 @@ meeting = MeetingView(
         'childelementargs': [
             {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
                  'args':{
+                     'buttons': [],
                      'columns': {
                          'datatable': {
                              # uses data field as key
@@ -1080,6 +1081,7 @@ meeting = MeetingView(
              },
             {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems,
              'args': {
+                 'buttons': ['create', 'editRefresh', 'remove'],
                  'columns': {
                      'datatable': {
                          # uses data field as key
@@ -1098,6 +1100,7 @@ meeting = MeetingView(
              },
             {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions,
              'args': {
+                 'buttons': ['create', 'editChildRowRefresh', 'remove'],
                  'columns': {
                      'datatable': {
                          # uses data field as key
