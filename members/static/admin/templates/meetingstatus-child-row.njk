@@ -1,0 +1,23 @@
+{% if rsvprow %}
+    <label class="DTE_Label" for="field-rsvp">RSVP</label>
+    <input id="field-rsvp">
+{% else %}
+    {% if _showedit %}
+        {# see https://datatables.net/blog/2017-06-30 #}
+        {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
+        <div id="childrow-editform-" class="childrow-editform"></div>
+
+    {# row just needs to be displayed #}
+    {% else %}
+        <div class="childrow-display">
+            {% if status %}
+                <div class="DTE_Label">Status</div>
+                <div class="DTE_Field_Input">{{ status | safe }}</div>
+            {% endif %}
+            {% if discussion %}
+                <div class="DTE_Label">Discussion</div>
+                <div class="DTE_Field_Input">{{ discussion | safe }}</div>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endif %}

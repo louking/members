@@ -23,6 +23,7 @@ from . import organization_admin
 
 # meetings module
 from . import meetings_admin
+from . import meetings_member
 
 # leadership task module
 from . import leadership_tasks_superadmin

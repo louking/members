@@ -7,27 +7,30 @@ from uuid import uuid4
 from datetime import datetime
 
 # pypi
-from flask import g, request
+from flask import g, request, url_for
 from flask_security import current_user
 from dominate.tags import h1
 from sqlalchemy import func
+from jinja2 import Template
 
 # homegrown
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Tag, Position
-from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote
+from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, EmailTemplate
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
-from ...model import action_all, ACTION_STATUS_OPEN, motion_all, MOTION_STATUS_OPEN, motionvote_all
-from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
+from ...model import action_all, motion_all, motionvote_all
+from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
+from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
+from loutilities.flask_helpers.mailer import sendmail
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action, rest_url_for, CHILDROW_TYPE_TABLE
+from loutilities.tables import _editormethod, get_request_action, rest_url_for, page_url_for, CHILDROW_TYPE_TABLE
 from loutilities.timeu import asctime
 
 isotime = asctime('%Y-%m-%d')
@@ -869,7 +872,34 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                     invitekey = invitekey,
                 )
                 db.session.add(invite)
-                # todo: send email
+
+                # get user's outstanding action items
+                actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\
+                    filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
+
+                # send email to user
+                emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email',
+                                                              interest=localinterest()).one()
+                template = Template(emailtemplate.template)
+                subject = emailtemplate.subject
+
+                rsvpurl = page_url_for('admin.meetingstatus', interest=g.interest,
+                                       urlargs={'invitekey': invitekey},
+                                       _external=True)
+                actionitemurl = page_url_for('admin.actionitems', interest=g.interest,
+                                       urlargs={'member_id': localuser.id},
+                                       _external=True)
+                context = {
+                    'meeting': meeting,
+                    'actionitems': actionitems,
+                    'rsvpurl': rsvpurl,
+                    'actionitemurl': actionitemurl
+                }
+                html = template.render(**context)
+                tolist = localuser.email
+                fromlist = localinterest().from_email
+                cclist = None
+                sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 
         # send invitations to all those who are tagged like the meeting
         for tag in meeting.tags:

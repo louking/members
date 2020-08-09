@@ -23,8 +23,8 @@ debug = False
 # emailtemplates endpoint
 ###########################################################################################
 
-emailtemplate_dbattrs = 'id,templatename,subject,template'.split(',')
-emailtemplate_formfields = 'rowid,templatename,subject,template'.split(',')
+emailtemplate_dbattrs = 'id,interest_id,templatename,subject,template'.split(',')
+emailtemplate_formfields = 'rowid,interest_id,templatename,subject,template'.split(',')
 emailtemplate_dbmapping = dict(zip(emailtemplate_dbattrs, emailtemplate_formfields))
 emailtemplate_formmapping = dict(zip(emailtemplate_formfields, emailtemplate_dbattrs))
 
@@ -55,7 +55,7 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
         {'data': 'template', 'name': 'template', 'label': 'Template',
          'type': 'textarea',
          'className': 'field_req',
-         'fieldInfo': 'html with template substitution for text like {member}, {membertasks}, {expires}',
+         'fieldInfo': 'html with template substitution for text like {{member}}, {{membertasks}}, {{expires}}',
          },
 
     ],
