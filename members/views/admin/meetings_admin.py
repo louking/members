@@ -399,10 +399,11 @@ actionitems = ActionItemsView(
          },
         {'data': 'action', 'name': 'action', 'label': 'Action',
          'className': 'field_req',
-         'type': 'ckeditorInline',
+         'fieldInfo': 'concise description of action item',
          },
         {'data': 'comments', 'name': 'comments', 'label': 'Comments',
          'type': 'ckeditorInline',
+         'fieldInfo': 'details of action item (if needed), notes about progress, and resolution',
          },
         {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
          'className': 'field_req',
@@ -883,11 +884,11 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 template = Template(emailtemplate.template)
                 subject = emailtemplate.subject
 
-                rsvpurl = page_url_for('admin.meetingstatus', interest=g.interest,
+                rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
                                        urlargs={'invitekey': invitekey},
                                        _external=True)
                 actionitemurl = page_url_for('admin.actionitems', interest=g.interest,
-                                       urlargs={'member_id': localuser.id},
+                                       urlargs={'member_id': localuser2user(localuser).id},
                                        _external=True)
                 context = {
                     'meeting': meeting,

@@ -24,6 +24,6 @@ configfiles = [userconfigpath, configpath]
 # sqlalchemy.exc.OperationalError if one of the updating tables needs migration
 app = create_app(Production(configfiles), configfiles, local_update=False)
 
-migrate = Migrate(app, db)
+migrate = Migrate(app, db, compare_type=True)
 
 

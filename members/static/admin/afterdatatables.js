@@ -234,6 +234,19 @@ function afterdatatables() {
     } else if (location.pathname.includes('/meeting') && !location.pathname.includes('/meetings')) {
         // need on 'preInvites' to translate interest for Send Invites button
         editor.on( 'preInvites', translate_editor_group );
-    }
 
+    // special processing for history
+    } else if (location.pathname.includes('/memberstatusreport')) {
+        // add and clear additional fields appropriately
+        editor.on('initEdit', function(e, node, data, items, type) {
+            editor.show();
+            editor.hide('title');
+            if (data.is_rsvp) {
+                editor.hide('statusreport');
+            } else {
+                editor.hide('rsvp_response');
+            }
+        });
+
+    }
 }

@@ -52,7 +52,7 @@ SERVICE_LEN=32
 SERVICE_ID_LEN=32
 TITLE_LEN=128
 TAG_LEN = 32
-INVITE_KEY_LEN = 16
+INVITE_KEY_LEN = 32 #uuid4.hex
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -103,7 +103,6 @@ class LocalUser(LocalUserMixin, Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('users'))
-
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -120,7 +119,6 @@ class LocalInterest(Base):
     from_email          = Column(String(EMAIL_LEN))
     club_service        = Column(String(SERVICE_LEN))
     service_id          = Column(String(SERVICE_ID_LEN))
-
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -149,7 +147,6 @@ class Task(Base):
     isoptional          = Column(Boolean)
     fields              = relationship('TaskTaskField',
                                        back_populates='task')
-
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -191,7 +188,6 @@ class TaskField(Base):
     override_completion = Column(Boolean) # (datetime) True means override TaskCompletion.completion
     tasks               = relationship('TaskTaskField',
                                        back_populates='taskfield')
-
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -226,7 +222,6 @@ class TaskGroup(Base):
     users               = relationship('LocalUser',
                                        secondary=usertaskgroup_table,
                                        backref=backref('taskgroups'))
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -239,6 +234,7 @@ class Position(Base):
     interest            = relationship('LocalInterest', backref=backref('positions'))
     position            = Column(String(POSITION_LEN))
     description         = Column(String(DESCR_LEN))
+    has_status_report   = Column(Boolean, default=True)
     users               = relationship('LocalUser',
                                        secondary=userposition_table,
                                        backref=backref('positions'))
@@ -248,7 +244,6 @@ class Position(Base):
     emailgroups         = relationship('TaskGroup',
                                        secondary=positionemailgroup_table,
                                        backref=backref('positionemailgroups'))
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -275,7 +270,6 @@ class TaskCompletion(Base):
     completion          = Column(DateTime)
     update_time         = Column(DateTime)
     updated_by          = Column(Integer)   # localuser.id
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -297,7 +291,6 @@ class EmailTemplate(Base):
     templatename        = Column(String(TEMPLATENAME_LEN))
     subject             = Column(String(EMAIL_SUBJECT_LEN))
     template            = Column(String(EMAIL_TEMPLATE_LEN))
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -310,7 +303,6 @@ class DocTemplate(Base):
     interest            = relationship('LocalInterest', backref=backref('doctemplates'))
     templatename        = Column(String(TEMPLATENAME_LEN))
     template            = Column(Text)
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -323,8 +315,9 @@ class Meeting(Base):
     interest            = relationship('LocalInterest', backref=backref('meetings'))
     purpose             = Column(String(DESCR_LEN))
     date                = Column(Date)
+    time                = Column(Time)
+    location            = Column(Text)
     show_actions_since  = Column(Date)
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -351,7 +344,27 @@ class Invite(Base):
     response            = Column(Enum(*invite_response_all), default=INVITE_RESPONSE_NO_RESPONSE)
     attended            = Column(Boolean, default=False)
     activeinvite        = Column(Boolean, default=True)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
 
+class DiscussionItem(Base):
+    __tablename__ = 'discussionitem'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('discussionitems'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('discussionitems'))
+    # position is empty / null for ad hoc member status report
+    position_id         = Column(Integer, ForeignKey('position.id'))
+    position            = relationship('Position', backref=backref('discussionitems'))
+    discussiontitle     = Column(String(TITLE_LEN))
+    # agenda item holds the content of this discussion
+    agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
+    agendaitem          = relationship('AgendaItem', backref=backref('discussionitem', uselist=False))
+    statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
+    statusreport        = relationship('AgendaItem', backref=backref('discussionitems'))
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -364,10 +377,29 @@ class StatusReport(Base):
     interest            = relationship('LocalInterest', backref=backref('statusreports'))
     meeting_id          = Column(Integer, ForeignKey('meeting.id'))
     meeting             = relationship('Meeting', backref=backref('statusreports'))
-    order               = Column(Integer)
+    # position is empty / null for ad hoc member status report
+    position_id         = Column(Integer, ForeignKey('position.id'))
+    position            = relationship('Position', backref=backref('statusreports'))
     title               = Column(String(TITLE_LEN))
     statusreport        = Column(Text)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
 
+class MemberStatusReport(Base):
+    __tablename__ = 'memberstatusreport'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('memberstatusreports'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('memberstatusreports'))
+    invite_id           = Column(Integer, ForeignKey('invite.id'))
+    invite              = relationship('Invite', backref=backref('memberstatusreports'))
+    order               = Column(Integer)
+    is_rsvp             = Column(Boolean, default=False)   # true means no status report or discussions
+    content_id          = Column(Integer, ForeignKey('statusreport.id'))
+    content             = relationship('StatusReport', backref=backref('memberstatusreports'), cascade='all, delete')
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -387,7 +419,6 @@ class AgendaItem(Base):
     discussion          = Column(Text)
     is_attendee_only    = Column(Boolean, nullable=False, default=False)
     is_action_only      = Column(Boolean, nullable=False, default=False)
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -414,7 +445,6 @@ class ActionItem(Base):
     comments            = Column(Text)
     update_time         = Column(DateTime)
     updated_by          = Column(Integer)   # localuser.id
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -437,7 +467,6 @@ class Motion(Base):
     motion              = Column(Text)
     status              = Column(Enum(*motion_all))
     comments            = Column(Text)
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -460,7 +489,6 @@ class MotionVote(Base):
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('motionvotes'))
     vote                = Column(Enum(*motionvote_all))
-
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -497,7 +525,6 @@ class Tag(Base):
     users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
     meetings            = relationship( 'Meeting', secondary=meetingtag_table, backref='tags', lazy=True )
     meetingvotes        = relationship( 'Meeting', secondary=meetingvotetag_table, backref='votetags', lazy=True )
-
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id

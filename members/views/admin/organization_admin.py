@@ -25,8 +25,8 @@ debug = False
 # positions endpoint
 ###########################################################################################
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,users,emailgroups'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,users,emailgroups'.split(',')
+position_dbattrs = 'id,interest_id,position,description,taskgroups,users,emailgroups,has_status_report'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,users,emailgroups,has_status_report'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 
@@ -65,6 +65,11 @@ position = DbCrudApiInterestsRolePermissions(
                                               'viafilter': localinterest_viafilter,
                                               'queryparams': {'active': True},
                                               'uselist': True}}
+                         },
+                        {'data': 'has_status_report', 'name': 'has_status_report', 'label': 'Has Status Report',
+                         'className': 'TextCenter',
+                         '_treatment': {'boolean': {'formfield': 'has_status_report', 'dbfield': 'has_status_report'}},
+                         'ed': {'def': 'yes'},
                          },
                         {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
                          'fieldInfo': 'members who hold this position must do tasks within these groups',
