@@ -53,6 +53,7 @@ SERVICE_ID_LEN=32
 TITLE_LEN=128
 TAG_LEN = 32
 INVITE_KEY_LEN = 32 #uuid4.hex
+TIME_LEN = 8
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -315,7 +316,7 @@ class Meeting(Base):
     interest            = relationship('LocalInterest', backref=backref('meetings'))
     purpose             = Column(String(DESCR_LEN))
     date                = Column(Date)
-    time                = Column(Time)
+    time                = Column(String(TIME_LEN))
     location            = Column(Text)
     show_actions_since  = Column(Date)
     version_id = Column(Integer, nullable=False, default=1)

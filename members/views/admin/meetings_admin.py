@@ -111,8 +111,8 @@ tag.register()
 # meetings endpoint
 ###########################################################################################
 
-meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags'.split(',')
-meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags'.split(',')
+meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,time,location'.split(',')
+meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,time,location'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
@@ -158,6 +158,13 @@ meetings = MeetingsView(
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'datetime',
+         'className': 'field_req',
+         },
+        {'data': 'time', 'name': 'time', 'label': 'Time',
+         'className': 'field_req',
+         },
+        {'data': 'location', 'name': 'location', 'label': 'Location',
+         'type': 'textarea',
          'className': 'field_req',
          },
         {'data': 'show_actions_since', 'name': 'show_actions_since', 'label': 'Show Actions Since',
