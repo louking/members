@@ -27,7 +27,8 @@ from slugify import slugify
 
 # homegrown
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from loutilities.user.roles import ROLE_ORGANIZATION_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN
+from loutilities.user.roles import ROLE_ORGANIZATION_ADMIN, ROLE_MEMBERSHIP_ADMIN
+from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 
 thisnav = Nav()
 
@@ -68,6 +69,7 @@ def nav_menu():
     leadership_member_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-member-guide.html#')
     membership_admin_view = add_view('https://members.readthedocs.io/en/latest/membership-admin-guide.html#')
     meetings_admin_view = add_view('https://members.readthedocs.io/en/latest/meetings-admin-reference.html#')
+    meetings_member_view = add_view('https://members.readthedocs.io/en/latest/meetings-member-guide.html#')
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
@@ -86,16 +88,22 @@ def nav_menu():
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Assign Positions', 'admin.assignpositions', interest=g.interest)
 
-            # meetings admin stuff
-            if current_user.has_role(ROLE_MEETINGS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
-                meetingsadmin = Subgroup('Meetings')
-                navbar.items.append(meetingsadmin)
-                meetings_admin_view(meetingsadmin, 'Meetings', 'admin.meetings', interest=g.interest)
-                meetings_admin_view(meetingsadmin, 'Action Items', 'admin.actionitems', interest=g.interest)
-                meetings_admin_view(meetingsadmin, 'Motions', 'admin.motions', interest=g.interest)
-                meetings_admin_view(meetingsadmin, 'Motion Votes', 'admin.motionvotes', interest=g.interest)
-                meetings_admin_view(meetingsadmin, 'Invites', 'admin.invites', interest=g.interest)
-                meetings_admin_view(meetingsadmin, 'Tags', 'admin.tags', interest=g.interest)
+            # meetings member stuff
+            if (current_user.has_role(ROLE_MEETINGS_MEMBER) or current_user.has_role(ROLE_MEETINGS_ADMIN)
+                    or current_user.has_role(ROLE_SUPER_ADMIN)):
+                meetingsviews = Subgroup('Meetings')
+                navbar.items.append(meetingsviews)
+                # meetings_member_view(meetingsviews, 'My Status Reports', 'admin.memberstatusreport', interest=g.interest)
+                meetings_member_view(meetingsviews, 'My Discussion Items', 'admin.memberdiscussions', interest=g.interest)
+
+                # meetings admin stuff
+                if current_user.has_role(ROLE_MEETINGS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                    meetings_admin_view(meetingsviews, 'Meetings', 'admin.meetings', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Action Items', 'admin.actionitems', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Motions', 'admin.motions', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Motion Votes', 'admin.motionvotes', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Tags', 'admin.tags', interest=g.interest)
 
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):

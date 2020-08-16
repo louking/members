@@ -365,7 +365,7 @@ class DiscussionItem(Base):
     agendaitem_id       = Column(Integer, ForeignKey('agendaitem.id'))
     agendaitem          = relationship('AgendaItem', backref=backref('discussionitem', uselist=False))
     statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
-    statusreport        = relationship('AgendaItem', backref=backref('discussionitems'))
+    statusreport        = relationship('StatusReport', backref=backref('discussionitems'))
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -420,6 +420,8 @@ class AgendaItem(Base):
     discussion          = Column(Text)
     is_attendee_only    = Column(Boolean, nullable=False, default=False)
     is_action_only      = Column(Boolean, nullable=False, default=False)
+    statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
+    statusreport        = relationship('StatusReport', backref=backref('agendaitems'))
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id

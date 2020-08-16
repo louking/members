@@ -6,7 +6,7 @@ meetings_member - handling for meetings member
 # standard
 
 # pypi
-from flask import request, flash
+from flask import request, flash, g
 from flask_security import current_user, logout_user, login_user
 from sqlalchemy import func
 from dominate.tags import div, h1, h2, p
@@ -14,10 +14,11 @@ from dominate.tags import div, h1, h2, p
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Position, Invite, Meeting
+from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem
 from ...model import MemberStatusReport, StatusReport, DiscussionItem
 from ...model import invite_response_all
 from .viewhelpers import localuser2user, user2localuser, localinterest
+from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
@@ -25,8 +26,138 @@ class ParameterError(Exception): pass
 
 
 ##########################################################################################
-# memberstatusreport endpoint
+# memberdiscussions endpoint
 ###########################################################################################
+
+memberdiscussions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,discussiontitle,agendaitem.agendaitem,position_id,meeting_id,statusreport_id'.split(',')
+memberdiscussions_formfields = 'rowid,interest_id,purpose,date,discussiontitle,agendaitem,position_id,meeting_id,statusreport_id'.split(',')
+memberdiscussions_dbmapping = dict(zip(memberdiscussions_dbattrs, memberdiscussions_formfields))
+memberdiscussions_formmapping = dict(zip(memberdiscussions_formfields, memberdiscussions_dbattrs))
+
+class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add meeting_id to query parameters
+        '''
+        super().beforequery()
+
+        # add meeting_id to filters if requested
+        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        statusreport_id = request.args.get('statusreport_id', None)
+        if statusreport_id:
+            self.queryparams['statusreport_id'] = statusreport_id
+            self.queryfilters = [AgendaItem.statusreport_id == statusreport_id, DiscussionItem.agendaitem_id == AgendaItem.id]
+
+            # remove empty parameters from query filters
+        delfields = []
+        for field in self.queryparams:
+            if self.queryparams[field] == None:
+                delfields.append(field)
+        for field in delfields:
+            del self.queryparams[field]
+
+    def createrow(self, formdata):
+        meeting_id = formdata['meeting_id']
+
+        agendatitle = formdata['discussiontitle']
+        if 'position_id' in formdata and formdata['position_id']:
+            position = Position.query.filter_by(id=formdata['position_id']).one()
+            agendatitle += ' [{} / {}]'.format(current_user.name, position.position)
+        else:
+            agendatitle += ' [{}]'.format(current_user.name)
+
+        # todo: should this be a critical region because of order? possibly that doesn't matter
+        # determine current order number, in case we need to add records
+        max = db.session.query(func.max(AgendaItem.order)).filter_by(meeting_id=meeting_id).one()
+        # if AgendaItem records configured, use current max + 1
+        order = max[0] + 1
+        agendaitem = AgendaItem(
+            interest=localinterest(),
+            meeting_id=formdata['meeting_id'],
+            statusreport_id=formdata['statusreport_id'],
+            title=agendatitle,
+            order=order,
+        )
+        db.session.add(agendaitem)
+
+        # force agendaitem to be the one just created
+        # need to do this instead of calling super.createrow() because of chicken/egg problem for access
+        # of agendaitem during set_dbrow()
+        dbrow = DiscussionItem(interest=localinterest(), agendaitem=agendaitem)
+        self.dte.set_dbrow(formdata, dbrow)
+        self.db.session.add(dbrow)
+        self.db.session.flush()
+        self.created_id = dbrow.id
+
+        # prepare response
+        thisrow = self.dte.get_response_data(dbrow)
+        return thisrow
+
+memberdiscussions = MemberDiscussionsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=DiscussionItem,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pagename='My Discussion Items',
+    endpoint='admin.memberdiscussions',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/memberdiscussions',
+    dbmapping=memberdiscussions_dbmapping,
+    formmapping=memberdiscussions_formmapping,
+    checkrequired=True,
+    tableidtemplate ='memberdiscussions-{{ meeting_id }}-{{ statusreport_id }}',
+    clientcolumns=[
+        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
+         'type': 'readonly',
+         },
+        {'data': 'date', 'name': 'date', 'label': 'Date',
+         'type': 'readonly',
+         '_ColumnDT_args' :
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
+         },
+        {'data': 'discussiontitle', 'name': 'discussiontitle', 'label': 'Discussion Title',
+         },
+        {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Discussion Details',
+         'type':'ckeditorInline',
+         },
+        # meeting_id and statusreport_id are required for tying to meeting view row
+        # put these last so as not to confuse indexing between datatables (python vs javascript)
+        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'statusreport_id', 'name': 'statusreport_id', 'label': 'Status Report ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'position_id', 'name': 'position_id', 'label': 'Position ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+    ],
+    serverside=True,
+    idSrc='rowid',
+    buttons=[
+        'editRefresh',
+        'csv'
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+memberdiscussions.register()
+
+
+##########################################################################################
+# memberstatusreport endpoint
+##########################################################################################
 
 class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
     def __init__(self, **kwargs):
@@ -37,6 +168,9 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
 
         # initialize inherited class, and a couple of attributes
         super().__init__(**args)
+
+        # this causes self.dte.get_response_data to execute updatetables() to transfor returned response
+        self.dte.set_response_hook(self.updatetables)
 
     def permission(self):
         permitted = super().permission()
@@ -123,8 +257,6 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         self.queryparams['meeting_id'] = self.meeting.id
         invite = self.get_invite()
         self.queryparams['invite_id'] = invite.id
-        # self.queryfilters = [Invite.user_id == user2localuser(current_user).id]
-
 
     def open(self):
         # before standard open handling, create records if they don't exist
@@ -196,12 +328,43 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         db.session.flush()
         super().open()
 
+    def updatetables(self, row):
+        """
+        annotate row with table definition(s)
+
+        :param row: row dict about to be returned to client
+        :return: updated row dict
+        """
+        invite = Invite.query.filter_by(id=row['invite_id']).one()
+        context = {
+            'meeting_id': invite.meeting_id,
+            'statusreport_id': row['statusreport_id'],
+        }
+        if row['position_id']:
+            context['position_id'] = row['position_id']
+
+        tablename = 'discussionitems'
+        tables = [
+            {
+                'name': tablename,
+                'label': 'Discussion Items',
+                'url': rest_url_for('admin.memberdiscussions', interest=g.interest, urlargs=context),
+                'createfieldvals': context,
+                'tableid': self.childtables[tablename]['table'].tableid(**context)
+            }]
+
+        row['tables'] = tables
+
+        tableid = self.tableid(**context)
+        if tableid:
+            row['tableid'] = tableid
+
 def get_invite_response(dbrow):
     invite = dbrow.invite
     return invite.response
 
-memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,content.id,content.statusreport'.split(',')
-memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,statusreport_id,statusreport'.split(',')
+memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,content.id,content.statusreport,content.position_id'.split(',')
+memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,statusreport_id,statusreport,position_id'.split(',')
 memberstatusreport_dbmapping = dict(zip(memberstatusreport_dbattrs, memberstatusreport_formfields))
 memberstatusreport_formmapping = dict(zip(memberstatusreport_formfields, memberstatusreport_dbattrs))
 
@@ -256,6 +419,29 @@ memberstatusreport = MemberStatusreportView(
         'group': 'interest',
         'groupselector': '#metanav-select-interest',
         'childelementargs': [
+            {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
+             'args': {
+                 'buttons': ['create', 'editRefresh', 'remove'],
+                 'columns': {
+                     'datatable': {
+                         # uses data field as key
+                         'purpose': {'visible': False},
+                         'date': {'visible': False},
+                         'statusreport': {'visible': False},
+                     },
+                     'editor': {
+                         # uses name field as key
+                         'purpose': {'type': 'hidden'},
+                         'date': {'type': 'hidden'},
+                         # 'statusreport': {'type': 'hidden'},
+                     },
+                 },
+                 'updatedtopts': {
+                     'dom': 'Brt',
+                     'paging': False,
+                 },
+             }
+             },
         ],
     },
     idSrc='rowid',

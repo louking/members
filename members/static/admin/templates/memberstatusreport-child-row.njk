@@ -14,3 +14,16 @@
         {% endif %}
     </div>
 {% endif %}
+
+{# display any tables if not rsvp #}
+{# editor display is determined in the ChildRow javascript #}
+{% if not is_rsvp %}
+    <div class="childrow-display">
+        {% for table in tables %}
+            <div class="DTE_Label">{{ table.label }}</div>
+            <table id="childrow-table-{{ table.tableid }}"></table>
+        {% endfor %}
+    </div>
+{% endif %}
+
+
