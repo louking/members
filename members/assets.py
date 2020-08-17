@@ -66,7 +66,7 @@ frontend_common_js = Bundle(
     'js/Responsive-{ver}/js/responsive.jqueryui.js'.format(ver=dt_responsive_ver),
 
     'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
-    'js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver),
+    'js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver),
 
     'js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver),
 
@@ -147,7 +147,7 @@ asset_bundles = {
         'js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver),
         'js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver),
         'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
-        'js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver),
+        'js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver),
         'js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver),
         'js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver),
         'js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver),
