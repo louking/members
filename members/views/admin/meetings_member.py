@@ -328,6 +328,47 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         db.session.flush()
         super().open()
 
+    def createrow(self, formdata):
+        """
+        create row, need invite id and new StatusReport record
+
+        :param formdata: form from create window
+        :return: response data
+        """
+        # make sure there's an invite record
+        invite = self.get_invite()
+        formdata['invite_id'] = invite.id
+        statusreport = StatusReport(
+            title=formdata['title'],
+            interest=localinterest(),
+            meeting=self.meeting,
+        )
+        db.session.add(statusreport)
+        db.session.flush()
+
+        # need to do this instead of calling super.createrow() because of chicken/egg problem for access
+        # of subrecords during set_dbrow()
+        # determine current order number, in case we need to add records
+        max = db.session.query(func.max(MemberStatusReport.order)).filter_by(**self.queryparams).filter(
+                *self.queryfilters).one()
+        # if MemberStatusReport records configured, use current max + 1
+        order = max[0] + 1
+        dbrow = MemberStatusReport(
+            interest=localinterest(),
+            meeting=self.meeting,
+            invite=invite,
+            content=statusreport,
+            order=order,
+        )
+        self.dte.set_dbrow(formdata, dbrow)
+        self.db.session.add(dbrow)
+        self.db.session.flush()
+        self.created_id = dbrow.id
+
+        # prepare response
+        thisrow = self.dte.get_response_data(dbrow)
+        return thisrow
+
     def updatetables(self, row):
         """
         annotate row with table definition(s)
@@ -397,7 +438,6 @@ memberstatusreport = MemberStatusreportView(
          'render': {'eval':'render_plus'},
          },
         {'data': 'title', 'name': 'title', 'label': 'Report Title',
-         'type': 'readonly',
          },
         {'data': 'rsvp_response', 'name': 'rsvp_response', 'label': 'Attending',
          'type': 'select2', 'options': invite_response_all,

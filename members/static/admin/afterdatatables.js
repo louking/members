@@ -237,7 +237,13 @@ function afterdatatables() {
 
     // special processing for history
     } else if (location.pathname.includes('/memberstatusreport')) {
-        // add and clear additional fields appropriately
+        // for create show all fields except rsvp response
+        editor.on('initCreate', function(e) {
+            editor.show();
+            editor.hide('rsvp_response');
+        });
+
+        // for edit add and clear additional fields appropriately
         editor.on('initEdit', function(e, node, data, items, type) {
             editor.show();
             editor.hide('title');
@@ -247,6 +253,5 @@ function afterdatatables() {
                 editor.hide('rsvp_response');
             }
         });
-
     }
 }
