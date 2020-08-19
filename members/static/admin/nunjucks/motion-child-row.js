@@ -9,9 +9,7 @@ output += "\r\n";
 if(runtime.contextOrFrameLookup(context, frame, "_showedit")) {
 output += "\r\n    ";
 output += "\r\n    ";
-output += "\r\n    <div id=\"childrow-editform-";
-output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "tableid"), env.opts.autoescape);
-output += "\" class=\"childrow-editform\"></div>\r\n";
+output += "\r\n    <div id=\"childrow-editform-\" class=\"childrow-editform\"></div>\r\n";
 ;
 }
 output += "\r\n\r\n";
