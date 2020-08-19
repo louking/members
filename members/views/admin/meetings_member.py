@@ -9,7 +9,8 @@ meetings_member - handling for meetings member
 from flask import request, flash, g
 from flask_security import current_user, logout_user, login_user
 from sqlalchemy import func
-from dominate.tags import div, h1, h2, p
+from dominate.tags import div, h1, h2, ul, li, p, b
+from dominate.util import text
 
 # homegrown
 from . import bp
@@ -242,10 +243,24 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         html += h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
 
         instructhtml = div()
-        instructhtml += h2('Instructions')
-        instructhtml += p('RSVP to the meeting in the first row')
-        instructhtml += p('To edit your status, click on a row and then click Edit. Don\'t forget to click Save')
         html += instructhtml
+        instructhtml += h2('Instructions')
+        listhtml = ul()
+        instructhtml += listhtml
+
+        listhtml += li('RSVP to the meeting by clicking/editing the first row')
+        listhtml += li('Provide Status Reports for each of your positions by clicking/editing subsequent rows')
+        listhtml += li('Optionally add a Status Report for something outside your assigned position by clicking New')
+        discussionhtml = li()
+        with discussionhtml:
+            text('If you would like to highlight a topic for discussion in the board meeting, add a discussion item from ')
+            text('within the relevant status report by clicking on "New" in the Discussion Item section of the status report. ')
+            with ul():
+                li('Status report has to be in Edit mode to add discussion items')
+                li('NOTE: Without a discussion item identified, the topic will not be added to the meeting agenda')
+        listhtml += discussionhtml
+
+        instructhtml += p('In all cases, don\'t forget to Save each item as you work through your report')
 
         return html.render()
 
@@ -490,7 +505,6 @@ memberstatusreport = MemberStatusreportView(
     buttons=[
         'create',
         'editChildRowRefresh',
-        'csv'
     ],
     dtoptions={
         'scrollCollapse': True,
