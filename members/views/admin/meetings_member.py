@@ -43,10 +43,12 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
 
         # add meeting_id to filters if requested
         self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        self.queryfilters = [DiscussionItem.agendaitem_id == AgendaItem.id]
+
         statusreport_id = request.args.get('statusreport_id', None)
         if statusreport_id:
             self.queryparams['statusreport_id'] = statusreport_id
-            self.queryfilters = [AgendaItem.statusreport_id == statusreport_id, DiscussionItem.agendaitem_id == AgendaItem.id]
+            self.queryfilters += [AgendaItem.statusreport_id == statusreport_id]
 
             # remove empty parameters from query filters
         delfields = []
@@ -102,7 +104,7 @@ memberdiscussions = MemberDiscussionsView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
-    pagename='My Discussion Items',
+    pagename='Discussion Items',
     endpoint='admin.memberdiscussions',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/memberdiscussions',
