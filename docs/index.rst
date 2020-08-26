@@ -15,6 +15,7 @@ will be added over time.
 
    leadership-task-module
    membership-module
+   meetings-module
    membertility-definitions
 
 
