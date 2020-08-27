@@ -15,6 +15,13 @@ output += "\r\n";
 }
 else {
 output += "\r\n    <div class=\"childrow-display\">\r\n        ";
+if(runtime.contextOrFrameLookup(context, frame, "is_hidden") == "yes" && runtime.contextOrFrameLookup(context, frame, "hidden_reason")) {
+output += "\r\n            <div class=\"DTE_Label\">HIDDEN: Reason for Hiding</div>\r\n            <div class=\"DTE_Field_Input\"><p>";
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "hidden_reason")), env.opts.autoescape);
+output += "</p></div>\r\n        ";
+;
+}
+output += "\r\n        ";
 if(runtime.contextOrFrameLookup(context, frame, "agendaitem")) {
 output += "\r\n            <div class=\"DTE_Label\">Summary</div>\r\n            <div class=\"DTE_Field_Input\">";
 output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "agendaitem")), env.opts.autoescape);

@@ -4,6 +4,7 @@ meetings_member - handling for meetings member
 '''
 
 # standard
+from datetime import date
 
 # pypi
 from flask import request, flash, g
@@ -95,6 +96,21 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         # prepare response
         thisrow = self.dte.get_response_data(dbrow)
         return thisrow
+
+    def deleterow(self, thisid):
+        """
+        check if date for meeting has passed before allowing discussion deletion
+
+        :param thisid: id for row
+        :return: empty list
+        """
+        discussionitem = DiscussionItem.query.filter_by(id=thisid).one()
+        today = date.today()
+        if discussionitem.meeting.date < today:
+            self._error = 'Cannot delete discussion item after meeting is over'
+            raise ParameterError(self._error)
+
+        return super().deleterow(thisid)
 
 memberdiscussions = MemberDiscussionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],

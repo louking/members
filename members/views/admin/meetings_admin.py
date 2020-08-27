@@ -4,10 +4,10 @@ meetings_admin - administrative task handling for meetings admin
 '''
 # standard
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, date
 
 # pypi
-from flask import g, request, url_for
+from flask import g, request
 from flask_security import current_user
 from dominate.tags import h1
 from sqlalchemy import func
@@ -765,10 +765,19 @@ motions.register()
 # meeting endpoint
 ###########################################################################################
 
-meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
-meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only'.split(',')
+meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,is_hidden,hidden_reason'.split(',')
+meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,is_hidden,hidden_reason'.split(',')
 meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
 meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
+
+def meeting_validate(action, formdata):
+    results = []
+
+    # if both of these are set, they will conflict with each other
+    if formdata['is_hidden'] == 'yes' and not formdata['hidden_reason']:
+        results.append({'name': 'hidden_reason', 'status': 'reason required when hiding agenda item'})
+
+    return results
 
 class MeetingView(DbCrudApiInterestsRolePermissions):
 
@@ -930,6 +939,15 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         super().beforequery()
         self.queryparams['meeting_id'] = request.args['meeting_id']
 
+        # should we display hidden agendaitems?
+        show_hidden = request.args.get('show_hidden', False)
+        if isinstance(show_hidden, str):
+            show_hidden = show_hidden != 'false'
+        if show_hidden:
+            self.queryparams.pop('is_hidden', None)
+        else:
+            self.queryparams['is_hidden'] = False
+
     def updatetables(self, rows):
         # todo: can this be part of configuration, or method to call per row or for all rows?
         for row in rows:
@@ -1019,6 +1037,36 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
+    def deleterow(self, thisid):
+        """
+        check deletion is allowed
+
+        :param thisid: id for row
+        :return: empty list
+        """
+        agendaitem = AgendaItem.query.filter_by(id=thisid).one()
+
+        # no deletions allowed after meeting
+        today = date.today()
+        if agendaitem.meeting.date < today:
+            self._error = 'Cannot delete agenda item after meeting is over'
+            raise ParameterError(self._error)
+
+        # cannot delete an agenda item which came from a status report
+        if agendaitem.statusreport:
+            self._error = 'Cannot delete agenda item which came from a status report. Edit and set \'hide\' to \'yes\' instead'
+            raise ParameterError(self._error)
+
+        return super().deleterow(thisid)
+
+
+# hide / show hidden rows
+from dominate.tags import div, label, input
+hiddenfilter = div(_class='checkbox-filter FloatRight')
+with hiddenfilter:
+    input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
+    label('Show hidden items', _for='show-hidden-status')
+
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
 #   http://live.datatables.net/bihawepu/1/edit
@@ -1039,6 +1087,8 @@ meeting = MeetingView(
     formmapping=meeting_formmapping,
     checkrequired=True,
     tableidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
+    pretablehtml=hiddenfilter.render(),
+    validate=meeting_validate,
     clientcolumns=[
         {'data':None,
          'name':'details-control',
@@ -1084,6 +1134,14 @@ meeting = MeetingView(
              'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
                          "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
          }
+         },
+        {'data': 'is_hidden', 'name': 'is_hidden', 'label': 'Hide',
+         '_treatment': {'boolean': {'formfield': 'is_hidden', 'dbfield': 'is_hidden'}},
+         'visible': False,
+         },
+        {'data': 'hidden_reason', 'name': 'hidden_reason', 'label': 'Reason for Hiding',
+         'type': 'textarea',
+         'visible': False,
          },
     ],
     childrowoptions= {

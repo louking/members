@@ -406,7 +406,7 @@ class MemberStatusReport(Base):
         'version_id_col': version_id
     }
 
-# also "discussion point"
+# also accessed from "DiscussionItem" > "StatusReport"
 class AgendaItem(Base):
     __tablename__ = 'agendaitem'
     id = Column(Integer(), primary_key=True)
@@ -422,6 +422,8 @@ class AgendaItem(Base):
     is_action_only      = Column(Boolean, nullable=False, default=False)
     statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
     statusreport        = relationship('StatusReport', backref=backref('agendaitems'))
+    is_hidden           = Column(Boolean, nullable=False, default=False)
+    hidden_reason       = Column(Text)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id

@@ -235,6 +235,45 @@ function afterdatatables() {
         // need on 'preInvites' to translate interest for Send Invites button
         editor.on( 'preInvites', translate_editor_group );
 
+        // only show hidden_reason field if is_hidden is true (yes)
+        editor.dependent('is_hidden', function(val, data, callback) {
+            // // the below doesn't work, and it might be confusing anyway
+            // var that = this;
+            // var elements = $( that.ids(true)[0] );
+            // if (val === 'no') {
+            //     elements.removeClass('hidden-row');
+            // } else {
+            //     elements.addClass('hidden-row');
+            // }
+            return val === 'no' ?
+                { hide: 'hidden_reason' } :
+                { show: 'hidden_reason' }
+        });
+
+        /**
+         * url hook gets called from within groups.js translate_datatable_group() anon fn
+         *
+         * @param url
+         * @returns {string}
+         */
+        function filter_hidden(url) {
+            // split out query parameters, and collect in object
+            var urlsplit = url.split('?');
+            var urlparams = allUrlParams();
+
+            // remove show_hidden if not needed, else set appropriately
+            delete urlparams['show_hidden']
+            if ($('#show-hidden-status').prop('checked') == true) {
+                urlparams['show_hidden'] = true;
+            }
+            url = urlsplit[0] + '?' + setParams(urlparams);
+            return url;
+        }
+        dt_add_url_hook(filter_hidden);
+        $('#show-hidden-status').change(function() {
+            _dt_table.draw();
+        });
+
     // special processing for history
     } else if (location.pathname.includes('/memberstatusreport')) {
         // for create show all fields except rsvp response
