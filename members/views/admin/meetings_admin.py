@@ -284,14 +284,14 @@ invites = InvitesView(
         {'data': 'email', 'name': 'email', 'label': 'Email',
          'type': 'readonly',
          },
-        {'data': 'response', 'name': 'response', 'label': 'Response',
-         'type': 'select2',
-         'options': invite_response_all,
-         },
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',
          'className': 'TextCenter',
          '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
          'ed': {'def': 'no'},
+         },
+        {'data': 'response', 'name': 'response', 'label': 'RSVP',
+         'type': 'select2',
+         'options': invite_response_all,
          },
         {'data': 'activeinvite', 'name': 'activeinvite', 'label': 'Invited',
          'className': 'TextCenter',
@@ -1161,7 +1161,7 @@ meeting = MeetingView(
                          'datatable': {
                              # uses data field as key
                              'date': {'visible': False}, 'purpose': {'visible': False},
-                             'response': {'visible': False}, 'activeinvite': {'visible': False}
+                             'activeinvite': {'visible': False}
                          },
                          'editor': {
                              # uses name field as key
