@@ -366,7 +366,7 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
                 statusreport = StatusReport.query.filter_by(**statusquery).one_or_none()
                 if not statusreport:
                     statusreport = StatusReport(
-                        title=position.position,
+                        title='{} Status Report'.format(position.position),
                         interest=localinterest(),
                         meeting=self.meeting,
                         position=position
