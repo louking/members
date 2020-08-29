@@ -9,7 +9,7 @@ from datetime import datetime, date
 # pypi
 from flask import g, request
 from flask_security import current_user
-from dominate.tags import h1
+from dominate.tags import h1, div, label, input
 from sqlalchemy import func
 from jinja2 import Template
 
@@ -807,8 +807,18 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
     def format_pretablehtml(self):
         meetingid = request.args['meeting_id']
         meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
-        html = h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
-        return html.render()
+        pretablehtml = div()
+        with pretablehtml:
+            # meeting header
+            h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
+
+            # hide / show hidden rows
+            hiddenfilter = div(_class='checkbox-filter FloatRight')
+            with hiddenfilter:
+                input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
+                label('Show hidden items', _for='show-hidden-status')
+
+        return pretablehtml.render()
 
     def updateinvites(self):
         invites = Invite.query.filter_by(**self.queryparams).all()
@@ -1062,13 +1072,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         return super().deleterow(thisid)
 
 
-# hide / show hidden rows
-from dominate.tags import div, label, input
-hiddenfilter = div(_class='checkbox-filter FloatRight')
-with hiddenfilter:
-    input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
-    label('Show hidden items', _for='show-hidden-status')
-
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
 #   http://live.datatables.net/bihawepu/1/edit
@@ -1089,7 +1092,6 @@ meeting = MeetingView(
     formmapping=meeting_formmapping,
     checkrequired=True,
     tableidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
-    pretablehtml=hiddenfilter.render(),
     validate=meeting_validate,
     clientcolumns=[
         {'data':None,
