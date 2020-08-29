@@ -31,8 +31,10 @@ class ParameterError(Exception): pass
 # memberdiscussions endpoint
 ###########################################################################################
 
-memberdiscussions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,discussiontitle,agendaitem.agendaitem,position_id,meeting_id,statusreport_id'.split(',')
-memberdiscussions_formfields = 'rowid,interest_id,purpose,date,discussiontitle,agendaitem,position_id,meeting_id,statusreport_id'.split(',')
+memberdiscussions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,discussiontitle,agendaitem.agendaitem,'\
+                            'agendaitem.is_hidden,agendaitem.hidden_reason,position_id,meeting_id,statusreport_id,agendaitem_id'.split(',')
+memberdiscussions_formfields = 'rowid,interest_id,purpose,date,discussiontitle,agendaitem,'\
+                               'is_hidden,hidden_reason,position_id,meeting_id,statusreport_id,agendaitem_id'.split(',')
 memberdiscussions_dbmapping = dict(zip(memberdiscussions_dbattrs, memberdiscussions_formfields))
 memberdiscussions_formmapping = dict(zip(memberdiscussions_formfields, memberdiscussions_dbattrs))
 
@@ -112,6 +114,22 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
 
         return super().deleterow(thisid)
 
+    def postprocessrows(self, rows):
+        for row in rows:
+            agendaitem = AgendaItem.query.filter_by(id=row['agendaitem_id']).one()
+            if agendaitem.is_hidden:
+                row['DT_RowClass'] = 'hidden-row'
+            else:
+                row['hidden_reason'] = ''
+
+    def editor_method_postcommit(self, form):
+        self.postprocessrows(self._responsedata)
+
+    def open(self):
+        super().open()
+        self.postprocessrows(self.output_result['data'])
+
+
 memberdiscussions = MemberDiscussionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
@@ -143,6 +161,9 @@ memberdiscussions = MemberDiscussionsView(
         {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Discussion Details',
          'type':'ckeditorInline',
          },
+        {'data': 'hidden_reason', 'name': 'hidden_reason', 'label': 'Reason for Hiding',
+         'type':'readonly',
+         },
         # meeting_id and statusreport_id are required for tying to meeting view row
         # put these last so as not to confuse indexing between datatables (python vs javascript)
         {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
@@ -154,6 +175,10 @@ memberdiscussions = MemberDiscussionsView(
          'visible': False,
          },
         {'data': 'position_id', 'name': 'position_id', 'label': 'Position ID',
+         'type': 'hidden',
+         'visible': False,
+         },
+        {'data': 'agendaitem_id', 'name': 'agendaitem_id', 'label': 'Agenda Item ID',
          'type': 'hidden',
          'visible': False,
          },
@@ -188,8 +213,8 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         # initialize inherited class, and a couple of attributes
         super().__init__(**args)
 
-        # this causes self.dte.get_response_data to execute updatetables() to transfor returned response
-        self.dte.set_response_hook(self.updatetables)
+        # this causes self.dte.get_response_data to execute postprocessrow() to transform returned response
+        self.dte.set_response_hook(self.postprocessrow)
 
     def permission(self):
         permitted = super().permission()
@@ -402,13 +427,19 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         thisrow = self.dte.get_response_data(dbrow)
         return thisrow
 
-    def updatetables(self, row):
+    def postprocessrow(self, row):
         """
         annotate row with table definition(s)
 
         :param row: row dict about to be returned to client
         :return: updated row dict
         """
+        # flag if this row has hidden discussion items
+        hiddenagendaitems = AgendaItem.query.filter_by(statusreport_id=row['statusreport_id'], is_hidden=True).all()
+        if hiddenagendaitems:
+            row['DT_RowClass'] = 'hidden-row'
+
+        # set context for table filtering
         invite = Invite.query.filter_by(id=row['invite_id']).one()
         context = {
             'meeting_id': invite.meeting_id,

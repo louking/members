@@ -379,6 +379,11 @@ label.interest-label {
     font-weight: bold;
 }
 
+/* hidden row display */
+table.dataTable tbody tr.hidden-row:not(.selected) {
+    background-color: Peru;
+}
+
 /* yadcf display control */
 .yadcf-filter-range-date {
     min-height: 26px; /* somehow matches select2 min-height of 32px */

@@ -948,9 +948,11 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         else:
             self.queryparams['is_hidden'] = False
 
-    def updatetables(self, rows):
+    def postprocessrows(self, rows):
         # todo: can this be part of configuration, or method to call per row or for all rows?
         for row in rows:
+            if row['is_hidden'] == 'yes':
+                row['DT_RowClass'] = 'hidden-row'
             tables = []
             context = {
                 'meeting_id': request.args['meeting_id'],
@@ -1004,13 +1006,13 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 row['tableid'] = tableid
 
     def editor_method_postcommit(self, form):
-        # this is here in case invites changed during edit action
+        # # this is here in case invites changed during edit action
         # self.updateinvites()
-        self.updatetables(self._responsedata)
+        self.postprocessrows(self._responsedata)
 
     def open(self):
         super().open()
-        self.updatetables(self.output_result['data'])
+        self.postprocessrows(self.output_result['data'])
 
     @_editormethod(checkaction='create,checkinvites,sendinvites,refresh', formrequest=True)
     def post(self):
