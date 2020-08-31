@@ -102,6 +102,7 @@ def nav_menu():
                     meetings_admin_view(meetingsviews, 'Action Items', 'admin.actionitems', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Motions', 'admin.motions', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Motion Votes', 'admin.motionvotes', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Agenda Headings', 'admin.agendaheadings', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Tags', 'admin.tags', interest=g.interest)
 

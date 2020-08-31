@@ -17,7 +17,7 @@ from jinja2 import Template
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Tag, Position
-from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, EmailTemplate
+from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, EmailTemplate, AgendaHeading
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
 from ...model import action_all, motion_all, motionvote_all
@@ -765,8 +765,10 @@ motions.register()
 # meeting endpoint
 ###########################################################################################
 
-meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,is_hidden,hidden_reason'.split(',')
-meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,is_hidden,hidden_reason'.split(',')
+meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,'\
+                  'is_hidden,hidden_reason,agendaheading'.split(',')
+meeting_formfields = 'rowid,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,'\
+                     'is_hidden,hidden_reason,agendaheading'.split(',')
 meeting_dbmapping = dict(zip(meeting_dbattrs, meeting_formfields))
 meeting_formmapping = dict(zip(meeting_formfields, meeting_dbattrs))
 
@@ -1131,6 +1133,14 @@ meeting = MeetingView(
                          "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
          }
          },
+        {'data': 'agendaheading', 'name': 'agendaheading', 'label': 'Agenda Heading',
+         'fieldInfo': 'heading under which this position is shown in agenda',
+         '_treatment': {
+             'relationship': {'fieldmodel': AgendaHeading, 'labelfield': 'heading', 'formfield': 'agendaheading',
+                              'dbfield': 'agendaheading', 'uselist': False,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
         {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
          'type': 'ckeditorInline',
          'visible': False,
@@ -1244,4 +1254,56 @@ meeting = MeetingView(
 },
 )
 meeting.register()
+
+##########################################################################################
+# agendaheadings endpoint
+###########################################################################################
+
+agendaheadings_dbattrs = 'id,interest_id,heading,positions'.split(',')
+agendaheadings_formfields = 'rowid,interest_id,heading,positions'.split(',')
+agendaheadings_dbmapping = dict(zip(agendaheadings_dbattrs, agendaheadings_formfields))
+agendaheadings_formmapping = dict(zip(agendaheadings_formfields, agendaheadings_dbattrs))
+
+agendaheadings = DbCrudApiInterestsRolePermissions(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=AgendaHeading,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pagename='Motion Votes',
+    endpoint='admin.agendaheadings',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/agendaheadings',
+    dbmapping=agendaheadings_dbmapping,
+    formmapping=agendaheadings_formmapping,
+    checkrequired=True,
+    tableidtemplate ='agendaheadings-{{ meeting_id }}-{{ motion_id }}',
+    clientcolumns=[
+        {'data': 'heading', 'name': 'heading', 'label': 'Agenda Heading',
+         },
+        {'data': 'positions', 'name': 'positions', 'label': 'Positions',
+         '_treatment': {
+             'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
+                              'dbfield': 'positions', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         }
+    ],
+    idSrc='rowid',
+    buttons=[
+        'create',
+        'editRefresh',
+        'remove',
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+agendaheadings.register()
 

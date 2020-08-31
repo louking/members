@@ -69,8 +69,10 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         if 'position_id' in formdata and formdata['position_id']:
             position = Position.query.filter_by(id=formdata['position_id']).one()
             agendatitle += ' [{} / {}]'.format(current_user.name, position.position)
+            agendaheading = position.agendaheading
         else:
             agendatitle += ' [{}]'.format(current_user.name)
+            agendaheading = None
 
         # todo: should this be a critical region because of order? possibly that doesn't matter
         # determine current order number, in case we need to add records
@@ -82,6 +84,7 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
             meeting_id=formdata['meeting_id'],
             statusreport_id=formdata['statusreport_id'],
             title=agendatitle,
+            agendaheading=agendaheading,
             order=order,
         )
         db.session.add(agendaitem)

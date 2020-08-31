@@ -9,7 +9,7 @@ organization_admin - organization administrative handling
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, TaskGroup, Tag
+from ...model import LocalInterest, LocalUser, TaskGroup, Tag, AgendaHeading
 from ...model import Position
 from ...model import localinterest_query_params, localinterest_viafilter
 
@@ -25,8 +25,8 @@ debug = False
 # positions endpoint
 ###########################################################################################
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,users,emailgroups,has_status_report'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,users,emailgroups,has_status_report'.split(',')
+position_dbattrs = 'id,interest_id,position,description,taskgroups,users,emailgroups,has_status_report,agendaheading'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,users,emailgroups,has_status_report,agendaheading'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 
@@ -70,6 +70,14 @@ position = DbCrudApiInterestsRolePermissions(
                          'className': 'TextCenter',
                          '_treatment': {'boolean': {'formfield': 'has_status_report', 'dbfield': 'has_status_report'}},
                          'ed': {'def': 'yes'},
+                         },
+                        {'data': 'agendaheading', 'name': 'agendaheading', 'label': 'Agenda Heading',
+                         'fieldInfo': 'heading under which this position is shown in agenda',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': AgendaHeading, 'labelfield': 'heading', 'formfield': 'agendaheading',
+                                              'dbfield': 'agendaheading', 'uselist': False,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                         {'data': 'taskgroups', 'name': 'taskgroups', 'label': 'Task Groups',
                          'fieldInfo': 'members who hold this position must do tasks within these groups',

@@ -236,6 +236,8 @@ class Position(Base):
     position            = Column(String(POSITION_LEN))
     description         = Column(String(DESCR_LEN))
     has_status_report   = Column(Boolean, default=True)
+    agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
+    agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
     users               = relationship('LocalUser',
                                        secondary=userposition_table,
                                        backref=backref('positions'))
@@ -422,6 +424,8 @@ class AgendaItem(Base):
     is_action_only      = Column(Boolean, nullable=False, default=False)
     statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
     statusreport        = relationship('StatusReport', backref=backref('agendaitems'))
+    agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
+    agendaheading       = relationship('AgendaHeading')
     is_hidden           = Column(Boolean, nullable=False, default=False)
     hidden_reason       = Column(Text)
     version_id = Column(Integer, nullable=False, default=1)
@@ -494,6 +498,17 @@ class MotionVote(Base):
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('motionvotes'))
     vote                = Column(Enum(*motionvote_all))
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class AgendaHeading(Base):
+    __tablename__ = 'agendaheading'
+    id = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('agendaheading'))
+    heading             = Column(Text)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
