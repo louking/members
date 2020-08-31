@@ -115,6 +115,10 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
             self._error = 'Cannot delete discussion item after meeting is over'
             raise ParameterError(self._error)
 
+        # delete agenda item if it exists (it should but safe to check)
+        if discussionitem.agendaitem:
+            db.session.delete(discussionitem.agendaitem)
+
         return super().deleterow(thisid)
 
     def postprocessrows(self, rows):
