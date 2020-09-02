@@ -12,6 +12,14 @@ output += "\r\n    ";
 output += "\r\n    <div id=\"childrow-editform-\" class=\"childrow-editform\"></div>\r\n";
 ;
 }
+else {
+output += "\r\n<div class=\"childrow-display\">\r\n    <div class=\"DTE_Label\">Mover</div>\r\n    <div class=\"DTE_Field_Input\"><p>";
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.memberLookup((runtime.contextOrFrameLookup(context, frame, "mover")),"name")), env.opts.autoescape);
+output += "</p></div>\r\n    <div class=\"DTE_Label\">Seconder</div>\r\n    <div class=\"DTE_Field_Input\"><p>";
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.memberLookup((runtime.contextOrFrameLookup(context, frame, "seconder")),"name")), env.opts.autoescape);
+output += "</p></div>\r\n</div>\r\n";
+;
+}
 output += "\r\n\r\n";
 output += "\r\n";
 output += "\r\n<div class=\"childrow-display\">\r\n    ";

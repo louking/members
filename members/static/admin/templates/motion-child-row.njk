@@ -3,6 +3,13 @@
     {# see https://datatables.net/blog/2017-06-30 #}
     {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
     <div id="childrow-editform-" class="childrow-editform"></div>
+{% else %}
+<div class="childrow-display">
+    <div class="DTE_Label">Mover</div>
+    <div class="DTE_Field_Input"><p>{{ mover.name | safe }}</p></div>
+    <div class="DTE_Label">Seconder</div>
+    <div class="DTE_Field_Input"><p>{{ seconder.name | safe }}</p></div>
+</div>
 {% endif %}
 
 {# always display any tables #}

@@ -263,6 +263,7 @@ label.Label
 .FloatLeft  { float: left; }
 .FloatRight { float: right; }
 .Hidden     { display: none; }
+.Bold       { font-weight: bold }
 
 .TextBottom { vertical-align: text-bottom; }
 .TextCenter { text-align: center; }

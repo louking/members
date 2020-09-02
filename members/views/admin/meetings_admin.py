@@ -11,6 +11,7 @@ from flask import g, request
 from flask_security import current_user
 from dominate.tags import h1, div, label, input
 from sqlalchemy import func
+from sqlalchemy.orm import aliased
 from jinja2 import Template
 
 # homegrown
@@ -518,6 +519,8 @@ motionvotes = MotionVotesView(
          },
         {'data': 'user', 'name': 'user', 'label': 'Member',
          'type':'readonly',
+         # onclause required when ambiguous foreign keys in a subsequent join
+         'onclause': MotionVote.user_id == LocalUser.id,
          },
         {'data': 'vote', 'name': 'vote', 'label': 'Vote',
          'type': 'select2',
@@ -554,8 +557,8 @@ motionvotes.register()
 # motions endpoint
 ###########################################################################################
 
-motions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion,comments,status,meeting_id,agendaitem_id'.split(',')
-motions_formfields = 'rowid,interest_id,purpose,date,motion,comments,status,meeting_id,agendaitem_id'.split(',')
+motions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion,comments,status,meeting_id,agendaitem_id,mover,seconder'.split(',')
+motions_formfields = 'rowid,interest_id,purpose,date,motion,comments,status,meeting_id,agendaitem_id,mover,seconder'.split(',')
 motions_dbmapping = dict(zip(motions_dbattrs, motions_formfields))
 motions_formmapping = dict(zip(motions_formfields, motions_dbattrs))
 # motions_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
@@ -653,6 +656,9 @@ motions_yadcf_options = [
     yadcfoption('date:name', 'motions-external-filter-date', 'range_date'),
 ]
 
+# need aliased because LocalUser referenced twice within motions
+localuser_alias = aliased(LocalUser)
+
 motions = MotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
@@ -702,6 +708,27 @@ motions = MotionsView(
          'type': 'select2',
          'options': motion_all,
          'ed': {'def': MOTION_STATUS_OPEN}
+         },
+        {'data': 'mover', 'name': 'mover', 'label': 'Mover',
+         'className': 'field_req',
+         'visible': False,
+         '_treatment': {
+             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
+                              'formfield': 'mover', 'dbfield': 'mover',
+                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              # onclause is required for serverside=True tables with ambiguous foreign keys
+                              'onclause': Motion.mover_id == LocalUser.id,
+                              'uselist': False}}
+         },
+        {'data': 'seconder', 'name': 'seconder', 'label': 'Seconder',
+         'className': 'field_req',
+         'visible': False,
+         '_treatment': {
+             'relationship': {'fieldmodel': localuser_alias, 'labelfield': 'name',
+                              'formfield': 'seconder', 'dbfield': 'seconder',
+                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'onclause': Motion.seconder_id == localuser_alias.id,
+                              'uselist': False}}
          },
         # meeting_id and agendaitem_id are required for tying to meeting view row
         # put these last so as not to confuse indexing between datatables (python vs javascript)
@@ -1273,7 +1300,7 @@ agendaheadings = DbCrudApiInterestsRolePermissions(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
-    pagename='Motion Votes',
+    pagename='Agenda Headings',
     endpoint='admin.agendaheadings',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/agendaheadings',
