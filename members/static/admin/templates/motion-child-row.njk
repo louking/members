@@ -2,7 +2,7 @@
 {% if _showedit %}
     {# see https://datatables.net/blog/2017-06-30 #}
     {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
-    <div id="childrow-editform-" class="childrow-editform"></div>
+    <div id="childrow-editform-{{ tableid }}" class="childrow-editform"></div>
 {% else %}
 <div class="childrow-display">
     <div class="DTE_Label">Mover</div>
