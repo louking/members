@@ -656,6 +656,24 @@ motions_yadcf_options = [
     yadcfoption('date:name', 'motions-external-filter-date', 'range_date'),
 ]
 
+def voting_members():
+    """
+    return list containing sql expression which finds voting members for this meeting
+
+    :return: LocalUsers sql expression
+    """
+    meeting_id = request.args.get('meeting_id', None)
+
+    # if we're outside of meeting, not allowed to edit or create anyway, so this should be ok
+    if not meeting_id:
+        return []
+
+    meeting = Meeting.query.filter_by(id=meeting_id).one()
+    votetags = meeting.votetags
+    localusers = set()
+    get_tags_users(votetags, localusers)
+    return [LocalUser.id.in_([lu.id for lu in localusers])]
+
 # need aliased because LocalUser referenced twice within motions
 localuser_alias = aliased(LocalUser)
 
@@ -716,6 +734,7 @@ motions = MotionsView(
              'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
                               'formfield': 'mover', 'dbfield': 'mover',
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'queryfilters': voting_members,
                               # onclause is required for serverside=True tables with ambiguous foreign keys
                               'onclause': Motion.mover_id == LocalUser.id,
                               'uselist': False}}
@@ -727,6 +746,7 @@ motions = MotionsView(
              'relationship': {'fieldmodel': localuser_alias, 'labelfield': 'name',
                               'formfield': 'seconder', 'dbfield': 'seconder',
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'queryfilters': voting_members,
                               'onclause': Motion.seconder_id == localuser_alias.id,
                               'uselist': False}}
          },
@@ -775,8 +795,8 @@ motions = MotionsView(
     serverside=True,
     idSrc='rowid',
     buttons=[
-        'create',
-        'editChildRowRefresh',
+        # 'create',
+        # 'editChildRowRefresh',
         'csv'
     ],
     dtoptions={
