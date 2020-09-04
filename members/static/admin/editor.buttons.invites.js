@@ -49,7 +49,6 @@ $.fn.dataTable.ext.buttons.newInvites = {
                             {
                                 'text': 'Send Invitations',
                                 'action': function () {
-                                    // todo: need to update action before submitting
                                     this.submit( null, null, function(data){
                                         var that = this;
                                         data.action = 'sendinvites'
@@ -62,19 +61,9 @@ $.fn.dataTable.ext.buttons.newInvites = {
                                     this.close();
                                 }
                             }
-                        ]);
-
-                    var x=1;
-                    // todo: this is to be used after success for standalone editor submit
-                    // // Update the rows we get data back for
-                    // for ( var i=0 ; i<json.data.length ; i++ ) {
-                    //     // shouldn't use DT_RowId because of rowId configuration possibility
-                    //     dt.row( '#'+json.data[i][dt.init().rowId] ).data( json.data[i] );
-                    // }
-                    // dt.draw(false);
-                    //
-                    // // Trigger the original create button's action
-                    // $.fn.dataTable.ext.buttons.create.action.call(that, e, dt, node, config);
+                        ])
+                        // need to set to 'no' else dependent() shows it
+                        .field('is_hidden').val('no');
                 }
 
             }

@@ -238,8 +238,8 @@ function afterdatatables() {
         // only show hidden_reason field if is_hidden is true (yes)
         editor.dependent('is_hidden', function(val, data, callback) {
             return val === 'no' ?
-                { hide: 'hidden_reason' } :
-                { show: 'hidden_reason' }
+                { hide: 'hidden_reason', animate: false } :
+                { show: 'hidden_reason', animate: false }
         });
 
         /**
