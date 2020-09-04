@@ -1,7 +1,7 @@
-'''
+"""
 meetings_admin - administrative task handling for meetings admin
 ====================================================================================
-'''
+"""
 # standard
 from uuid import uuid4
 from datetime import datetime, date
@@ -24,6 +24,7 @@ from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
+from ...meeting_invites import generateinvites, get_invites
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.flask_helpers.mailer import sendmail
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -130,8 +131,8 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
         :return: output for create row response
         """
         output = super().createrow(formdata)
-        meeting = Meeting.query.filter_by(id=self.created_id).one()
-        agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=2, title='Action Items', agendaitem='',
+        themeeting = Meeting.query.filter_by(id=self.created_id).one()
+        agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=2, title='Action Items', agendaitem='',
                                 is_action_only=True)
         db.session.add(agendaitem)
         return output
@@ -881,116 +882,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 thisinvite[k] = getattr(invite, k)
             self.responsekeys['invites'].append(thisinvite)
 
-    def get_invites(self):
-        meetingid = request.args['meeting_id']
-        meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
-
-        if not meeting:
-            raise ParameterError('meeting with id "{}" not found'.format(meetingid))
-
-        def get_invite(meeting, localuser):
-            user = localuser2user(localuser)
-            email = user.email
-            invitestate = {'name': user.name, 'email':email}
-            invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
-            if invite:
-                invitestate['state'] = 'attending' if invite.response == INVITE_RESPONSE_ATTENDING else 'invited'
-            else:
-                invitestate['state'] = 'send invitation'
-            return email, invitestate, invite
-
-        # send invitations to all those who are tagged like the meeting
-        invitestates = {}
-        invites = {}
-        for tag in meeting.tags:
-            for user in tag.users:
-                email, invitestate, invite = get_invite(meeting, user)
-                invitestates[email] = invitestate
-                invites[email] = invite
-            for position in tag.positions:
-                for user in position.users:
-                    email, invitestate, invite = get_invite(meeting, user)
-                    # may be overwriting but that's ok
-                    invitestates[email] = invitestate
-                    invites[email] = invite
-
-        # return the state values to simplify client work, also return the database records
-        return list(invitestates.values()), list(invites.values())
-
-    def generateinvites(self):
-        meetingid = request.args['meeting_id']
-        meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
-
-        if not meeting:
-            raise ParameterError('meeting with id "{}" not found'.format(meetingid))
-
-        # check if agendaitem already exists. If any invites to the meeting there should already be the agenda item
-        # also use this later to deactivate any invites which are not still needed
-        previnvites = Invite.query.filter_by(interest=localinterest(), meeting=meeting).all()
-        if not previnvites:
-            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
-                                    is_attendee_only=True)
-            db.session.add(agendaitem)
-        # all of the invites should have the same agendaitem, so just use the first
-        else:
-            agendaitem = previnvites[0].agendaitem
-
-        def check_add_invite(meeting, localuser, agendaitem):
-            invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
-            if not invite:
-                # create unique key for invite - uuid4 gives unique key
-                invitekey = uuid4().hex
-                invite = Invite(
-                    interest=localinterest(),
-                    meeting=meeting,
-                    user=localuser,
-                    agendaitem=agendaitem,
-                    invitekey = invitekey,
-                )
-                db.session.add(invite)
-
-                # get user's outstanding action items
-                actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\
-                    filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
-
-                # send email to user
-                emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email',
-                                                              interest=localinterest()).one()
-                template = Template(emailtemplate.template)
-                subject = emailtemplate.subject
-
-                rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
-                                       urlargs={'invitekey': invitekey},
-                                       _external=True)
-                actionitemurl = page_url_for('admin.actionitems', interest=g.interest,
-                                       urlargs={'member_id': localuser2user(localuser).id},
-                                       _external=True)
-                context = {
-                    'meeting': meeting,
-                    'actionitems': actionitems,
-                    'rsvpurl': rsvpurl,
-                    'actionitemurl': actionitemurl
-                }
-                html = template.render(**context)
-                tolist = localuser.email
-                fromlist = localinterest().from_email
-                cclist = None
-                sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
-
-        # send invitations to all those who are tagged like the meeting
-        for tag in meeting.tags:
-            for user in tag.users:
-                check_add_invite(meeting, user, agendaitem)
-            for position in tag.positions:
-                for user in position.users:
-                    check_add_invite(meeting, user, agendaitem)
-
-        # todo: make invites for anyone who has been removed from the list 'inactive'
-
-        # this agendaitem will be added to the displayed table
-        db.session.flush()
-        return agendaitem
-
     def beforequery(self):
         '''
         add meeting_id to query parameters
@@ -1077,11 +968,11 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
     def post(self):
         action = get_request_action(request.form)
         if action == 'checkinvites':
-            invitestates, invites = self.get_invites()
+            invitestates, invites = get_invites(request.args['meeting_id'])
             self._responsedata = []
             self.responsekeys['checkinvites'] = invitestates
         elif action == 'sendinvites':
-            agendaitem = self.generateinvites()
+            agendaitem = generateinvites(request.args['meeting_id'])
             thisrow = self.dte.get_response_data(agendaitem)
             self._responsedata = [thisrow]
         else:
