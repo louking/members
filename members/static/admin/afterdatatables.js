@@ -237,14 +237,6 @@ function afterdatatables() {
 
         // only show hidden_reason field if is_hidden is true (yes)
         editor.dependent('is_hidden', function(val, data, callback) {
-            // // the below doesn't work, and it might be confusing anyway
-            // var that = this;
-            // var elements = $( that.ids(true)[0] );
-            // if (val === 'no') {
-            //     elements.removeClass('hidden-row');
-            // } else {
-            //     elements.addClass('hidden-row');
-            // }
             return val === 'no' ?
                 { hide: 'hidden_reason' } :
                 { show: 'hidden_reason' }
@@ -292,5 +284,6 @@ function afterdatatables() {
                 editor.hide('rsvp_response');
             }
         });
+
     }
 }

@@ -60,3 +60,17 @@ function meeting_details(e, dt, node, config) {
     var newloc = newloclist.join('/') + '?' + newsearch;
     window.open(newloc, '_blank');
 }
+
+// hide/show fields for discussionitems child table
+function discussionitems_postcreate(dt, ed) {
+    if (ed) {
+        // only show hidden_reason field if is_hidden is true (yes)
+        ed.dependent('hidden_reason', function(val, data, callback) {
+            return val === '' ?
+                { hide: 'hidden_reason' } :
+                { show: 'hidden_reason' }
+        });
+    }
+}
+
+

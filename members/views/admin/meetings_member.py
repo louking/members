@@ -531,6 +531,7 @@ memberstatusreport = MemberStatusreportView(
         'groupselector': '#metanav-select-interest',
         'childelementargs': [
             {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
+             'postcreatehook': 'discussionitems_postcreate',
              'args': {
                  'buttons': ['create', 'editRefresh', 'remove'],
                  'columns': {
