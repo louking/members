@@ -37,15 +37,20 @@ def setlogging():
     # logging.getLogger('sqlalchemy.pool').setLevel(logging.DEBUG)
 
     # # patch werkzeug logging -- not sure why this is being bypassed in werkzeug._internal._log
-    # *** for some reason the following code caued debug pin not to be shown, see https://github.com/louking/rrwebapp/issues/300
+    # *** for some reason the following code caused debug pin not to be shown, see https://github.com/louking/rrwebapp/issues/300
     # werkzeug_logger = logging.getLogger('werkzeug')
     # werkzeug_logger.setLevel(logging.INFO)
 
-    # TODO: move this to new module logging, bring in from dispatcher
     # set up logging
     ADMINS = ['lou.king@steeplechasers.org']
     if not current_app.debug:
-        mail_handler = SMTPHandler('localhost',
+        if 'MAIL_SERVER' in current_app.config and 'MAIL_PORT' in current_app.config:
+            mailhost = (current_app.config['MAIL_SERVER'], current_app.config['MAIL_PORT'])
+        elif 'MAIL_SERVER' in current_app.config:
+            mailhost = current_app.config['MAIL_SERVER']
+        else:
+            mailhost = 'localhost'
+        mail_handler = SMTPHandler(mailhost,
                                    'noreply@steeplechasers.org',
                                    ADMINS, 'members exception encountered')
         if 'LOGGING_LEVEL_MAIL' in current_app.config:
