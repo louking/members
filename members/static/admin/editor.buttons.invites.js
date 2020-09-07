@@ -68,7 +68,7 @@ $.fn.dataTable.ext.buttons.newInvites = {
                     // show appropriate fields again after the form closes, based on original option
                     // is there a better way? asked in
                     // https://datatables.net/forums/discussion/64236/how-to-best-determine-original-type-option
-                    config.editor.one('submitComplete preClose', function(e) {
+                    config.editor.one('submitComplete closed', function(e) {
                         config.editor.show();
                         var fields = config.editor.order();
                         for (var i=0; i<fields.length; i++) {
