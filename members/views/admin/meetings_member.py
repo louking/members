@@ -7,10 +7,10 @@ meetings_member - handling for meetings member
 from datetime import date
 
 # pypi
-from flask import request, flash, g
+from flask import request, flash, g, url_for
 from flask_security import current_user, logout_user, login_user
 from sqlalchemy import func
-from dominate.tags import div, h1, h2, ul, li, p, b
+from dominate.tags import div, h1, h2, ul, li, p, a
 from dominate.util import text
 
 # homegrown
@@ -23,6 +23,9 @@ from .viewhelpers import localuser2user, user2localuser, localinterest
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.timeu import asctime
+
+isodate = asctime('%Y-%m-%d')
 
 class ParameterError(Exception): pass
 
@@ -569,4 +572,73 @@ memberstatusreport = MemberStatusreportView(
     },
 )
 memberstatusreport.register()
+
+##########################################################################################
+# mymeetings endpoint
+##########################################################################################
+
+class MyMeetingsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        self.queryparams['user'] = user2localuser(current_user)
+
+def inviteurl(r):
+    url = url_for('admin.memberstatusreport', interest=g.interest) + '?invitekey=' + r.invitekey
+    tag = a('My Status Report', href=url)
+    return tag.render()
+
+mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey'.split(',')
+mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey'.split(',')
+mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
+mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
+mymeetings_formmapping['date'] = lambda r: isodate.dt2asc(r.meeting.date)
+mymeetings_formmapping['invitekey'] = inviteurl
+
+mymeetings = MyMeetingsView(
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=Invite,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-members-guide.html'},
+    pagename='My Meetings',
+    endpoint='admin.mymeetings',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/mymeetings',
+    dbmapping=mymeetings_dbmapping,
+    formmapping=mymeetings_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
+         'type': 'readonly'
+         },
+        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting Purpose',
+         'type': 'readonly'
+         },
+        {'data': 'response', 'name': 'response', 'label': 'RSVP',
+         'type': 'readonly'
+         },
+        {'data': 'attended', 'name': 'attended', 'label': 'Attended',
+         'className': 'TextCenter',
+         '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
+         'ed': {'type': 'readonly'},
+         },
+        {'data': 'invitekey', 'name': 'invitekey', 'label': 'My Status Report',
+         'type': 'readonly'
+         },
+    ],
+    idSrc='rowid',
+    buttons=[
+        'csv',
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'order': [['date:name', 'desc']],
+        'select': False,
+    },
+)
+mymeetings.register()
 

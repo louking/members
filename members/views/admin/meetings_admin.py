@@ -12,7 +12,6 @@ from flask_security import current_user
 from dominate.tags import h1, div, label, input
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
-from jinja2 import Template
 
 # homegrown
 from . import bp

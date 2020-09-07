@@ -93,7 +93,7 @@ def nav_menu():
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 meetingsviews = Subgroup('Meetings')
                 navbar.items.append(meetingsviews)
-                # meetings_member_view(meetingsviews, 'My Status Reports', 'admin.memberstatusreport', interest=g.interest)
+                meetings_member_view(meetingsviews, 'My Meetings', 'admin.mymeetings', interest=g.interest)
                 meetings_member_view(meetingsviews, 'Discussion Items', 'admin.memberdiscussions', interest=g.interest)
 
                 # meetings admin stuff
