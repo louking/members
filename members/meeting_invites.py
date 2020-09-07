@@ -33,6 +33,13 @@ def get_invites(meetingid):
         raise ParameterError('meeting with id "{}" not found'.format(meetingid))
 
     def get_invite(meeting, localuser):
+        """
+        get invite for a specific meeting/user combination
+
+        :param meeting: Meeting instance
+        :param localuser: LocalUser instance
+        :return: localuser.email, invitestate('attending, 'invited', 'send invitation'), Invite instance
+        """
         user = localuser2user(localuser)
         email = user.email
         invitestate = {'name': user.name, 'email': email}
@@ -85,6 +92,14 @@ def generateinvites(meetingid):
         agendaitem = previnvites[0].agendaitem
 
     def check_add_invite(meeting, localuser, agendaitem):
+        """
+        check if user invite needs to be added
+
+        :param meeting: Meeting instance
+        :param localuser: LocalUser instance
+        :param agendaitem: AgendaItem instance for invite to be attached to
+        :return: invite (may have been created)
+        """
         invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
         if not invite:
             # create unique key for invite - uuid4 gives unique key
@@ -94,7 +109,8 @@ def generateinvites(meetingid):
                 meeting=meeting,
                 user=localuser,
                 agendaitem=agendaitem,
-                invitekey = invitekey,
+                invitekey=invitekey,
+                activeinvite=True,
             )
             db.session.add(invite)
 
@@ -126,15 +142,25 @@ def generateinvites(meetingid):
             cclist = None
             sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 
-    # send invitations to all those who are tagged like the meeting
+        invite.activeinvite = True
+        return invite
+
+    # send invitations to all those who are tagged like the meeting [invite] tags
+    # track current invitations; make current invitations active
+    currinvites = set()
     for tag in meeting.tags:
         for user in tag.users:
-            check_add_invite(meeting, user, agendaitem)
+            thisinvite = check_add_invite(meeting, user, agendaitem)
+            currinvites |= {thisinvite.id}
         for position in tag.positions:
             for user in position.users:
-                check_add_invite(meeting, user, agendaitem)
+                thisinvite = check_add_invite(meeting, user, agendaitem)
+                currinvites |= {thisinvite.id}
 
-    # todo: make invites for anyone who has been removed from the list 'inactive' #124
+    # make invite inactive for anyone who was previously invited, but should not currently be invited
+    for invite in previnvites:
+        if invite.id not in currinvites:
+            invite.activeinvite = False
 
     # this agendaitem will be added to the displayed table
     db.session.flush()

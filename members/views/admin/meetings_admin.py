@@ -232,6 +232,7 @@ class InvitesView(DbCrudApiInterestsRolePermissions):
 
         # add meeting_id to filters if requested
         self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        self.queryparams['activeinvite'] = True
 
         # remove empty parameters from query filters
         delfields = []
