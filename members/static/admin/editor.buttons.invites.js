@@ -64,6 +64,21 @@ $.fn.dataTable.ext.buttons.newInvites = {
                         ])
                         // need to set to 'no' else dependent() shows it
                         .field('is_hidden').val('no');
+
+                    // show appropriate fields again after the form closes, based on original option
+                    // is there a better way? asked in
+                    // https://datatables.net/forums/discussion/64236/how-to-best-determine-original-type-option
+                    config.editor.one('submitComplete preClose', function(e) {
+                        config.editor.show();
+                        var fields = config.editor.order();
+                        for (var i=0; i<fields.length; i++) {
+                            var field = fields[i];
+                            // warning: using editor internals, not from API
+                            if (config.editor.s.fields[field].s.opts.type === "hidden") {
+                                config.editor.field(field).hide();
+                            }
+                        }
+                    })
                 }
 
             }
