@@ -4,7 +4,7 @@ meetings_member - handling for meetings member
 '''
 
 # standard
-from datetime import date
+from datetime import date, datetime
 
 # pypi
 from flask import request, flash, g, url_for
@@ -16,16 +16,18 @@ from dominate.util import text
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem
+from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem
 from ...model import MemberStatusReport, StatusReport, DiscussionItem
-from ...model import invite_response_all
+from ...model import invite_response_all, action_all
 from .viewhelpers import localuser2user, user2localuser, localinterest
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.timeu import asctime
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 isodate = asctime('%Y-%m-%d')
+displaytime = asctime('%Y-%m-%d %H:%M')
 
 class ParameterError(Exception): pass
 
@@ -590,7 +592,7 @@ mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,atten
 mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
-mymeetings_formmapping['date'] = lambda r: isodate.dt2asc(r.meeting.date)
+mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
 mymeetings_formmapping['invitekey'] = inviteurl
 
 mymeetings = MyMeetingsView(
@@ -641,4 +643,94 @@ mymeetings = MyMeetingsView(
     },
 )
 mymeetings.register()
+
+##########################################################################################
+# myactionitems endpoint
+##########################################################################################
+
+class MyActionItemsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        self.queryparams['assignee'] = user2localuser(current_user)
+
+myactionitems_dbattrs = 'id,interest_id,action,status,comments,meeting.date,agendaitem.title,agendaitem.agendaitem,update_time,updated_by'.split(',')
+myactionitems_formfields = 'rowid,interest_id,action,status,comments,date,agendatitle,agendatext,update_time,updated_by'.split(',')
+myactionitems_dbmapping = dict(zip(myactionitems_dbattrs, myactionitems_formfields))
+myactionitems_formmapping = dict(zip(myactionitems_formfields, myactionitems_dbattrs))
+myactionitems_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
+# todo: should this be in tables.py? but see https://github.com/louking/loutilities/issues/25
+myactionitems_dbmapping['meeting.date'] = '__readonly__'
+myactionitems_formmapping['update_time'] = lambda row: displaytime.dt2asc(row.update_time)
+myactionitems_dbmapping['update_time'] = lambda form: datetime.now()
+myactionitems_formmapping['updated_by'] = lambda row: LocalUser.query.filter_by(id=row.updated_by).one().name
+myactionitems_dbmapping['updated_by'] = lambda form: user2localuser(current_user).id
+
+agendaitems_filters = filtercontainerdiv()
+agendaitems_filters += filterdiv('agendaitems-external-filter-status', 'Status')
+
+agendaitems_yadcf_options = [
+    yadcfoption('status:name', 'agendaitems-external-filter-status', 'multi_select', placeholder='Select statuses', width='200px'),
+]
+
+myactionitems = MyActionItemsView(
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=ActionItem,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-members-guide.html'},
+    pretablehtml=agendaitems_filters.render(),
+    yadcfoptions=agendaitems_yadcf_options,
+    pagename='My Action Items',
+    endpoint='admin.myactionitems',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/myactionitems',
+    dbmapping=myactionitems_dbmapping,
+    formmapping=myactionitems_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'date', 'name': 'date', 'label': 'Date Created',
+         'type': 'readonly'
+         },
+        {'data': 'action', 'name': 'action', 'label': 'Action',
+         'type': 'readonly'
+         },
+        {'data': 'agendatitle', 'name': 'agendatitle', 'label': 'Agenda Item',
+         'type': 'readonly',
+         'dt': {'visible': False},
+         },
+        {'data': 'agendatext', 'name': 'agendatext', 'label': '',
+         'type': 'display',
+         'dt': {'visible': False},
+         },
+        {'data': 'status', 'name': 'status', 'label': 'Status',
+         'type': 'select2',
+         'options': action_all,
+         },
+        {'data': 'comments', 'name': 'comments', 'label': 'Progress / Resolution',
+         'type': 'ckeditorInline',
+         'fieldInfo': 'record your progress or how this was resolved',
+         'dt': {'visible': False},
+         },
+        {'data': 'update_time', 'name': 'update_time', 'label': 'Last Update',
+         'type': 'hidden',
+         },
+        {'data': 'updated_by', 'name': 'updated_by', 'label': 'Updated By',
+         'type': 'hidden',
+         },
+    ],
+    idSrc='rowid',
+    buttons=[
+        'editRefresh',
+        'csv',
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'order': [['date:name', 'desc']],
+    },
+)
+myactionitems.register()
 
