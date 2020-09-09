@@ -535,6 +535,14 @@ meetingvotetag_table = Table('meetingvote_tag', Base.metadata,
     Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
+interestmeetingtag_table = Table('interestmeeting_tag', Base.metadata,
+    Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+interestmeetingvotetag_table = Table('interestmeetingvote_tag', Base.metadata,
+    Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
 
 class Tag(Base):
     __tablename__ =  'tag'
@@ -549,6 +557,8 @@ class Tag(Base):
     users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
     meetings            = relationship( 'Meeting', secondary=meetingtag_table, backref='tags', lazy=True )
     meetingvotes        = relationship( 'Meeting', secondary=meetingvotetag_table, backref='votetags', lazy=True )
+    interestmeetings    = relationship( 'LocalInterest', secondary=interestmeetingtag_table, backref='interestmeetingtags', lazy=True )
+    interestmeetingvotes= relationship( 'LocalInterest', secondary=interestmeetingvotetag_table, backref='interestmeetingvotetags', lazy=True )
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id

@@ -9,7 +9,7 @@ from re import compile
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest
+from ...model import LocalInterest, Tag, localinterest_query_params
 from ...model import all_club_services
 from loutilities.user.model import Interest
 from loutilities.tables import DbCrudApiRolePermissions
@@ -28,8 +28,10 @@ def interestattr_validate(action, formdata):
 
     return results
 
-interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id'.split(',')
-interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id'.split(',')
+interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id,'\
+                       'interestmeetingtags,interestmeetingvotetags'.split(',')
+interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id,'\
+                          'interestmeetingtags,interestmeetingvotetags'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
 interestattr_dbmapping['initial_expiration'] = lambda formrow: date(*[int(f) for f in formrow['initial_expiration'].split('-')])
@@ -74,6 +76,22 @@ interestattr = DbCrudApiRolePermissions(
                         {'data': 'service_id', 'name': 'service_id', 'label': 'Service ID',
                          'fieldInfo': 'ID which Club Service uses for club member access',
                          'className': 'field_req',
+                         },
+                        {'data': 'interestmeetingtags', 'name': 'interestmeetingtags', 'label': 'Meeting Invite Tags',
+                         'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'interestmeetingtags',
+                                              'dbfield': 'interestmeetingtags', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                        {'data': 'interestmeetingvotetags', 'name': 'interestmeetingvotetags', 'label': 'Meeting Vote Tags',
+                         'fieldInfo': 'members who have these tags, either directly or via position, can vote on motions',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'interestmeetingvotetags',
+                                              'dbfield': 'interestmeetingvotetags', 'uselist': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                     ],
                     servercolumns = None,  # not server side

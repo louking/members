@@ -121,6 +121,13 @@ meetings_formmapping['date'] = lambda dbrow: dtrender.dt2asc(dbrow.date)
 meetings_dbmapping['show_actions_since'] = lambda formrow: dtrender.asc2dt(formrow['show_actions_since'])
 meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow.show_actions_since)
 
+def meetingcreatefieldvals():
+    interest = localinterest()
+    return {
+        'tags.id': [t.id for t in interest.interestmeetingtags],
+        'votetags.id': [t.id for t in interest.interestmeetingvotetags],
+    }
+
 class MeetingsView(DbCrudApiInterestsRolePermissions):
     def createrow(self, formdata):
         """
@@ -152,6 +159,7 @@ meetings = MeetingsView(
     dbmapping=meetings_dbmapping,
     formmapping=meetings_formmapping,
     checkrequired=True,
+    createfieldvals=meetingcreatefieldvals,
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Purpose',
          'className': 'field_req',
@@ -899,7 +907,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
             self.queryparams['is_hidden'] = False
 
     def postprocessrows(self, rows):
-        # todo: can this be part of configuration, or method to call per row or for all rows?
         for row in rows:
             if row['is_hidden'] == 'yes':
                 row['DT_RowClass'] = 'hidden-row'
