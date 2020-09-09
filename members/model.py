@@ -292,6 +292,7 @@ class EmailTemplate(Base):
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('emailtemplates'))
     templatename        = Column(String(TEMPLATENAME_LEN))
+    from_email          = Column(String(EMAIL_LEN))
     subject             = Column(String(EMAIL_SUBJECT_LEN))
     template            = Column(String(EMAIL_TEMPLATE_LEN))
     version_id = Column(Integer, nullable=False, default=1)

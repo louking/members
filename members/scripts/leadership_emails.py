@@ -108,6 +108,7 @@ def main():
         for member in mem2tasks:
             mem2tasks[member]['tasks'].sort(key=lambda t: t['order'])
 
+        # default is from interest, may be overridden below, based on emailtemplate configuration
         fromlist = localinterest().from_email
 
         # allows for debugging of each section separately
@@ -115,6 +116,8 @@ def main():
             emailtemplate = EmailTemplate.query.filter_by(templatename='member-email', interest=localinterest()).one()
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
+            if emailtemplate.from_email:
+                fromlist = emailtemplate.from_email
             refurl = url_for('admin.taskchecklist', interest=g.interest)
 
             for emailaddr in mem2tasks:
@@ -164,6 +167,8 @@ def main():
             emailtemplate = EmailTemplate.query.filter_by(templatename='leader-email', interest=localinterest()).one()
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
+            if emailtemplate.from_email:
+                fromlist = emailtemplate.from_email
             refurl = url_for('admin.taskdetails', interest=g.interest)
 
             # loop through responsible managers, setting up their email

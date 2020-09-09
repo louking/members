@@ -124,6 +124,10 @@ def generateinvites(meetingid):
             template = Template(emailtemplate.template)
             subject = emailtemplate.subject
 
+            fromlist = localinterest().from_email
+            if emailtemplate.from_email:
+                fromlist = emailtemplate.from_email
+
             rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
                                    urlargs={'invitekey': invitekey},
                                    _external=True)
@@ -138,7 +142,6 @@ def generateinvites(meetingid):
             }
             html = template.render(**context)
             tolist = localuser.email
-            fromlist = localinterest().from_email
             cclist = None
             sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 

@@ -3,6 +3,7 @@ leadership_tasks_superadmin - administrative task handling for superuser
 ==============================================================================
 '''
 # standard
+from re import match
 
 # pypi
 
@@ -13,6 +14,7 @@ from ...model import LocalInterest, EmailTemplate
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.tables import REGEX_EMAIL
 
 class ParameterError(Exception): pass
 
@@ -23,10 +25,20 @@ debug = False
 # emailtemplates endpoint
 ###########################################################################################
 
-emailtemplate_dbattrs = 'id,interest_id,templatename,subject,template'.split(',')
-emailtemplate_formfields = 'rowid,interest_id,templatename,subject,template'.split(',')
+emailtemplate_dbattrs = 'id,interest_id,templatename,subject,template,from_email'.split(',')
+emailtemplate_formfields = 'rowid,interest_id,templatename,subject,template,from_email'.split(',')
 emailtemplate_dbmapping = dict(zip(emailtemplate_dbattrs, emailtemplate_formfields))
 emailtemplate_formmapping = dict(zip(emailtemplate_formfields, emailtemplate_dbattrs))
+
+def emailtemplate_validate(action, formdata):
+    results = []
+
+    field = 'from_email'
+    if formdata[field]:
+        if not match(REGEX_EMAIL, formdata[field]):
+            results.append({'name': field, 'status': 'please specify correct email format'})
+
+    return results
 
 emailtemplate = DbCrudApiInterestsRolePermissions(
     roles_accepted=[ROLE_SUPER_ADMIN],
@@ -44,6 +56,7 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
     dbmapping=emailtemplate_dbmapping,
     formmapping=emailtemplate_formmapping,
     checkrequired=True,
+    validate=emailtemplate_validate,
     clientcolumns=[
         {'data': 'templatename', 'name': 'templatename', 'label': 'Template Name',
          'className': 'field_req',
@@ -52,12 +65,14 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
         {'data': 'subject', 'name': 'subject', 'label': 'Subject',
          'className': 'field_req',
          },
+        {'data': 'from_email', 'name': 'from_email', 'label': 'From Email',
+         'fieldInfo': 'optional from address for this template, if empty uses From Email from Interest Attributes'
+         },
         {'data': 'template', 'name': 'template', 'label': 'Template',
          'type': 'textarea',
          'className': 'field_req',
          'fieldInfo': 'html with template substitution for text like {{member}}, {{membertasks}}, {{expires}}',
          },
-
     ],
     servercolumns=None,  # not server side
     idSrc='rowid',
