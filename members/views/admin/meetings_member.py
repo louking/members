@@ -480,6 +480,20 @@ def get_invite_response(dbrow):
     invite = dbrow.invite
     return invite.response
 
+def memberstatusreport_buttons():
+    invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
+    meeting = invite.meeting
+    today = date.today()
+    if meeting.date >= today:
+        buttons = [
+            'create',
+            'editChildRowRefresh',
+        ]
+    else:
+        buttons = []
+
+    return buttons
+
 memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,invite.attended,'\
                              'content.id,content.statusreport,content.position_id'.split(',')
 memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,attended,'\
@@ -570,10 +584,7 @@ memberstatusreport = MemberStatusreportView(
         ],
     },
     idSrc='rowid',
-    buttons=[
-        'create',
-        'editChildRowRefresh',
-    ],
+    buttons=memberstatusreport_buttons,
     dtoptions={
         'scrollCollapse': True,
         'scrollX': True,
