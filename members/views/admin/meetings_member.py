@@ -480,10 +480,13 @@ def get_invite_response(dbrow):
     invite = dbrow.invite
     return invite.response
 
-memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,content.id,content.statusreport,content.position_id'.split(',')
-memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,statusreport_id,statusreport,position_id'.split(',')
+memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,invite.attended,'\
+                             'content.id,content.statusreport,content.position_id'.split(',')
+memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,attended,'\
+                                'statusreport_id,statusreport,position_id'.split(',')
 memberstatusreport_dbmapping = dict(zip(memberstatusreport_dbattrs, memberstatusreport_formfields))
 memberstatusreport_formmapping = dict(zip(memberstatusreport_formfields, memberstatusreport_dbattrs))
+memberstatusreport_dbmapping['invite.attended'] = lambda form: True if form['attended'] == 'true' else False
 
 memberstatusreport = MemberStatusreportView(
     local_interest_model=LocalInterest,
@@ -527,6 +530,11 @@ memberstatusreport = MemberStatusreportView(
              'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
                          "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
          }
+         },
+        # this is hidden, updated automatically by member setting response (see afterdatatables.js)
+        {'data': 'attended', 'name': 'attended', 'label': 'Attended',
+         'visible': False,
+         'type': 'hidden',
          },
     ],
     childrowoptions= {
