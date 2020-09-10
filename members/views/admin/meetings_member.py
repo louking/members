@@ -602,11 +602,19 @@ class MyMeetingsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
         self.queryparams['user'] = user2localuser(current_user)
 
+def mymeetings_attended(row):
+    today = date.today()
+    if row.meeting.date >= today:
+        return ''
+    else:
+        return 'yes' if row.attended else 'no'
+
 mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey'.split(',')
 mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
 mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
+mymeetings_formmapping['attended'] = mymeetings_attended
 
 mymeetings = MyMeetingsView(
     local_interest_model=LocalInterest,
@@ -635,8 +643,7 @@ mymeetings = MyMeetingsView(
          },
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',
          'className': 'TextCenter',
-         '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
-         'ed': {'type': 'readonly'},
+         'type': 'readonly',
          },
         {'data': 'invitekey', 'name': 'invitekey', 'label': 'My Status Report',
          'type': 'hidden',
