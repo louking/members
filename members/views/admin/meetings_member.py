@@ -602,17 +602,11 @@ class MyMeetingsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
         self.queryparams['user'] = user2localuser(current_user)
 
-def inviteurl(r):
-    url = url_for('admin.memberstatusreport', interest=g.interest) + '?invitekey=' + r.invitekey
-    tag = a('My Status Report', href=url)
-    return tag.render()
-
 mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey'.split(',')
 mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
 mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
-mymeetings_formmapping['invitekey'] = inviteurl
 
 mymeetings = MyMeetingsView(
     local_interest_model=LocalInterest,
@@ -645,11 +639,17 @@ mymeetings = MyMeetingsView(
          'ed': {'type': 'readonly'},
          },
         {'data': 'invitekey', 'name': 'invitekey', 'label': 'My Status Report',
-         'type': 'readonly'
+         'type': 'hidden',
+         'dt': {'visible': False},
          },
     ],
     idSrc='rowid',
     buttons=[
+        {
+            'extend': 'edit',
+            'text': 'My Status Report',
+            'action': {'eval': 'mymeeting_statusreport'}
+        },
         'csv',
     ],
     dtoptions={
@@ -658,7 +658,6 @@ mymeetings = MyMeetingsView(
         'scrollXInner': "100%",
         'scrollY': True,
         'order': [['date:name', 'desc']],
-        'select': False,
     },
 )
 mymeetings.register()

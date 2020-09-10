@@ -61,6 +61,18 @@ function meeting_details(e, dt, node, config) {
     window.open(newloc, '_blank');
 }
 
+// view status report from my status reports view
+function mymeeting_statusreport(e, dt, node, config) {
+    var args = allUrlParams();
+    var invitekey = dt.rows({selected:true}).data()[0].invitekey;
+    args.invitekey = invitekey;
+    var newsearch = $.param(args);
+    var newloclist = window.location.pathname.split('/').slice(0, -1);
+    newloclist.push('memberstatusreport');
+    var newloc = newloclist.join('/') + '?' + newsearch;
+    window.location.href = newloc;
+}
+
 // hide/show fields for discussionitems child table
 function discussionitems_postcreate(dt, ed) {
     if (ed) {
