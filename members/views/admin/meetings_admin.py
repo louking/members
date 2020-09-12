@@ -17,15 +17,14 @@ from sqlalchemy.orm import aliased
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Tag, Position
-from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, EmailTemplate, AgendaHeading
+from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import localinterest_query_params, localinterest_viafilter
-from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING
+from ...model import invite_response_all
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
-from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
-from ...meeting_invites import generateinvites, get_invites
+from ...model import ACTION_STATUS_OPEN
+from ...meeting_invites import generateinvites, get_invites, generatereminder
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
-from loutilities.flask_helpers.mailer import sendmail
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
@@ -204,6 +203,11 @@ meetings = MeetingsView(
             'extend': 'edit',
             'text': 'View Meeting',
             'action': {'eval': 'meeting_details'}
+        },
+        {
+            'extend': 'edit',
+            'text': 'Meeting Status',
+            'action': {'eval': 'meeting_status'}
         },
         'create',
         'editRefresh',
@@ -839,15 +843,6 @@ def meeting_validate(action, formdata):
 
 class MeetingView(DbCrudApiInterestsRolePermissions):
 
-    def __init__(self, **kwargs):
-        args = dict(
-            pretablehtml = self.format_pretablehtml
-        )
-        args.update(kwargs)
-
-        # initialize inherited class, and a couple of attributes
-        super().__init__(**args)
-
     def permission(self):
         '''
         verify meetingid arg
@@ -861,22 +856,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         if not meeting:
             return False
         return super().permission()
-
-    def format_pretablehtml(self):
-        meetingid = request.args['meeting_id']
-        meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
-        pretablehtml = div()
-        with pretablehtml:
-            # meeting header
-            h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
-
-            # hide / show hidden rows
-            hiddenfilter = div(_class='checkbox-filter FloatRight')
-            with hiddenfilter:
-                input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
-                label('Show hidden items', _for='show-hidden-status')
-
-        return pretablehtml.render()
 
     def updateinvites(self):
         invites = Invite.query.filter_by(**self.queryparams).all()
@@ -1018,6 +997,22 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
 
         return super().deleterow(thisid)
 
+def meeting_pretablehtml():
+    meetingid = request.args['meeting_id']
+    meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+    pretablehtml = div()
+    with pretablehtml:
+        # meeting header
+        h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
+
+        # hide / show hidden rows
+        hiddenfilter = div(_class='checkbox-filter FloatRight')
+        with hiddenfilter:
+            input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
+            label('Show hidden items', _for='show-hidden-status')
+
+    return pretablehtml.render()
+
 
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
@@ -1039,6 +1034,7 @@ meeting = MeetingView(
     formmapping=meeting_formmapping,
     checkrequired=True,
     tableidtemplate='meeting-{{ meeting_id }}-{{ agendaitem_id }}',
+    pretablehtml=meeting_pretablehtml,
     validate=meeting_validate,
     clientcolumns=[
         {'data':None,
@@ -1199,6 +1195,127 @@ meeting = MeetingView(
 },
 )
 meeting.register()
+
+##########################################################################################
+# meetingstatus endpoint
+###########################################################################################
+
+class MeetingStatusView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        self.queryparams['has_status_report'] = True
+
+    @_editormethod(checkaction='edit', formrequest=True)
+    def put(self, thisid):
+        # allow multirow editing, i.e., to send emails for multiple selected positions
+        theseids = thisid.split(',')
+        positions = []
+        self._responsedata = []
+        users = set()
+        for id in theseids:
+            # try to coerce to int, but ok if not
+            try:
+                id = int(id)
+            except ValueError:
+                pass
+
+            # these just satisfy editor -- is this needed?
+            thisdata = self._data[id]
+            thisrow = self.updaterow(id, thisdata)
+            self._responsedata += [thisrow]
+
+            # collect users which hold this position, and positions which have been selected
+            position = Position.query.filter_by(id=id).one()
+            users |= set(position.users)
+            positions.append(position)
+
+        # send reminder email to each user
+        for user in users:
+            generatereminder(request.args['meeting_id'], user, positions)
+
+def meetingstatus_getstatus(row):
+    meeting_id = request.args['meeting_id']
+    statusreport = StatusReport.query.filter_by(meeting_id=meeting_id, position=row).one_or_none()
+    if not statusreport or not statusreport.statusreport:
+        return 'missing'
+    else:
+        return 'entered'
+
+def meetingstatus_pretablehtml():
+    meetingid = request.args['meeting_id']
+    meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+    pretablehtml = div()
+    with pretablehtml:
+        # meeting header
+        h1('{} - {}'.format(meeting.date, meeting.purpose), _class='TextCenter')
+
+        meetingstatus_filters = filtercontainerdiv()
+        with meetingstatus_filters:
+            filterdiv('meetingstatus-external-filter-status', 'Status')
+
+    return pretablehtml.render()
+
+meetingstatus_dbattrs = 'id,interest_id,position,users,__readonly__'.split(',')
+meetingstatus_formfields = 'rowid,interest_id,position,users,status'.split(',')
+meetingstatus_dbmapping = dict(zip(meetingstatus_dbattrs, meetingstatus_formfields))
+meetingstatus_formmapping = dict(zip(meetingstatus_formfields, meetingstatus_dbattrs))
+meetingstatus_formmapping['status'] = meetingstatus_getstatus
+
+meetingstatus_yadcf_options = [
+    yadcfoption('status:name', 'meetingstatus-external-filter-status', 'select', placeholder='Select', width='130px'),
+]
+
+meetingstatus = MeetingStatusView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=Position,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    pretablehtml=meetingstatus_pretablehtml,
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    yadcfoptions=meetingstatus_yadcf_options,
+    pagename='Meeting Status',
+    endpoint='admin.meetingstatus',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/meetingstatus',
+    dbmapping=meetingstatus_dbmapping,
+    formmapping=meetingstatus_formmapping,
+    checkrequired=True,
+    createfieldvals=meetingcreatefieldvals,
+    clientcolumns=[
+        {'data': 'position', 'name': 'position', 'label': 'Position',
+         },
+        {'data': 'users', 'name': 'users', 'label': 'Members',
+         '_treatment': {
+             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name', 'formfield': 'users',
+                              'dbfield': 'users', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'status', 'name': 'status', 'label': 'Status Report',
+         },
+    ],
+    servercolumns=None,  # not server side
+    idSrc='rowid',
+    buttons=[
+        {
+            'extend':'edit',
+            'editor': {'eval':'editor'},
+            'text': 'Send Reminders',
+            'action': {'eval':'editor_submit_button(editor)'}
+        },
+        'csv'
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'select': 'os',
+    },
+)
+meetingstatus.register()
 
 ##########################################################################################
 # agendaheadings endpoint

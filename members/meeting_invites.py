@@ -4,6 +4,7 @@ meeting_invites - support for meeting invitation management
 """
 # standard
 from uuid import uuid4
+from datetime import datetime
 
 # pypi
 from flask import g
@@ -68,6 +69,63 @@ def get_invites(meetingid):
     # return the state values to simplify client work, also return the database records
     return list(invitestates.values()), list(invites.values())
 
+def check_add_invite(meeting, localuser, agendaitem):
+    """
+    check if user invite needs to be added
+
+    :param meeting: Meeting instance
+    :param localuser: LocalUser instance
+    :param agendaitem: AgendaItem instance for invite to be attached to
+    :return: invite (may have been created)
+    """
+    invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
+    if not invite:
+        # create unique key for invite - uuid4 gives unique key
+        invitekey = uuid4().hex
+        invite = Invite(
+            interest=localinterest(),
+            meeting=meeting,
+            user=localuser,
+            agendaitem=agendaitem,
+            invitekey=invitekey,
+            activeinvite=True,
+            lastreminder=datetime.now(),
+        )
+        db.session.add(invite)
+
+        # get user's outstanding action items
+        actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\
+            filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
+
+        # send email to user
+        emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email',
+                                                      interest=localinterest()).one()
+        template = Template(emailtemplate.template)
+        subject = emailtemplate.subject
+
+        fromlist = localinterest().from_email
+        if emailtemplate.from_email:
+            fromlist = emailtemplate.from_email
+
+        rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
+                               urlargs={'invitekey': invitekey},
+                               _external=True)
+        actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
+
+        context = {
+            'meeting': meeting,
+            'actionitems': actionitems,
+            'rsvpurl': rsvpurl,
+            'actionitemurl': actionitemurl
+        }
+        html = template.render(**context)
+        tolist = localuser.email
+        cclist = None
+        sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+
+    invite.activeinvite = True
+    return invite
+
 def generateinvites(meetingid):
     """
     generate the invitations for a specified meeting; return the agendaitem if created
@@ -91,63 +149,6 @@ def generateinvites(meetingid):
     else:
         agendaitem = previnvites[0].agendaitem
 
-    def check_add_invite(meeting, localuser, agendaitem):
-        """
-        check if user invite needs to be added
-
-        :param meeting: Meeting instance
-        :param localuser: LocalUser instance
-        :param agendaitem: AgendaItem instance for invite to be attached to
-        :return: invite (may have been created)
-        """
-        invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
-        if not invite:
-            # create unique key for invite - uuid4 gives unique key
-            invitekey = uuid4().hex
-            invite = Invite(
-                interest=localinterest(),
-                meeting=meeting,
-                user=localuser,
-                agendaitem=agendaitem,
-                invitekey=invitekey,
-                activeinvite=True,
-            )
-            db.session.add(invite)
-
-            # get user's outstanding action items
-            actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\
-                filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
-
-            # send email to user
-            emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email',
-                                                          interest=localinterest()).one()
-            template = Template(emailtemplate.template)
-            subject = emailtemplate.subject
-
-            fromlist = localinterest().from_email
-            if emailtemplate.from_email:
-                fromlist = emailtemplate.from_email
-
-            rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
-                                   urlargs={'invitekey': invitekey},
-                                   _external=True)
-            actionitemurl = page_url_for('admin.actionitems', interest=g.interest,
-                                   urlargs={'member_id': localuser2user(localuser).id},
-                                   _external=True)
-            context = {
-                'meeting': meeting,
-                'actionitems': actionitems,
-                'rsvpurl': rsvpurl,
-                'actionitemurl': actionitemurl
-            }
-            html = template.render(**context)
-            tolist = localuser.email
-            cclist = None
-            sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
-
-        invite.activeinvite = True
-        return invite
-
     # send invitations to all those who are tagged like the meeting [invite] tags
     # track current invitations; make current invitations active
     currinvites = set()
@@ -169,3 +170,60 @@ def generateinvites(meetingid):
     db.session.flush()
     return agendaitem
 
+def generatereminder(meetingid, member, positions):
+    """
+    generate a meeting reminder email to the user
+
+    :param meetingid: id of meeting
+    :param member: member to remind
+    :param positions: positions for which this reminder is about
+    :return: None
+    """
+    # find member's invitation, if it exists
+    invite = Invite.query.filter_by(meeting_id=meetingid, user=member).one_or_none()
+
+    # invite already exists, send reminder
+    if invite:
+        # send reminder email to user
+        emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-reminder-email',
+                                                      interest=localinterest()).one()
+
+        subject = emailtemplate.subject
+        fromlist = localinterest().from_email
+        if emailtemplate.from_email:
+            fromlist = emailtemplate.from_email
+        tolist = member.email
+        cclist = None
+
+        # get user's outstanding action items
+        actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=member). \
+            filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
+
+        # set up urls for email
+        rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
+                               urlargs={'invitekey': invite.invitekey},
+                               _external=True)
+        actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
+
+        # filter positions to those which affect this member
+        memberpositions = [p for p in positions if p in member.positions]
+
+        # create and send email
+        template = Template(emailtemplate.template)
+        context = {
+            'meeting': invite.meeting,
+            'actionitems': actionitems,
+            'rsvpurl': rsvpurl,
+            'actionitemurl': actionitemurl,
+            'positions': memberpositions,
+        }
+        html = template.render(**context)
+
+        sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+        invite.lastreminder = datetime.now()
+
+    # invite doesn't exist yet, create and send invite
+    else:
+        meeting = Meeting.query.filter_by(id=meetingid).one()
+        anyinvite = Invite.query.filter_by(interest=localinterest(), meeting=meeting).first()
+        check_add_invite(meeting, member, anyinvite.agendaitem)

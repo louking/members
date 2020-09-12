@@ -29,6 +29,14 @@ function submit_button() {
     this.submit();
 }
 
+function editor_submit_button(ed) {
+    fn = function() {
+        // selected rows, false means don't display form
+        ed.edit({selected:true}, false).submit();
+    }
+    return fn;
+}
+
 function render_month_date(data, type, row, meta) {
     if (data) {
         return data.slice(-5)
@@ -57,6 +65,18 @@ function meeting_details(e, dt, node, config) {
     var newsearch = $.param(args);
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('meeting');
+    var newloc = newloclist.join('/') + '?' + newsearch;
+    window.open(newloc, '_blank');
+}
+
+// view meeting from meetings view
+function meeting_status(e, dt, node, config) {
+    var args = allUrlParams();
+    var meetingid = dt.rows({selected:true}).data()[0].rowid;
+    args.meeting_id = meetingid;
+    var newsearch = $.param(args);
+    var newloclist = window.location.pathname.split('/').slice(0, -1);
+    newloclist.push('meetingstatus');
     var newloc = newloclist.join('/') + '?' + newsearch;
     window.open(newloc, '_blank');
 }

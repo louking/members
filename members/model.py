@@ -348,6 +348,7 @@ class Invite(Base):
     response            = Column(Enum(*invite_response_all), default=INVITE_RESPONSE_NO_RESPONSE)
     attended            = Column(Boolean, default=False)
     activeinvite        = Column(Boolean, default=True)
+    lastreminder        = Column(DateTime)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
