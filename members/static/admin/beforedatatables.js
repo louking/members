@@ -85,7 +85,7 @@ function member_details(e, dt, node, config) {
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('taskdetails');
     var newloc = newloclist.join('/') + '?' + newsearch;
-    window.open(newloc, '_blank');
+    window.location.href = newloc;
 }
 
 // view meeting from meetings view
@@ -97,7 +97,7 @@ function meeting_details(e, dt, node, config) {
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('meeting');
     var newloc = newloclist.join('/') + '?' + newsearch;
-    window.open(newloc, '_blank');
+    window.location.href = newloc;
 }
 
 // view meeting from meetings view
@@ -109,7 +109,7 @@ function meeting_status(e, dt, node, config) {
     var newloclist = window.location.pathname.split('/').slice(0, -1);
     newloclist.push('meetingstatus');
     var newloc = newloclist.join('/') + '?' + newsearch;
-    window.open(newloc, '_blank');
+    window.location.href = newloc;
 }
 
 // view status report from my status reports view
