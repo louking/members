@@ -177,7 +177,7 @@ def generatereminder(meetingid, member, positions):
     :param meetingid: id of meeting
     :param member: member to remind
     :param positions: positions for which this reminder is about
-    :return: None
+    :return: False if new invite sent, True if reminder sent
     """
     # find member's invitation, if it exists
     invite = Invite.query.filter_by(meeting_id=meetingid, user=member).one_or_none()
@@ -221,9 +221,13 @@ def generatereminder(meetingid, member, positions):
 
         sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
         invite.lastreminder = datetime.now()
+        reminder = True
 
     # invite doesn't exist yet, create and send invite
     else:
         meeting = Meeting.query.filter_by(id=meetingid).one()
         anyinvite = Invite.query.filter_by(interest=localinterest(), meeting=meeting).first()
         check_add_invite(meeting, member, anyinvite.agendaitem)
+        reminder = False
+
+    return reminder

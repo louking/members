@@ -33,7 +33,7 @@ from loutilities.user.model import User
 from loutilities.tables import _editormethod, get_request_action, rest_url_for, page_url_for, CHILDROW_TYPE_TABLE
 from loutilities.timeu import asctime
 
-isotime = asctime('%Y-%m-%d')
+isodate = asctime('%Y-%m-%d')
 
 class ParameterError(Exception): pass
 
@@ -232,7 +232,7 @@ invites_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,user.name,user.em
 invites_formfields = 'rowid,interest_id,purpose,date,name,email,agendaitem,invitekey,response,attended,activeinvite'.split(',')
 invites_dbmapping = dict(zip(invites_dbattrs, invites_formfields))
 invites_formmapping = dict(zip(invites_formfields, invites_dbattrs))
-# invites_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+# invites_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
 class InvitesView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
@@ -336,7 +336,7 @@ actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,m
 actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,update_time,updated_by'.split(',')
 actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
 actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
-# actionitems_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+# actionitems_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
 class ActionItemsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
@@ -474,7 +474,7 @@ motionvotes_dbattrs = 'id,interest_id,meeting.date,motion.motion,user.name,vote,
 motionvotes_formfields = 'rowid,interest_id,date,motion,user,vote,meeting_id,motion_id'.split(',')
 motionvotes_dbmapping = dict(zip(motionvotes_dbattrs, motionvotes_formfields))
 motionvotes_formmapping = dict(zip(motionvotes_formfields, motionvotes_dbattrs))
-# motionsvote_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+# motionsvote_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
 class MotionVotesView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
@@ -574,7 +574,7 @@ motions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion,comments,s
 motions_formfields = 'rowid,interest_id,purpose,date,motion,comments,status,meeting_id,agendaitem_id,mover,seconder'.split(',')
 motions_dbmapping = dict(zip(motions_dbattrs, motions_formfields))
 motions_formmapping = dict(zip(motions_formfields, motions_dbattrs))
-# motions_formmapping['date'] = lambda dbrow: isotime.dt2asc(dbrow.meeting.date)
+# motions_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
 class MotionsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
@@ -1218,19 +1218,28 @@ class MeetingStatusView(DbCrudApiInterestsRolePermissions):
             except ValueError:
                 pass
 
-            # these just satisfy editor -- is this needed?
-            thisdata = self._data[id]
-            thisrow = self.updaterow(id, thisdata)
-            self._responsedata += [thisrow]
-
             # collect users which hold this position, and positions which have been selected
             position = Position.query.filter_by(id=id).one()
             users |= set(position.users)
             positions.append(position)
 
         # send reminder email to each user
+        self.responsekeys = {'reminded': [], 'newinvites': []}
         for user in users:
-            generatereminder(request.args['meeting_id'], user, positions)
+            reminder = generatereminder(request.args['meeting_id'], user, positions)
+            if reminder:
+                self.responsekeys['reminded'].append('{}'.format(user.name))
+            else:
+                self.responsekeys['newinvites'].append('{}'.format(user.name))
+
+        # do this at the end to pick up invite.lastreminded (updated in generatereminder())
+        # note need to flush to pick up any new invites
+        db.session.flush()
+        for id in theseids:
+            thisdata = self._data[id]
+            thisrow = self.updaterow(id, thisdata)
+            self._responsedata += [thisrow]
+
 
 def meetingstatus_getstatus(row):
     meeting_id = request.args['meeting_id']
@@ -1239,6 +1248,18 @@ def meetingstatus_getstatus(row):
         return 'missing'
     else:
         return 'entered'
+
+def meetingstatus_getusers(row):
+    meeting_id = request.args['meeting_id']
+    users = []
+    for user in row.users:
+        invite = Invite.query.filter_by(meeting_id=meeting_id, user=user).one_or_none()
+        # lastreminder should always be present, but maybe not for testing
+        if invite and invite.lastreminder:
+            users.append('{} ({})'.format(user.name, isodate.dt2asc(invite.lastreminder)))
+        else:
+            users.append(user.name)
+    return ', '.join(users)
 
 def meetingstatus_pretablehtml():
     meetingid = request.args['meeting_id']
@@ -1254,11 +1275,12 @@ def meetingstatus_pretablehtml():
 
     return pretablehtml.render()
 
-meetingstatus_dbattrs = 'id,interest_id,position,users,__readonly__'.split(',')
+meetingstatus_dbattrs = 'id,interest_id,position,users,status'.split(',')
 meetingstatus_formfields = 'rowid,interest_id,position,users,status'.split(',')
 meetingstatus_dbmapping = dict(zip(meetingstatus_dbattrs, meetingstatus_formfields))
 meetingstatus_formmapping = dict(zip(meetingstatus_formfields, meetingstatus_dbattrs))
 meetingstatus_formmapping['status'] = meetingstatus_getstatus
+meetingstatus_formmapping['users'] = meetingstatus_getusers
 
 meetingstatus_yadcf_options = [
     yadcfoption('status:name', 'meetingstatus-external-filter-status', 'select', placeholder='Select', width='130px'),
@@ -1285,15 +1307,13 @@ meetingstatus = MeetingStatusView(
     createfieldvals=meetingcreatefieldvals,
     clientcolumns=[
         {'data': 'position', 'name': 'position', 'label': 'Position',
+         'type': 'readonly',
          },
-        {'data': 'users', 'name': 'users', 'label': 'Members',
-         '_treatment': {
-             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name', 'formfield': 'users',
-                              'dbfield': 'users', 'uselist': True,
-                              'queryparams': localinterest_query_params,
-                              }}
+        {'data': 'users', 'name': 'users', 'label': 'Members (last request)',
+         'type': 'readonly',
          },
         {'data': 'status', 'name': 'status', 'label': 'Status Report',
+         'type': 'readonly',
          },
     ],
     servercolumns=None,  # not server side
@@ -1303,7 +1323,7 @@ meetingstatus = MeetingStatusView(
             'extend':'edit',
             'editor': {'eval':'editor'},
             'text': 'Send Reminders',
-            'action': {'eval':'editor_submit_button(editor)'}
+            'action': {'eval':'meeting_sendreminders(editor)'}
         },
         'csv'
     ],

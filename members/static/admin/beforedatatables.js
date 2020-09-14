@@ -29,8 +29,39 @@ function submit_button() {
     this.submit();
 }
 
-function editor_submit_button(ed) {
+function meeting_sendreminders(ed) {
     fn = function() {
+        var that = this;
+        that.processing(true);
+        ed.one('postEdit', function(e, json, data, id) {
+            that.processing(false);
+            var message = $('<div>', {title: 'Generated reminders'});
+            var popuphtml = $('<ul>').appendTo(message);
+            if (json.newinvites.length > 0) {
+                var newinvites = $('<p>', {html: 'new invites sent to'}).appendTo(popuphtml);
+                var newinvitesul = $('<ul>').appendTo(newinvites);
+                for (var i=0; i<json.newinvites.length; i++) {
+                    $('<li>', {html: json.newinvites[i]}).appendTo(newinvitesul);
+                }
+            }
+            if (json.reminded.length > 0) {
+                var reminders = $('<p>', {html: 'reminders sent to'}).appendTo(popuphtml);
+                var remindersul = $('<ul>').appendTo(reminders);
+                for (var i=0; i<json.reminded.length; i++) {
+                    $('<li>', {html: json.reminded[i]}).appendTo(remindersul);
+                }
+            }
+            message.dialog({
+                modal: true,
+                minWidth: 200,
+                height: 'auto',
+                buttons: {
+                    OK: function() {
+                        $(this).dialog('close');
+                    }
+                }
+            });
+        })
         // selected rows, false means don't display form
         ed.edit({selected:true}, false).submit();
     }
