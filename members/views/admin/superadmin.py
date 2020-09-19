@@ -70,6 +70,7 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
          },
         {'data': 'template', 'name': 'template', 'label': 'Template',
          'type': 'textarea',
+         'render': '$.fn.dataTable.render.ellipsis( 40 )',
          'className': 'field_req',
          'fieldInfo': 'html with template substitution for text like {{member}}, {{membertasks}}, {{expires}}',
          },
