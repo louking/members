@@ -216,6 +216,9 @@ memberdiscussions.register()
 ##########################################################################################
 
 class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
+    # remove auth_required() decorator
+    decorators = []
+
     def __init__(self, **kwargs):
         args = dict(
             pretablehtml = self.format_pretablehtml
@@ -229,33 +232,23 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         self.dte.set_response_hook(self.postprocessrow)
 
     def permission(self):
-        permitted = super().permission()
+        invitekey = request.args.get('invitekey', None)
+        if invitekey:
+            permitted = True
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            user = localuser2user(invite.user)
+            self.meeting = invite.meeting
+            self.interest = self.meeting.interest
 
-        if permitted:
-            invitekey = request.args.get('invitekey', None)
-            if invitekey:
-                invite = Invite.query.filter_by(invitekey=invitekey).one()
-                user = localuser2user(invite.user)
-                self.meeting = invite.meeting
-                if current_user != user:
-                    # log out and in automatically
-                    # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
-                    old_user = current_user.name
-                    logout_user()
-                    login_user(user)
-                    db.session.commit()
-                    flash('you have been automatically logged in as {}'.format(current_user.name))
+            if current_user != user:
+                # log out and in automatically
+                # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
+                logout_user()
+                login_user(user)
+                db.session.commit()
+                flash('you have been automatically logged in as {}'.format(current_user.name))
 
-            # no invitekey, so meeting_id must be specified, use the current_user
-            else:
-                meeting_id = request.args.get('meeting_id', None)
-                if not meeting_id:
-                    raise ParameterError('meeting_id needs to be specified in URL')
-
-                self.meeting = Meeting.query.filter_by(id=meeting_id).one()
-
-            # at this point, current_user has the target user (may have been changed by invitekey)
-
+            # at this point, if current_user has the target user (may have been changed by invitekey)
             # check role permissions, permitted = True (from above) unless determined otherwise
             roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
             allowed = False
@@ -265,6 +258,10 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
                     break
             if not allowed:
                 permitted = False
+
+        # no invitekey, not permitted
+        else:
+            permitted = False
 
         return permitted
 
