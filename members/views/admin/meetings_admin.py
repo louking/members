@@ -425,6 +425,7 @@ actionitems = ActionItemsView(
         {'data': 'comments', 'name': 'comments', 'label': 'Comments',
          'type': 'ckeditorInline',
          'fieldInfo': 'details of action item (if needed), notes about progress, and resolution',
+         'visible': False,
          },
         {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
          'className': 'field_req',
