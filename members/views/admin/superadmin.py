@@ -10,7 +10,7 @@ from re import match
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, EmailTemplate
+from ...model import LocalInterest, EmailTemplate, DocTemplate
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -86,4 +86,53 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
     },
 )
 emailtemplate.register()
+
+##########################################################################################
+# doctemplates endpoint
+###########################################################################################
+
+doctemplate_dbattrs = 'id,interest_id,templatename,template'.split(',')
+doctemplate_formfields = 'rowid,interest_id,templatename,template'.split(',')
+doctemplate_dbmapping = dict(zip(doctemplate_dbattrs, doctemplate_formfields))
+doctemplate_formmapping = dict(zip(doctemplate_formfields, doctemplate_dbattrs))
+
+doctemplate = DbCrudApiInterestsRolePermissions(
+    roles_accepted=[ROLE_SUPER_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=DocTemplate,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+    pagename='Document Templates',
+    endpoint='admin.doctemplates',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/doctemplates',
+    dbmapping=doctemplate_dbmapping,
+    formmapping=doctemplate_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'templatename', 'name': 'templatename', 'label': 'Template Name',
+         'className': 'field_req',
+         '_unique': True,
+         },
+        {'data': 'template', 'name': 'template', 'label': 'Template',
+         'type': 'textarea',
+         'render': '$.fn.dataTable.render.ellipsis( 40 )',
+         'className': 'field_req',
+         'fieldInfo': 'html with template substitution for text like {{member}}, {{membertasks}}, {{expires}}',
+         },
+    ],
+    servercolumns=None,  # not server side
+    idSrc='rowid',
+    buttons=['create', 'editRefresh', 'csv'],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+doctemplate.register()
 

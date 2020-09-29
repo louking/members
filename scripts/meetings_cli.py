@@ -15,6 +15,7 @@ from click import argument, group
 from scripts import catch_errors, ParameterError
 from members.model import db, Meeting, Invite, localinterest_query_params
 from members.meeting_invites import generateinvites
+from members.reports import meeting_gen_reports, meeting_reports_premeeting, meeting_report2attr
 from loutilities.timeu import asctime
 
 
@@ -90,7 +91,7 @@ def updateinvites(interest, startdate):
     """
     for all future meetings, if invites have been sent, update the invite list as appropriate
     """
-    # calculate start and end date window
+    # calculate start date
     start = getstartdate(startdate)
 
     # set local interest
@@ -106,4 +107,37 @@ def updateinvites(interest, startdate):
             generateinvites(meeting.id)
             # commit after each meeting to save new invitations
             db.session.commit()
+
+@meetings.command()
+@argument('interest')
+@argument('startdate', default='auto')
+@with_appcontext
+@catch_errors
+def regenreports(interest, startdate):
+    """
+    for all future meetings, regenerate reports
+    """
+    # calculate start date
+    start = getstartdate(startdate)
+
+    # set local interest
+    g.interest = interest
+
+
+    # for all the meetings after or equal to start, generate reports, but only if the report has been previously generated
+    futuremeetings = Meeting.query.filter_by(**localinterest_query_params()).filter(Meeting.date >= start).all()
+    for meeting in futuremeetings:
+
+        # determine which reports have been generated already
+        # we're only regenerating reports which happen pre-meeting
+        reports = []
+        for report in meeting_reports_premeeting:
+            if getattr(meeting, meeting_report2attr[report]):
+                reports.append(report)
+
+        if reports:
+            reportsgenned = meeting_gen_reports(meeting.id, reports)
+
+        # this actually shouldn't be required, but shouldn't hurt
+        db.session.commit()
 

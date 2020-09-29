@@ -3,11 +3,11 @@ meetings_admin - administrative task handling for meetings admin
 ====================================================================================
 """
 # standard
-from uuid import uuid4
 from datetime import datetime, date
 
 # pypi
-from flask import g, request
+from flask import g, request, jsonify
+from flask.views import MethodView
 from flask_security import current_user
 from dominate.tags import h1, div, label, input
 from sqlalchemy import func
@@ -16,7 +16,7 @@ from sqlalchemy.orm import aliased
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Tag, Position
+from ...model import LocalInterest, LocalUser, Tag
 from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all
@@ -26,19 +26,19 @@ from ...model import ACTION_STATUS_OPEN
 from ...meeting_invites import generateinvites, get_invites, generatereminder
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
+from members.reports import meeting_gen_reports, meeting_reports
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action, rest_url_for, page_url_for, CHILDROW_TYPE_TABLE
-from loutilities.timeu import asctime
+from loutilities.tables import _editormethod, get_request_action, rest_url_for, CHILDROW_TYPE_TABLE
 
+from loutilities.timeu import asctime
 isodate = asctime('%Y-%m-%d')
 
 class ParameterError(Exception): pass
 
 debug = False
-
 
 ##########################################################################################
 # tags endpoint
@@ -111,8 +111,10 @@ tag.register()
 # meetings endpoint
 ###########################################################################################
 
-meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,time,location'.split(',')
-meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,time,location'.split(',')
+meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,'\
+                   'gs_agenda,gs_status,gs_minutes'.split(',')
+meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,' \
+                      'gs_agenda,gs_status,gs_minutes'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
@@ -178,6 +180,18 @@ meetings = MeetingsView(
         {'data': 'show_actions_since', 'name': 'show_actions_since', 'label': 'Show Actions Since',
          'type': 'datetime',
          'className': 'field_req',
+         },
+        {'data': 'gs_agenda', 'name': 'gs_agenda', 'label': 'Agenda',
+         # 'type': 'googledoc',
+         'fieldInfo': 'g suite id for generated agenda',
+         },
+        {'data': 'gs_status', 'name': 'gs_status', 'label': 'Status Report',
+         # 'type': 'googledoc',
+         'fieldInfo': 'g suite id for generated status report',
+         },
+        {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
+         # 'type': 'googledoc',
+         'fieldInfo': 'g suite id for generated minutess',
          },
         {'data': 'tags', 'name': 'tags', 'label': 'Invite Tags',
          'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
@@ -420,11 +434,12 @@ actionitems = ActionItemsView(
          },
         {'data': 'action', 'name': 'action', 'label': 'Action',
          'className': 'field_req',
-         'fieldInfo': 'concise description of action item',
+         'type': 'textarea',
+         'fieldInfo': 'description of action item',
          },
         {'data': 'comments', 'name': 'comments', 'label': 'Comments',
          'type': 'ckeditorInline',
-         'fieldInfo': 'details of action item (if needed), notes about progress, and resolution',
+         'fieldInfo': 'details of action item (if needed), notes about progress, and resolution - note won\'t be printed in agenda',
          'visible': False,
          },
         {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
@@ -1173,9 +1188,12 @@ meeting = MeetingView(
     },
     serverside=True,
     idSrc='rowid',
-    buttons=[
+    # need function here else rest_url_for gives RuntimeError (no app context)
+    buttons=lambda: [
         # 'editor' gets eval'd to editor instance
-        {'extend':'newInvites', 'editor': {'eval':'editor'}},
+        {'extend':'newInvites', 'editor': {'eval': 'editor'}},
+        {'text':'Generate Docs',
+         'action': {'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin.meetinggendocs', interest=g.interest))}},
         'create',
         'editChildRowRefresh',
         'remove',
@@ -1196,6 +1214,56 @@ meeting = MeetingView(
 },
 )
 meeting.register()
+
+##########################################################################################
+# meetinggendocs api endpoint
+##########################################################################################
+
+class MeetingGenDocsApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+        for role in self.roles_accepted:
+            if current_user.has_role(role):
+                allowed = True
+                break
+
+        return allowed
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            reports = []
+            for report in meeting_reports:
+                if request.form.get(report, 'false') == 'true':
+                    reports.append(report)
+
+            successful = meeting_gen_reports(request.args['meeting_id'], reports)
+
+            output_result = {}
+
+            db.session.commit()
+            return jsonify(output_result)
+
+        except:
+            # roll back database updates and close transaction
+            db.session.rollback()
+            raise
+
+bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('meetinggendocs'), methods=['POST'])
+
 
 ##########################################################################################
 # meetingstatus endpoint

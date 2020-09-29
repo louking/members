@@ -29,9 +29,11 @@ def interestattr_validate(action, formdata):
     return results
 
 interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id,'\
-                       'interestmeetingtags,interestmeetingvotetags'.split(',')
+                       'interestmeetingtags,interestmeetingvotetags,'\
+                       'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id,'\
-                          'interestmeetingtags,interestmeetingvotetags'.split(',')
+                          'interestmeetingtags,interestmeetingvotetags,'\
+                          'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
 interestattr_dbmapping['initial_expiration'] = lambda formrow: date(*[int(f) for f in formrow['initial_expiration'].split('-')])
@@ -92,6 +94,18 @@ interestattr = DbCrudApiRolePermissions(
                                               'dbfield': 'interestmeetingvotetags', 'uselist': True,
                                               'queryparams': localinterest_query_params,
                                               }}
+                         },
+                        {'data': 'gs_agenda_fdr', 'name': 'gs_agenda_fdr', 'label': 'GSuite Agenda Folder',
+                         # 'type': 'googledoc',
+                         'fieldInfo': 'g suite folder id for generated agendas',
+                         },
+                        {'data': 'gs_status_fdr', 'name': 'gs_status_fdr', 'label': 'GSuite Status Folder',
+                         # 'type': 'googledoc',
+                         'fieldInfo': 'g suite folder id for generated status reports',
+                         },
+                        {'data': 'gs_minutes_fdr', 'name': 'gs_minutes_fdr', 'label': 'GSuite Minutes Folder',
+                         # 'type': 'googledoc',
+                         'fieldInfo': 'g suite folder id for generated minutess',
                          },
                     ],
                     servercolumns = None,  # not server side

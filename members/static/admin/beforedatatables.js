@@ -68,6 +68,58 @@ function meeting_sendreminders(ed) {
     return fn;
 }
 
+function meeting_generate_docs(url) {
+    fn = function() {
+        var that = this;
+        that.processing(true);
+
+        // allUrlParams() picks up at least meeting_id
+        var form = $('<form>', {id: 'doc-form', action: url + '?' + setParams(allUrlParams()), method:'POST'})
+        form.append($('<input>', {type: 'checkbox', id:  'agenda', name: 'agenda'}));
+        form.append($('<label>', {for: 'agenda', text: 'Agenda'}));
+        form.append($('<br>'));
+        form.append($('<input>', {type: 'checkbox', id:  'status-report', name: 'status-report'}));
+        form.append($('<label>', {for: 'status-report', text: 'Status Report'}));
+        form.append($('<br>'));
+        form.append($('<input>', {type: 'checkbox', id:  'minutes', name: 'minutes'}));
+        form.append($('<label>', {for: 'minutes', text: 'Minutes'}));
+
+        // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
+        form.dialog({
+            title: 'Generate Documents',
+            modal: true,
+            minWidth: 200,
+            height: 'auto',
+            buttons: [
+                {
+                    text: 'Submit',
+                    click: function() {
+                        var url = form.attr( "action" );
+                        var terms = {};
+                        var checkboxes = form.find('input');
+                        checkboxes.each(function() {
+                            terms[$(this).attr('name')] = $(this).is(":checked");
+                        });
+                        var post = $.post(url, terms, function(data, textStatus, jqXHR) {
+                            form.dialog('close');
+                            that.processing(false);
+                        });
+                    },
+                },
+                {
+                    text: 'Cancel',
+                    click: function() {
+                        form.dialog('close');
+                        that.processing(false);
+                    }
+                },
+            ]
+        });
+
+    }
+    return fn;
+}
+
 function render_month_date(data, type, row, meta) {
     if (data) {
         return data.slice(-5)

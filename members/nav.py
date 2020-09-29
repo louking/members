@@ -130,12 +130,16 @@ def nav_menu():
             navbar.items.append(userroles)
             leadership_superadmin_view(userroles, 'Members', 'userrole.members')
             leadership_superadmin_view(userroles, 'Interest Attributes', 'admin.interestattrs')
+
+            if g.interest:
+                leadership_superadmin_view(userroles, 'Email Templates', 'admin.emailtemplates', interest=g.interest)
+                leadership_superadmin_view(userroles, 'Document Templates', 'admin.doctemplates', interest=g.interest)
+
             leadership_superadmin_view(userroles, 'Roles', 'userrole.roles')
             leadership_superadmin_view(userroles, 'Interests', 'userrole.interests')
             leadership_superadmin_view(userroles, 'Applications', 'userrole.applications')
 
             if g.interest:
-                leadership_superadmin_view(userroles, 'Email Templates', 'admin.emailtemplates', interest=g.interest)
                 leadership_superadmin_view(userroles, 'Files', 'admin.files', interest=g.interest)
 
             navbar.items.append(View('My Account', 'security.change_password'))

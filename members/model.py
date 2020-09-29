@@ -116,10 +116,18 @@ class LocalInterest(Base):
     __tablename__ = 'localinterest'
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer)
+    # for leadership task, periodic task initial expiration
     initial_expiration  = Column(Date)
+    # general purpose email from address, if not specified in EmailTemplate
     from_email          = Column(String(EMAIL_LEN))
+    # for membership of club
     club_service        = Column(String(SERVICE_LEN))
     service_id          = Column(String(SERVICE_ID_LEN))
+    # for g-suite file management
+    gs_status_fdr       = Column(Text)
+    gs_agenda_fdr       = Column(Text)
+    gs_minutes_fdr      = Column(Text)
+
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -322,6 +330,11 @@ class Meeting(Base):
     time                = Column(String(TIME_LEN))
     location            = Column(Text)
     show_actions_since  = Column(Date)
+    # gs_ are google fileids if configured to save in g suite
+    gs_status           = Column(Text)
+    gs_agenda           = Column(Text)
+    gs_minutes          = Column(Text)
+
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
