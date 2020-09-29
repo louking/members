@@ -1434,6 +1434,7 @@ agendaheadings = DbCrudApiInterestsRolePermissions(
     tableidtemplate ='agendaheadings-{{ meeting_id }}-{{ motion_id }}',
     clientcolumns=[
         {'data': 'heading', 'name': 'heading', 'label': 'Agenda Heading',
+         '_unique': True,
          },
         {'data': 'positions', 'name': 'positions', 'label': 'Positions',
          '_treatment': {
