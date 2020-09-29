@@ -180,7 +180,9 @@ asset_bundles = {
         'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
         'admin/nunjucks/*.js',
         'admin/beforedatatables.js',
-        'editor.ckeditor5.js',
+        'editor.ckeditor5.js',                  # from loutilities
+        'editor.googledoc.js',                  # from loutilities
+        'datatables.dataRender.googledoc.js',   # from loutilities
         'user/admin/beforedatatables.js',       # from loutilities
         'editor.select2.mymethods.js',          # from loutilities
         'editor.displayController.onPage.js',   # from loutilities
