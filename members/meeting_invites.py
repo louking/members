@@ -231,3 +231,27 @@ def generatereminder(meetingid, member, positions):
         reminder = False
 
     return reminder
+
+def send_meeting_email(meetingid, subject, message):
+    """
+    send email to meeting invitees
+
+    :param meetingid: id of meeting
+    :param subject: subject for message
+    :param message: message in html format
+    :return: list of addresses email was sent to
+    """
+    meeting_id = meetingid
+    invites = Invite.query.filter_by(meeting_id=meeting_id).all()
+
+    tolist = ['{} <{}>'.format(i.user.name, i.user.email) for i in invites]
+
+    # use from address configured for meeting invite email if available, else use interest attribute
+    emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email', interest=localinterest()).one()
+    fromaddr = localinterest().from_email
+    if emailtemplate.from_email:
+        fromaddr = emailtemplate.from_email
+
+    result = sendmail(subject, fromaddr, tolist, message)
+
+    return tolist

@@ -61,7 +61,7 @@ def meeting_gen_reports(meeting_id, reports):
         }
     }
 
-    # todo: work to do if g suite not being used, but this is good enough for initial service launch
+    # todo: #244 work to do if g suite not being used, but this is good enough for initial service launch
     # if using g suite, create GoogleAuthService instance
     usegsuite = False
     for thetype in reports:

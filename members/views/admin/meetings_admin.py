@@ -24,7 +24,7 @@ from ...model import invite_response_all
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN
-from ...meeting_invites import generateinvites, get_invites, generatereminder
+from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -1194,7 +1194,15 @@ meeting = MeetingView(
         # 'editor' gets eval'd to editor instance
         {'extend':'newInvites', 'editor': {'eval': 'editor'}},
         {'text':'Generate Docs',
-         'action': {'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin.meetinggendocs', interest=g.interest))}},
+         'action': {
+             'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin.meetinggendocs',
+                                                                       interest=g.interest))}
+         },
+        {'text':'Send Email',
+         'action': {
+             'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin.meetingsendemail',
+                                                                    interest=g.interest))}
+         },
         'create',
         'editChildRowRefresh',
         'remove',
@@ -1231,10 +1239,13 @@ class MeetingGenDocsApi(MethodView):
         '''
         # adapted from loutilities.tables.DbCrudApiRolePermissions
         allowed = False
-        for role in self.roles_accepted:
-            if current_user.has_role(role):
-                allowed = True
-                break
+
+        # must have meeting_id query arg
+        if request.args.get('meeting_id', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
 
         return allowed
 
@@ -1267,6 +1278,61 @@ class MeetingGenDocsApi(MethodView):
             return jsonify(output_result)
 
 bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('meetinggendocs'), methods=['POST'])
+
+##########################################################################################
+# meetingemail api endpoint
+##########################################################################################
+
+class MeetingEmailApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+
+        # must have meeting_id query arg
+        if request.args.get('meeting_id', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+
+        return allowed
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            meeting_id = request.args['meeting_id']
+            subject = request.form['subject']
+            message = request.form['message']
+
+            tolist = send_meeting_email(meeting_id, subject, message)
+
+            output_result = {'status' : 'success', 'sent_to': tolist}
+
+            db.session.commit()
+            return jsonify(output_result)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('meetingsendemail'),
+                methods=['POST'])
 
 
 ##########################################################################################

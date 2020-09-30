@@ -1,5 +1,5 @@
 '''
-get_status - get_status helpers for admin views
+viewhelpers - helpers for admin views
 '''
 
 # standard

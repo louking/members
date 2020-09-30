@@ -136,6 +136,106 @@ function meeting_generate_docs(url) {
     return fn;
 }
 
+function meeting_send_email(url) {
+    fn = function() {
+        var that = this;
+        var formerror;
+        that.processing(true);
+
+        // allUrlParams() picks up at least meeting_id
+        var form = $('<form>', {id: 'doc-form', action: url + '?' + setParams(allUrlParams()), method:'POST'})
+        form.append($('<label>', {for: 'subject', text: 'Subject'}));
+        form.append($('<input>', {type: 'text', id:  'subject', name: 'subject'}).addClass('form-input'));
+        form.append($('<br>'));
+        form.append($('<label>', {for: 'message', text: 'Message'}));
+        form.append($('<br>'));
+        form.append($('<div>', {id:  'message', name: 'message', width: 'auto'}).addClass('form-input'));
+        var msgeditor;
+        InlineEditor
+            .create( form.find('#message')[0] )
+            .then( function( newEditor) {
+                msgeditor = newEditor;
+            })
+            .catch( function(error) {
+                    console.error(error)
+            });
+
+        // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
+        form.dialog({
+            title: 'Send Message',
+            modal: true,
+            minWidth: 500,
+            height: 'auto',
+            close: function(event, ui) {
+                that.processing(false);
+            },
+            buttons: [
+                {
+                    text: 'Submit',
+                    click: function() {
+                        var url = form.attr( "action" );
+                        var terms = {};
+                        var inputs = form.find('.form-input');
+                        inputs.each(function() {
+                            // .val() works for input, .getData() works for ckeditor content
+                            if ($(this).hasClass('ck-content')) {
+                                terms[$(this).attr('name')] = msgeditor.getData();
+                            } else {
+                                terms[$(this).attr('name')] = $(this).val();
+                            }
+                        });
+                        var post = $.post(url, terms, function(data, textStatus, jqXHR) {
+                            if (textStatus === "success") {
+                                if (data.status === "success") {
+                                    form.dialog('close');
+                                    var confirmation = $('<div>', {title: 'Sent mail to'});
+                                    var tolist = $('<ul>').appendTo(confirmation);
+                                    if (data.sent_to.length > 0) {
+                                        $.each(data.sent_to, function (ndx, val) {
+                                            $('<li>', {text: val}).appendTo(tolist)
+                                        })
+                                    } else {
+                                        $('<li>', {text: 'No mail sent - use Send Invites before Send Email'}).appendTo(tolist)
+                                    }
+                                    confirmation.dialog({
+                                        modal: true,
+                                        minWidth: 600,
+                                        height: 'auto',
+                                        buttons: {
+                                            OK: function() {
+                                                $(this).dialog('close');
+                                            }
+                                        }
+                                    });
+
+                                } else {
+                                    formerror.text(data.error);
+                                    formerror.show();
+                                }
+                            } else {
+                                formerror.text('error occurred: ' + textStatus);
+                                formerror.show();
+                            }
+                        });
+                    },
+                },
+                {
+                    text: 'Cancel',
+                    click: function() {
+                        form.dialog('close');
+                    }
+                },
+            ]
+        });
+
+        // need to create formerror div after dialog shown
+        $('.ui-dialog-buttonpane').append($('<div>', {id: 'form-error', 'class': 'DTE_Form_Error'}))
+        formerror = $('.ui-dialog-buttonpane #form-error');
+        formerror.hide();
+    }
+    return fn;
+}
+
 function render_month_date(data, type, row, meta) {
     if (data) {
         return data.slice(-5)
