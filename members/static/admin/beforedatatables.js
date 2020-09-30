@@ -71,6 +71,7 @@ function meeting_sendreminders(ed) {
 function meeting_generate_docs(url) {
     fn = function() {
         var that = this;
+        var formerror;
         that.processing(true);
 
         // allUrlParams() picks up at least meeting_id
@@ -90,6 +91,9 @@ function meeting_generate_docs(url) {
             modal: true,
             minWidth: 200,
             height: 'auto',
+            close: function(event, ui) {
+                that.processing(false);
+            },
             buttons: [
                 {
                     text: 'Submit',
@@ -101,8 +105,17 @@ function meeting_generate_docs(url) {
                             terms[$(this).attr('name')] = $(this).is(":checked");
                         });
                         var post = $.post(url, terms, function(data, textStatus, jqXHR) {
-                            form.dialog('close');
-                            that.processing(false);
+                            if (textStatus === "success") {
+                                if (data.status === "success") {
+                                    form.dialog('close');
+                                } else {
+                                    formerror.text(data.error);
+                                    formerror.show();
+                                }
+                            } else {
+                                formerror.text('error occurred: ' + textStatus);
+                                formerror.show();
+                            }
                         });
                     },
                 },
@@ -110,12 +123,15 @@ function meeting_generate_docs(url) {
                     text: 'Cancel',
                     click: function() {
                         form.dialog('close');
-                        that.processing(false);
                     }
                 },
             ]
         });
 
+        // need to create formerror div after dialog shown
+        $('.ui-dialog-buttonpane').append($('<div>', {id: 'form-error', 'class': 'DTE_Form_Error'}))
+        formerror = $('.ui-dialog-buttonpane #form-error');
+        formerror.hide();
     }
     return fn;
 }

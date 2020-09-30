@@ -4,9 +4,10 @@ meetings_admin - administrative task handling for meetings admin
 """
 # standard
 from datetime import datetime, date
+from traceback import format_exception_only, format_exc
 
 # pypi
-from flask import g, request, jsonify
+from flask import g, request, jsonify, current_app
 from flask.views import MethodView
 from flask_security import current_user
 from dominate.tags import h1, div, label, input
@@ -1252,15 +1253,18 @@ class MeetingGenDocsApi(MethodView):
 
             successful = meeting_gen_reports(request.args['meeting_id'], reports)
 
-            output_result = {}
+            output_result = {'status' : 'success'}
 
             db.session.commit()
             return jsonify(output_result)
 
-        except:
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
-            raise
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
 
 bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('meetinggendocs'), methods=['POST'])
 
