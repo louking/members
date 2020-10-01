@@ -29,6 +29,12 @@ function submit_button() {
     this.submit();
 }
 
+/**
+ * handles Send Reminders button from Meeting view
+ *
+ * @param ed - editor instance
+ * @returns {fn} - button action
+ */
 function meeting_sendreminders(ed) {
     fn = function() {
         var that = this;
@@ -68,6 +74,12 @@ function meeting_sendreminders(ed) {
     return fn;
 }
 
+/**
+ * handles Generate Docs button from Meeting view
+ *
+ * @param url - rest url to generate the documents
+ * @returns {fn} - button action
+ */
 function meeting_generate_docs(url) {
     fn = function() {
         var that = this;
@@ -136,6 +148,12 @@ function meeting_generate_docs(url) {
     return fn;
 }
 
+/**
+ * handles Send Mail button from Meeting view
+ *
+ * @param url - rest url to send the mail
+ * @returns {fn} - button action
+ */
 function meeting_send_email(url) {
     fn = function() {
         var that = this;
@@ -244,7 +262,13 @@ function render_month_date(data, type, row, meta) {
     }
 }
 
-// view member from member summary view
+/**
+ * handles View Member button from Member Summary view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
 function member_details(e, dt, node, config) {
     var args = allUrlParams();
     var member = dt.rows({selected:true}).data()[0].member;
@@ -256,7 +280,13 @@ function member_details(e, dt, node, config) {
     window.location.href = newloc;
 }
 
-// view meeting from meetings view
+/**
+ * handles View Meeting button from Meetings view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
 function meeting_details(e, dt, node, config) {
     var args = allUrlParams();
     var meetingid = dt.rows({selected:true}).data()[0].rowid;
@@ -268,7 +298,13 @@ function meeting_details(e, dt, node, config) {
     window.location.href = newloc;
 }
 
-// view meeting from meetings view
+/**
+ * handles Meeting Status button from Meetings view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
 function meeting_status(e, dt, node, config) {
     var args = allUrlParams();
     var meetingid = dt.rows({selected:true}).data()[0].rowid;
@@ -280,7 +316,13 @@ function meeting_status(e, dt, node, config) {
     window.location.href = newloc;
 }
 
-// view status report from my status reports view
+/**
+ * handles View Status Report button from My Status Reports view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
 function mymeeting_statusreport(e, dt, node, config) {
     var args = allUrlParams();
     var invitekey = dt.rows({selected:true}).data()[0].invitekey;
