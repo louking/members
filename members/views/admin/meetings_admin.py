@@ -1191,6 +1191,9 @@ meeting = MeetingView(
     idSrc='rowid',
     # need function here else rest_url_for gives RuntimeError (no app context)
     buttons=lambda: [
+        'create',
+        'editChildRowRefresh',
+        'remove',
         # 'editor' gets eval'd to editor instance
         {'extend':'newInvites', 'editor': {'eval': 'editor'}},
         {'text':'Generate Docs',
@@ -1203,10 +1206,6 @@ meeting = MeetingView(
              'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin.meetingsendemail',
                                                                     interest=g.interest))}
          },
-        'create',
-        'editChildRowRefresh',
-        'remove',
-        'csv'
     ],
     dtoptions={
         'scrollCollapse': True,
@@ -1214,6 +1213,7 @@ meeting = MeetingView(
         'scrollXInner': "100%",
         'scrollY': True,
         'order': [['order:name','asc']],
+        'paging': False,
         'rowReorder': {
             'dataSrc': 'order',
             'selector': 'td.reorder',
