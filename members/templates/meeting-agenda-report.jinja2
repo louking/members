@@ -1,0 +1,38 @@
+{% extends "report-layout.jinja2" %}
+{% block body %}
+<h2>Agenda: {{ meeting.purpose }} - {{ meeting.date }}</h2>
+<ul>
+{# see https://jinja.palletsprojects.com/en/2.11.x/templates/#assignments Scoping Behavior #}
+{% set ns = namespace(inheader = False) %}
+{% for agendaitem in agendaitems if not agendaitem.is_attendee_only %}
+    {% if loop.changed(agendaitem.agendaheading.heading) %}
+        {% if ns.inheader %}
+            </ul>
+            {% set ns.inheader = False %}
+        {% endif %}
+        {% if agendaitem.agendaheading.heading %}
+            {% set ns.inheader = True %}
+            <li>{{ agendaitem.agendaheading.heading }}</li>
+            <ul>
+        {% endif %}
+    {% endif %}
+    {% if not agendaitem.is_action_only %}
+        <li>{{ agendaitem.title }}</li>
+    {% else %}
+        <li>{{ agendaitem.title }} (updates since {{ meeting.show_actions_since }})</li>
+        <ul>
+        {% if actionitems %}
+                {% for actionitem in actionitems %}
+                    <li>{{ actionitem.assignee.name }} - {{ actionitem.action }} ({{ actionitem.status }})</li>
+                {% endfor %}
+        {% else %}
+            <li>none</li>
+        {% endif %}
+        </ul>
+    {% endif %}
+{% endfor %}
+{% if ns.inheader %}
+    </ul>
+{% endif %}
+</ul>
+{% endblock %}
