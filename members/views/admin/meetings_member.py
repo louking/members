@@ -7,10 +7,10 @@ meetings_member - handling for meetings member
 from datetime import date, datetime
 
 # pypi
-from flask import request, flash, g, url_for
+from flask import request, flash, g
 from flask_security import current_user, logout_user, login_user
 from sqlalchemy import func
-from dominate.tags import div, h1, h2, ul, li, p, a
+from dominate.tags import div, h1, ol, li, p, em, strong
 from dominate.util import text
 
 # homegrown
@@ -290,27 +290,23 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         meeting = self.get_meeting()
 
         html = div()
-        html += h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
+        with html:
+            h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
 
-        instructhtml = div(id='mystatus-instructions', style='display: none;')
-        html += instructhtml
-        instructhtml += p('Please RSVP and fill out a status report for each of your positions')
-        listhtml = ul()
-        instructhtml += listhtml
-
-        listhtml += li('RSVP to the meeting by clicking/editing the first row')
-        listhtml += li('Provide Status Reports for each of your positions by clicking/editing subsequent rows')
-        listhtml += li('Optionally add a Status Report for something outside your assigned position by clicking New')
-        discussionhtml = li()
-        with discussionhtml:
-            text('If you would like to highlight a topic for discussion in the board meeting, add a discussion item from ')
-            text('within the relevant status report by clicking on "New" in the Discussion Item section of the status report. ')
-            with ul():
-                li('Status report has to be in Edit mode to add discussion items')
-                li('NOTE: Without a discussion item identified, the topic will not be added to the meeting agenda')
-        listhtml += discussionhtml
-
-        instructhtml += p('In all cases, don\'t forget to Save each item as you work through your report')
+            # id referenced from beforedatatables.js meeting_send_email()
+            with div(id='mystatus-instructions', style='display: none;'):
+                p('Please respond as follows:')
+                with ol():
+                    li('RSVP to the meeting by clicking/editing the first row')
+                    li('Provide Status Reports for each of your positions by clicking/editing subsequent rows')
+                    with li():
+                        em('Optionally')
+                        text(' add a Status Report for something outside your assigned position by clicking New')
+                with p():
+                    text('If you would like to add a discussion item to the meeting agenda, click on "New" in the '
+                         'Discussion Item ')
+                    strong('while editing')
+                    text(' the relevant status report')
 
         return html.render()
 
