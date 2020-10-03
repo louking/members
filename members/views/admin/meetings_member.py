@@ -531,6 +531,7 @@ memberstatusreport = MemberStatusreportView(
          'render': {'eval':'render_plus'},
          },
         {'data': 'title', 'name': 'title', 'label': 'Report Title',
+         'className': 'field_req',
          },
         {'data': 'rsvp_response', 'name': 'rsvp_response', 'label': 'Attending',
          'type': 'select2', 'options': invite_response_all,
