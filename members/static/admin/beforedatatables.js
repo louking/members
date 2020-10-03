@@ -254,6 +254,29 @@ function meeting_send_email(url) {
     return fn;
 }
 
+/**
+ * handles Instructions button for My Status Report view
+ *
+ * @returns {fn}
+ */
+function mystatus_instructions() {
+    fn = function() {
+        var instructions = $('#mystatus-instructions');
+        instructions.dialog({
+            title: 'Instructions',
+            modal: false,
+            minWidth: 600,
+            height: 'auto',
+            buttons: {
+                OK: function() {
+                    $(this).dialog('close');
+                }
+            }
+        });
+    }
+    return fn
+}
+
 function render_month_date(data, type, row, meta) {
     if (data) {
         return data.slice(-5)

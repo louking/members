@@ -292,9 +292,9 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         html = div()
         html += h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
 
-        instructhtml = div()
+        instructhtml = div(id='mystatus-instructions', style='display: none;')
         html += instructhtml
-        instructhtml += h2('Instructions')
+        instructhtml += p('Please RSVP and fill out a status report for each of your positions')
         listhtml = ul()
         instructhtml += listhtml
 
@@ -485,6 +485,9 @@ def memberstatusreport_buttons():
         buttons = [
             'create',
             'editChildRowRefresh',
+            {'text': 'Instructions',
+             'action': {'eval': 'mystatus_instructions()'}
+             },
         ]
     else:
         buttons = []
@@ -587,6 +590,7 @@ memberstatusreport = MemberStatusreportView(
         'scrollX': True,
         'scrollXInner': "100%",
         'scrollY': True,
+        'paging': False,
     },
 )
 memberstatusreport.register()
