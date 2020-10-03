@@ -162,12 +162,18 @@ function meeting_send_email(url) {
 
         // allUrlParams() picks up at least meeting_id
         var form = $('<form>', {id: 'doc-form', action: url + '?' + setParams(allUrlParams()), method:'POST'})
-        form.append($('<label>', {for: 'subject', text: 'Subject'}));
-        form.append($('<input>', {type: 'text', id:  'subject', name: 'subject'}).addClass('form-input'));
+        var subjectdiv = $('<div>', {class: 'DTE_Field field_req'});
+        form.append(subjectdiv);
+        subjectdiv.append($('<label>', {for: 'subject', text: 'Subject', class: 'DTE_Label'}));
+        var subject = $('<input>', {type: 'text', id:  'subject', name: 'subject', class: 'form-input DTE_Field_Input'});
+        subject.val('[' + $('#meeting_purpose').text() + ' ' + $('#meeting_date').text() + '] ');
+        subjectdiv.append(subject);
         form.append($('<br>'));
-        form.append($('<label>', {for: 'message', text: 'Message'}));
-        form.append($('<br>'));
-        form.append($('<div>', {id:  'message', name: 'message', width: 'auto'}).addClass('form-input'));
+        var messagediv = $('<div>', {class: 'DTE_Field field_req'});
+        form.append(messagediv);
+        messagediv.append($('<label>', {for: 'message', text: 'Message'}));
+        messagediv.append($('<br>'));
+        messagediv.append($('<div>', {id:  'message', name: 'message', width: 'auto'}).addClass('form-input'));
         var msgeditor;
         InlineEditor
             .create( form.find('#message')[0] )
@@ -180,9 +186,9 @@ function meeting_send_email(url) {
 
         // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
         form.dialog({
-            title: 'Send Message',
+            title: 'Send Email to Invitees',
             modal: true,
-            minWidth: 500,
+            minWidth: 600,
             height: 'auto',
             close: function(event, ui) {
                 that.processing(false);

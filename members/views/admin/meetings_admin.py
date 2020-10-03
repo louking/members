@@ -214,6 +214,10 @@ meetings = MeetingsView(
     servercolumns=None,  # not server side
     idSrc='rowid',
     buttons=[
+        'create',
+        'editRefresh',
+        'remove',
+        'csv',
         {
             'extend': 'edit',
             'text': 'View Meeting',
@@ -224,10 +228,6 @@ meetings = MeetingsView(
             'text': 'Meeting Status',
             'action': {'eval': 'meeting_status'}
         },
-        'create',
-        'editRefresh',
-        'remove',
-        'csv'
     ],
     dtoptions={
         'scrollCollapse': True,
@@ -1027,6 +1027,11 @@ def meeting_pretablehtml():
         with hiddenfilter:
             input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
             label('Show hidden items', _for='show-hidden-status')
+
+        # table variables - don't display, used by beforedatatables.js meeting_send_email()
+        with div(style='display: none;'):
+            div(meeting.date.isoformat(), id='meeting_date')
+            div(meeting.purpose, id='meeting_purpose')
 
     return pretablehtml.render()
 
