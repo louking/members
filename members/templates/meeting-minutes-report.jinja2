@@ -25,8 +25,15 @@
 <h2>Minutes: {{ meeting.purpose }} - {{ meeting.date }}</h2>
 
 <h3>Attendees</h3>
+<p>Voting</p>
 <ul>
-    {% for attendee in attendees %}
+    {% for attendee in attendees if attendee.voting %}
+        <li>{{ attendee.member }} - {{ attendee.positions|join(', ') }}</li>
+    {% endfor %}
+</ul>
+<p>Non-voting</p>
+<ul>
+    {% for attendee in attendees if not attendee.voting %}
         <li>{{ attendee.member }} - {{ attendee.positions|join(', ') }}</li>
     {% endfor %}
 </ul>
