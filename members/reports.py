@@ -7,6 +7,7 @@ reports - generate reports
 from tempfile import TemporaryDirectory
 from shutil import rmtree
 from os.path import join as pathjoin
+from copy import copy
 
 # pypi
 from flask import current_app
@@ -16,6 +17,7 @@ from dominate.tags import p
 
 # homegrown
 from .model import Meeting, ActionItem, AgendaItem, StatusReport, Position, DiscussionItem, MemberStatusReport
+from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite
 from .views.admin.viewhelpers import localinterest
 from loutilities.googleauth import GoogleAuthService
 from loutilities.nesteddict import obj2dict
@@ -93,7 +95,7 @@ def meeting_gen_reports(meeting_id, reports):
             sr = pos2sr.get(position.id, None)
 
             # default status report if none found or none within status report record
-            status = p('No status report received').render()
+            status = p('No status report submitted').render()
 
             # status report record for position found
             if sr:
@@ -116,14 +118,14 @@ def meeting_gen_reports(meeting_id, reports):
             context['reports'].append(report)
 
         # sort reports by heading (title)
-        context['reports'] = sorted(context['reports'], key=lambda x: x['title'])
+        context['reports'] = sorted(context['reports'], key=lambda item: item['title'])
 
         # remove all the status reports which are handled by position, leaving only "unpositioned" status reports
         for sr in srhandled:
             statusreports.remove(sr)
 
         # sort additional status reports by title
-        statusreports = sorted(statusreports, key=lambda x: sr.title)
+        statusreports = sorted(statusreports, key=lambda item: item.title)
 
         # add remaining status reports, which weren't by position, and which have content
         for sr in statusreports:
@@ -141,6 +143,117 @@ def meeting_gen_reports(meeting_id, reports):
 
         return context
 
+    def meeting_minutes_context():
+        # create action item data structures,
+        # including summary (actionitems) and mapping from agenda item to action item (agenda2action)
+        dbactionitems = ActionItem.query.filter_by(interest=interest).filter(
+            ActionItem.update_time >= themeeting.show_actions_since).all()
+        actionitems = []
+        agenda2action = {}
+        for dbactionitem in dbactionitems:
+            actionitem = {}
+            for field in ['agendaitem_id', 'action', 'status', 'comments']:
+                actionitem[field] = getattr(dbactionitem, field)
+            actionitem['assignee'] = dbactionitem.assignee.name
+            actionitems.append(actionitem)
+            agendaitem_id = dbactionitem.agendaitem_id
+            agenda2action.setdefault(agendaitem_id, [])
+            agenda2action[agendaitem_id].append(actionitem)
+
+        # create motion data structures,
+        # including summary (motions) and mapping from agenda item to motion (agenda2motion)
+        dbmotions = Motion.query.filter_by(meeting_id=themeeting.id).all()
+        motions = []
+        agenda2motion = {}
+        ## show all but novote, which means the person wasn't at the meeting during the vote
+        ## don't remove novote from the master copy, though
+        motionvoteshow = copy(motionvote_all)
+        motionvoteshow.remove(MOTIONVOTE_STATUS_NOVOTE)
+        for dbmotion in dbmotions:
+            motion = {}
+            for field in ['agendaitem_id', 'motion', 'status', 'comments']:
+                motion[field] = getattr(dbmotion, field)
+            # use motionvotes_all for order to display
+            motion['mover'] = dbmotion.mover.name if dbmotion.mover else None
+            motion['seconder'] = dbmotion.seconder.name if dbmotion.seconder else None
+            motion['votes'] = []
+            for mv in motionvoteshow:
+                votes = [{'member': v.user.name, 'vote': v.vote}
+                         for v in MotionVote.query.filter_by(motion_id=dbmotion.id, vote=mv).all()]
+                votes.sort(key=lambda item: item['member'])
+                motion['votes'] += votes
+            motions.append(motion)
+            agendaitem_id = dbmotion.agendaitem_id
+            agenda2motion.setdefault(agendaitem_id, [])
+            agenda2motion[agendaitem_id].append(motion)
+
+        # create agenda item data structure
+        dbagendaitems = AgendaItem.query.filter_by(
+            meeting_id=themeeting.id,
+            is_hidden=False,
+            is_attendee_only=False,
+            is_action_only=False
+        ).order_by(AgendaItem.order).all()
+        rawagendaitems = []
+        for dbagendaitem in dbagendaitems:
+            agendaitem = {}
+            for field in ['id', 'title', 'agendaitem', 'discussion']:
+                agendaitem[field] = getattr(dbagendaitem, field)
+            agendaitem['heading'] = dbagendaitem.agendaheading.heading if dbagendaitem.agendaheading else None
+            if dbagendaitem.id in agenda2action:
+                agendaitem['actionitems'] = agenda2action[dbagendaitem.id]
+            if dbagendaitem.id in agenda2motion:
+                agendaitem['motions'] = agenda2motion[dbagendaitem.id]
+            rawagendaitems.append(agendaitem)
+        # postprocess raw agenda items to insert headings
+        agendaitems = []
+        iteritems = iter(rawagendaitems)
+        item = next(iteritems)
+        heading = item.pop('heading')
+        try:
+            while True:
+                if not heading:
+                    agendaitems.append(item)
+                    item = next(iteritems)
+                    heading = item.pop('heading')
+                else:
+                    currheading = heading
+                    subitem = {'heading': heading, 'agendaitems': []}
+                    agendaitems.append(subitem)
+                    while heading == currheading:
+                        subitem['agendaitems'].append(item)
+                        item = next(iteritems)
+                        heading = item.pop('heading')
+        except StopIteration:
+            pass
+
+        # create attendees data structure
+        dbattendees = Invite.query.filter_by(meeting_id=themeeting.id, attended=True).all()
+        attendees = []
+        for dbattendee in dbattendees:
+            # can this attendee vote?
+            voting = False
+            for vt in themeeting.votetags:
+                # if any of the user positions are a votetag position
+                if set(dbattendee.user.positions) & set(vt.positions):
+                    voting = True
+                    break
+            attendee = {
+                'member': dbattendee.user.name,
+                'positions': [p.position for p in dbattendee.user.positions],
+                'voting': voting
+            }
+            attendees.append(attendee)
+
+        return {
+            'meeting': obj2dict(themeeting),
+            'attendees': attendees,
+            'actionitems': actionitems,
+            'agendaitems': agendaitems,
+            'motions': motions,
+        }
+
+
     doc = {
         'agenda': {
             'contents': 'meeting-agenda-report.jinja2',
@@ -153,7 +266,14 @@ def meeting_gen_reports(meeting_id, reports):
             'docname': '{{ date }} {{ purpose }} Status Report',
             'context': meeting_statusreport_context,
             'gs_fdr': interest.gs_status_fdr,
+        },
+        'minutes': {
+            'contents': 'meeting-minutes-report.jinja2',
+            'docname': '{{ date }} {{ purpose }} Minutes',
+            'context': meeting_minutes_context,
+            'gs_fdr': interest.gs_minutes_fdr,
         }
+
     }
 
     # todo: #244 work to do if g suite not being used, but this is good enough for initial service launch
@@ -174,7 +294,8 @@ def meeting_gen_reports(meeting_id, reports):
         docpath = pathjoin(tmpdir.name, '{}.html'.format(slugify(docname)))
         with open(docpath, 'w') as docfp:
             doctemplate = reportenv.get_template(doc[thetype]['contents'])
-            dochtml = doctemplate.render(doc[thetype]['context']())
+            context = doc[thetype]['context']()
+            dochtml = doctemplate.render(context)
             docfp.write(dochtml)
 
         # create gsuite file if it hasn't been created, else update it

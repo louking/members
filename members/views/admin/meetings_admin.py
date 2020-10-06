@@ -1091,26 +1091,28 @@ meeting = MeetingView(
         {'data': 'agendaitem', 'name': 'agendaitem', 'label': 'Summary',
          'type': 'ckeditorInline',
          'visible': False,
+         'fieldInfo': 'this comes from the person who wrote the status report',
+         'opts': {
+             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
+                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
+         }
+         },
+        {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
+         'type': 'ckeditorInline',
+         'visible': False,
+         'fieldInfo': 'this is to record any discussion held at the meeting',
          'opts': {
              'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
                          "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
          }
          },
         {'data': 'agendaheading', 'name': 'agendaheading', 'label': 'Agenda Heading',
-         'fieldInfo': 'heading under which this position is shown in agenda',
+         'fieldInfo': 'heading under which this agenda item is shown in agenda',
          '_treatment': {
              'relationship': {'fieldmodel': AgendaHeading, 'labelfield': 'heading', 'formfield': 'agendaheading',
                               'dbfield': 'agendaheading', 'uselist': False,
                               'queryparams': localinterest_query_params,
                               }}
-         },
-        {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
-         'type': 'ckeditorInline',
-         'visible': False,
-         'opts': {
-             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
-                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
-         }
          },
         {'data': 'is_hidden', 'name': 'is_hidden', 'label': 'Hide',
          '_treatment': {'boolean': {'formfield': 'is_hidden', 'dbfield': 'is_hidden'}},

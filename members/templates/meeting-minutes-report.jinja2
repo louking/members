@@ -1,0 +1,67 @@
+{% extends "report-layout.jinja2" %}
+{% macro agenda(item) -%}
+    <p><strong>{{ item.title }}</strong><br></p>
+    {% if item.agendaitem %}{{ item.agendaitem }}{% endif %}
+    {% if item.discussion %}{{ item.discussion }}{% endif %}
+    {% if item.actionitems %}
+        {% for ai in item.actionitems %}
+            <div style="margin-left: 1em">ACTION: {{ ai.assignee }} - {{ ai.action }} {{ ai.contents }} ({{ ai.status }})</div><br>
+        {% endfor %}
+    {% endif %}
+    {% if item.motions %}
+        {% for mv in item.motions %}
+            <div style="margin-left: 1em">MOTION {{ mv.status }} [mover {{ mv.mover }}, seconder {{ mv.seconder }}]:
+                {{ mv.motion }}
+                <div style="margin-left: 1em">votes:
+                {% for vote in mv.votes %}
+                    {{ vote.member }} ({{ vote.vote }}){% if not loop.last %}, {% endif %}
+                {% endfor %}
+                </div>
+            </div><br>
+        {% endfor %}
+    {% endif %}
+{%- endmacro %}
+{% block body %}
+<h2>Minutes: {{ meeting.purpose }} - {{ meeting.date }}</h2>
+
+<h3>Attendees</h3>
+<ul>
+    {% for attendee in attendees %}
+        <li>{{ attendee.member }} - {{ attendee.positions|join(', ') }}</li>
+    {% endfor %}
+</ul>
+<h3>Action Item Summary (updates since {{ meeting.show_actions_since }})</h3>
+{% if actionitems %}
+<ul>
+    {% for actionitem in actionitems %}
+        <li>{{ actionitem.assignee }} - {{ actionitem.action }} ({{ actionitem.status }})</li>
+    {% endfor %}
+</ul>
+{% else %}
+    <p>No action items recorded</p>
+{% endif %}
+<h3>Motion/Vote Summary</h3>
+{% if motions %}
+<ul>
+    {% for motion in motions %}
+        <li>{{ motion.motion }} ({{ motion.status }})</li>
+    {% endfor %}
+</ul>
+{% else %}
+    <p>No motions recorded</p>
+{% endif %}
+
+<h3>Discussion Items</h3>
+{% for agendaitem in agendaitems %}
+    {% if agendaitem.heading %}
+        <p><strong><u>{{ agendaitem.heading }}</u></strong></p>
+        <div style="margin-left: 1em">
+        {% for item in agendaitem.agendaitems %}
+            {{ agenda(item) }}
+        {% endfor %}
+        </div><br>
+    {% else %}
+        {{ agenda(agendaitem) }}
+    {% endif %}
+{% endfor %}
+{% endblock %}
