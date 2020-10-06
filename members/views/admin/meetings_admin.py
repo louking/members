@@ -1112,6 +1112,7 @@ meeting = MeetingView(
              'relationship': {'fieldmodel': AgendaHeading, 'labelfield': 'heading', 'formfield': 'agendaheading',
                               'dbfield': 'agendaheading', 'uselist': False,
                               'queryparams': localinterest_query_params,
+                              'nullable': True,
                               }}
          },
         {'data': 'is_hidden', 'name': 'is_hidden', 'label': 'Hide',
