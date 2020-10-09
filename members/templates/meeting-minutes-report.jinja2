@@ -37,6 +37,10 @@
         <li>{{ attendee.member }} - {{ attendee.positions|join(', ') }}</li>
     {% endfor %}
 </ul>
+{% if attendeeaddl %}
+<p>Additional Information</p>
+    {{ attendeeaddl }}
+{% endif %}
 <h3>Action Item Summary (updates since {{ meeting.show_actions_since }})</h3>
 {% if actionitems %}
 <ul>

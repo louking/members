@@ -245,13 +245,27 @@ def meeting_gen_reports(meeting_id, reports):
             }
             attendees.append(attendee)
 
-        return {
+
+        context = {
             'meeting': obj2dict(themeeting),
             'attendees': attendees,
             'actionitems': actionitems,
             'agendaitems': agendaitems,
             'motions': motions,
         }
+
+        # maybe attendee agenda item has additional information, if so include that in the context
+        if dbattendees:
+            attendee_agendaitem = dbattendees[0].agendaitem
+            attendeeaddl = ''
+            if attendee_agendaitem.agendaitem:
+                attendeeaddl += attendee_agendaitem.agendaitem
+            if attendee_agendaitem.discussion:
+                attendeeaddl += attendee_agendaitem.discussion
+            if attendeeaddl:
+                context['attendeeaddl'] = attendeeaddl
+
+        return context
 
 
     doc = {
