@@ -92,6 +92,7 @@ def check_add_invite(meeting, localuser, agendaitem):
             lastreminder=datetime.now(),
         )
         db.session.add(invite)
+        db.session.flush()
 
         # get user's outstanding action items
         actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\

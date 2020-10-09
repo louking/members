@@ -165,7 +165,6 @@ meetings = MeetingsView(
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Purpose',
          'className': 'field_req',
-         'type': 'textarea',
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'datetime',
