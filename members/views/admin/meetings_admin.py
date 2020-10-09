@@ -1117,6 +1117,7 @@ meeting = MeetingView(
         {'data': 'is_hidden', 'name': 'is_hidden', 'label': 'Hide',
          '_treatment': {'boolean': {'formfield': 'is_hidden', 'dbfield': 'is_hidden'}},
          'visible': False,
+         'ed': {'def': 'no'},
          },
         {'data': 'hidden_reason', 'name': 'hidden_reason', 'label': 'Reason for Hiding',
          'type': 'textarea',
@@ -1450,7 +1451,6 @@ meetingstatus = MeetingStatusView(
     dbmapping=meetingstatus_dbmapping,
     formmapping=meetingstatus_formmapping,
     checkrequired=True,
-    createfieldvals=meetingcreatefieldvals,
     clientcolumns=[
         {'data': 'position', 'name': 'position', 'label': 'Position',
          'type': 'readonly',
