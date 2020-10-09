@@ -6,18 +6,19 @@
 Welcome to membertility's documentation!
 ========================================
 
-membertility brings together tools for club leadership and club member support. Modules
+**membertility** brings together tools for club leadership and club member support. Modules
 will be added over time.
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
+   organization-module
+   meetings-module
    leadership-task-module
    membership-module
-   meetings-module
    membertility-definitions
-
+   typographical-conventions
 
 Indices and tables
 ==================

@@ -1,5 +1,5 @@
 ===========================================
-Meetings Module
+Organization Module
 ===========================================
 
 
@@ -9,7 +9,7 @@ Guides
 .. toctree::
    :maxdepth: 3
 
-   meetings-admin-guide
+   organization-admin-guide
 
 Reference
 ==========
@@ -17,4 +17,4 @@ Reference
 .. toctree::
    :maxdepth: 3
 
-   meetings-admin-reference
+   organization-admin-reference

@@ -130,12 +130,6 @@ To facilitate assignment of sets of :term:`tasks <task>` to individual :term:`me
     from the :term:`position`. However the system does allow direct association between :term:`member` and
     :term:`task group`.
 
-Positions
-==============
-To facilitate assignment of sets of :term:`task groups <task group>` to individual :term:`members <member>`,
-:term:`task groups <task group>` may be assigned to one or more :term:`positions <position>`, and in turn
-:term:`members <member>` are assigned one or more :term:`positions <position>`.
-
 Admin Tracking
 ===========================
 The :term:`leadership admin` needs to be able to see summaries of what :term:`tasks <task>` are outstanding in total and for
