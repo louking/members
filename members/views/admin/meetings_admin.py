@@ -11,7 +11,7 @@ from flask import g, request, jsonify, current_app
 from flask.views import MethodView
 from flask_security import current_user
 from dominate.tags import h1, div, label, input
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import aliased
 
 # homegrown
@@ -23,7 +23,7 @@ from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
-from ...model import ACTION_STATUS_OPEN
+from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -372,10 +372,13 @@ class ActionItemsView(DbCrudApiInterestsRolePermissions):
             del self.queryparams[field]
 
         # optionally determine filter for show actions since
+        # NOTE: show_actions_since is only used from Meetings view, and we also need to show any action items
+        # which haven't been closed, regardless of when they were last updated.
         show_actions_since = request.args.get('show_actions_since', None)
         if show_actions_since:
             show_actions_since = dtrender.asc2dt(show_actions_since)
-            self.queryfilters = [ActionItem.update_time >= show_actions_since]
+            self.queryfilters = [or_(ActionItem.update_time >= show_actions_since,
+                                     ActionItem.status != ACTION_STATUS_CLOSED)]
 
     def _get_localuser(self):
         # TODO: process request.args to see if different user is needed
