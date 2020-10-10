@@ -42,6 +42,20 @@ status and provide comments for any :term:`action items <action item>` you've be
     The links in this email are constructed specifically for you, for this meeting. Please do not forward this
     email to anyone else as it would give them access to your account without needing your password.
 
+
+.. _My Meetings view:
+
+My Meetings view
+======================
+**Navigation:** Meetings > My Meetings
+
+The My Meetings view can be used to see a summary of :term:`meetings <meeting>` you were :term:`invited <invite>` to,
+or to navigate to the :ref:`My Status Report view` for a particular meeting.
+
+.. image:: images/my-meetings-view.*
+    :align: center
+
+
 .. _My Status Report view:
 
 My Status Report view
