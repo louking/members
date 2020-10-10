@@ -147,7 +147,7 @@ The view has the following filters:
 
 Meeting Status view
 ======================
-**Navigation:** Meetings > Meetings > [choose meeting] > **Meeting Status**
+**Navigation:** Meetings > Meetings > [select meeting] > **Meeting Status**
 
 The Meeting Status view is used to determine what, if any, status reports are missing, and to send reminders to
 chosen positions about the missing status report(s).
@@ -188,7 +188,7 @@ There is one action button.
 
 Meeting view
 ======================
-**Navigation:** Meetings > Meetings > [choose meeting] > **View Meeting**
+**Navigation:** Meetings > Meetings > [select meeting] > **View Meeting**
 
 The meeting view is used to manage the :term:`meeting`. The following can be done from this view
 

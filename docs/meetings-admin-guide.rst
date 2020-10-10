@@ -79,7 +79,7 @@ Meeting Data Model
         { rank=same; "action item 1", "motion 1" };
     }
 
-Prepare for :term:`Meeting` Module use
+Prepare for :term:`Meeting <meeting>` Module use
 ===============================================================================
 
 The following needs to be set up in the database before using the meeting module. These require the indicated role
@@ -310,7 +310,7 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
 * click **Create**
 
-record a :term:`motion`, it's discussion, and :term:`vote` tally
+record a :term:`motion`, its discussion, and :term:`vote` tally
 ------------------------------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**

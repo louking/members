@@ -18,7 +18,7 @@ Glossary
 
     discussion item
         a topic which needs to be brought up at a :term:`meeting`. When a discussion item is created from
-        :ref:`My Status Report view`, this automatically creates an :term:`agenda` item
+        :ref:`My Status Report view`, this automatically creates an :term:`agenda item`
 
     expiration date
         this is the date the :term:`task` should next be completed by. If this date is in the

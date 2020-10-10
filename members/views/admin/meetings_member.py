@@ -10,8 +10,9 @@ from datetime import date, datetime
 from flask import request, flash, g
 from flask_security import current_user, logout_user, login_user
 from sqlalchemy import func
-from dominate.tags import div, h1, ol, li, p, em, strong
+from dominate.tags import div, h1, ol, li, p, em, strong, a
 from dominate.util import text
+from slugify import slugify
 
 # homegrown
 from . import bp
@@ -32,7 +33,7 @@ displaytime = asctime('%Y-%m-%d %H:%M')
 class ParameterError(Exception): pass
 
 
-##########################################################################################
+###########################################################################################
 # memberdiscussions endpoint
 ###########################################################################################
 
@@ -307,6 +308,12 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
                          'Discussion Item ')
                     strong('while editing')
                     text(' the relevant status report')
+                with p():
+                    text('For step by step instructions, see the ')
+                    a('Member Guide',
+                      href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
+                           + slugify('My Status Report view'),
+                      target='_blank')
 
         return html.render()
 
@@ -505,7 +512,7 @@ memberstatusreport = MemberStatusreportView(
     model=MemberStatusReport,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-members-guide.html'},
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
     pagename='My Status Report',
     endpoint='admin.memberstatusreport',
     endpointvalues={'interest': '<interest>'},
