@@ -63,6 +63,10 @@ def nav_menu():
             navmenu.items.append(View(text, endpoint, **kwargs))
             contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
 
+        def nomenu_help(self, text, endpoint, **kwargs):
+            contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
+
+
     org_admin_view = add_view('https://members.readthedocs.io/en/latest/organization-admin-reference.html#')
     leadership_admin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-admin-reference.html#')
     leadership_superadmin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-superadmin-reference.html#')
@@ -70,6 +74,11 @@ def nav_menu():
     membership_admin_view = add_view('https://members.readthedocs.io/en/latest/membership-admin-guide.html#')
     meetings_admin_view = add_view('https://members.readthedocs.io/en/latest/meetings-admin-reference.html#')
     meetings_member_view = add_view('https://members.readthedocs.io/en/latest/meetings-member-guide.html#')
+
+    # create context help menu items for views which can't be navigated to from the main menu
+    meetings_member_view.nomenu_help('My Status Report', 'admin.memberstatusreport', interest=g.interest)
+    meetings_admin_view.nomenu_help('Meeting', 'admin.meeting', interest=g.interest)
+    meetings_admin_view.nomenu_help('Meeting Status', 'admin.meetingstatus', interest=g.interest)
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
