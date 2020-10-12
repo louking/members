@@ -99,6 +99,13 @@ This opens an Edit form for this :term:`status report`:
 * enter your status for this :term:`position`
 * click **Save**
 
+.. note::
+    :term:`Status reports <status report>` are by :term:`position`. So if there is more than one :term:`member` in the
+    same :term:`position`, they will see the same :term:`status report` for that :term:`position`. If one :term:`member`
+    edits the report the other :term:`member(s) <member>` will be able to see the edits when they open the
+    :term:`position` row. So if the position is shared, there needs to be coordination for producing the
+    :term:`status report`.
+
 .. _add discussion item:
 
 Optionally add discussion items for the meeting
