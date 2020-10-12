@@ -52,6 +52,9 @@ My Meetings view
 The My Meetings view can be used to see a summary of :term:`meetings <meeting>` you were :term:`invited <invite>` to,
 or to navigate to the :ref:`My Status Report view` for a particular meeting.
 
+This view shows your :term:`RSVP <rsvp>` reponse, whether you attended, and gives links to any reports which have been
+generated about the meeting.
+
 .. image:: images/my-meetings-view.*
     :align: center
 

@@ -614,12 +614,15 @@ def mymeetings_attended(row):
     else:
         return 'yes' if row.attended else 'no'
 
-mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey'.split(',')
-mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey'.split(',')
+mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey,meeting.gs_agenda,meeting.gs_status,meeting.gs_minutes'.split(',')
+mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey,gs_agenda,gs_status,gs_minutes'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
 mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
 mymeetings_formmapping['attended'] = mymeetings_attended
+mymeetings_formmapping['gs_agenda'] = lambda row: row.meeting.gs_agenda if row.meeting.gs_agenda else ''
+mymeetings_formmapping['gs_status'] = lambda row: row.meeting.gs_status if row.meeting.gs_status else ''
+mymeetings_formmapping['gs_minutes'] = lambda row: row.meeting.gs_minutes if row.meeting.gs_minutes else ''
 
 mymeetings = MyMeetingsView(
     local_interest_model=LocalInterest,
@@ -649,6 +652,18 @@ mymeetings = MyMeetingsView(
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',
          'className': 'TextCenter',
          'type': 'readonly',
+         },
+        {'data': 'gs_agenda', 'name': 'gs_agenda', 'label': 'Agenda',
+         'type': 'googledoc', 'opts': {'text': 'Agenda'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( "Agenda" )'},
+         },
+        {'data': 'gs_status', 'name': 'gs_status', 'label': 'Status Report',
+         'type': 'googledoc', 'opts': {'text': 'Status Report'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( "Status Report" )'},
+         },
+        {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
+         'type': 'googledoc', 'opts': {'text': 'Minutes'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( "Minutes" )'},
          },
         {'data': 'invitekey', 'name': 'invitekey', 'label': 'My Status Report',
          'type': 'hidden',
