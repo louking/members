@@ -137,109 +137,108 @@ asset_bundles = {
         ),
 
     'admin_js': Bundle(
-        'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
-        'js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver),
+        Bundle('js/jquery-{ver}/jquery.js'.format(ver=jq_ver), filters='jsmin'),
+        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver), filters='jsmin'),
 
-        'js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver),
-        'js/lodash-{ver}/lodash.js'.format(ver=lodash_ver),
+        Bundle('js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver), filters='jsmin'),
+        Bundle('js/lodash-{ver}/lodash.js'.format(ver=lodash_ver), filters='jsmin'),
 
-        'js/JSZip-{ver}/jszip.js'.format(ver=jszip_ver),
-        'js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver),
-        'js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver),
-        'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
-        'js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver),
-        'js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver),
-        'js/Buttons-{ver}/js/buttons.html5.js'.format(ver=dt_buttons_ver),
-        'js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver),
-        'js/Responsive-{ver}/js/dataTables.responsive.js'.format(ver=dt_responsive_ver),
-        'js/RowReorder-{ver}/js/dataTables.rowReorder.js'.format(ver=dt_rowreorder_ver),
-        'js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver),
+        Bundle('js/JSZip-{ver}/jszip.js'.format(ver=jszip_ver), filters='jsmin'),
+        Bundle('js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver), filters='jsmin'),
+        Bundle('js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver), filters='jsmin'),
+        Bundle('js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver), filters='jsmin'),
+        Bundle('js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver), filters='jsmin'),
+        Bundle('js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver), filters='jsmin'),
+        Bundle('js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver), filters='jsmin'),
+        Bundle('js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver), filters='jsmin'),
+        Bundle('js/Buttons-{ver}/js/buttons.html5.js'.format(ver=dt_buttons_ver), filters='jsmin'),
+        Bundle('js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver), filters='jsmin'),
+        Bundle('js/Responsive-{ver}/js/dataTables.responsive.js'.format(ver=dt_responsive_ver), filters='jsmin'),
+        Bundle('js/RowReorder-{ver}/js/dataTables.rowReorder.js'.format(ver=dt_rowreorder_ver), filters='jsmin'),
+        Bundle('js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver), filters='jsmin'),
 
-        'js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver),
+        Bundle('js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver), filters='jsmin'),
 
         # select2 is required for use by Editor forms and interest navigation
-        'js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver),
+        Bundle('js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver), filters='jsmin'),
         # the order here is important
-        'js/FieldType-Select2/editor.select2.js',
+        Bundle('js/FieldType-Select2/editor.select2.js', filters='jsmin'),
 
         # date time formatting for datatables editor, per https://editor.datatables.net/reference/field/datetime
-        'js/moment-{ver}/moment.js'.format(ver=moment_ver),
+        Bundle('js/moment-{ver}/moment.js'.format(ver=moment_ver), filters='jsmin'),
 
         # d3
-        'js/d3-{ver}/d3.v5.js'.format(ver=d3_ver),
+        Bundle('js/d3-{ver}/d3.v5.js'.format(ver=d3_ver), filters='jsmin'),
 
         # ckeditor
-        'js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type),
+        Bundle('js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type)),
 
-        'admin/layout.js',
-        'layout.js',
+        Bundle('admin/layout.js', filters='jsmin'),
+        Bundle('layout.js', filters='jsmin'),
 
         # must be before datatables
-        'js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver),
-        'admin/nunjucks/*.js',
-        'admin/beforedatatables.js',
-        'editor.ckeditor5.js',                  # from loutilities
-        'editor.googledoc.js',                  # from loutilities
-        'datatables.dataRender.googledoc.js',   # from loutilities
-        'user/admin/beforedatatables.js',       # from loutilities
-        'editor.select2.mymethods.js',          # from loutilities
-        'editor.displayController.onPage.js',   # from loutilities
-        'datatables-childrow.js',               # from loutilities
+        Bundle('js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver), filters='jsmin'),
+        Bundle('admin/nunjucks/*.js', filters='jsmin'),
+        Bundle('admin/beforedatatables.js', filters='jsmin'),
+        Bundle('editor.ckeditor5.js', filters='jsmin'),                  # from loutilities
+        Bundle('editor.googledoc.js', filters='jsmin'),                  # from loutilities
+        Bundle('datatables.dataRender.googledoc.js', filters='jsmin'),   # from loutilities
+        Bundle('user/admin/beforedatatables.js', filters='jsmin'),       # from loutilities
+        Bundle('editor.select2.mymethods.js', filters='jsmin'),          # from loutilities
+        Bundle('editor.displayController.onPage.js', filters='jsmin'),   # from loutilities
+        Bundle('datatables-childrow.js', filters='jsmin'),               # from loutilities
 
-        'datatables.js',                        # from loutilities
+        Bundle('datatables.js', filters='jsmin'),                        # from loutilities
 
         # must be after datatables.js
-        'datatables.dataRender.ellipsis.js',    # from loutilities
-        'datatables.dataRender.datetime.js',    # from loutilities
-        'editor.buttons.editrefresh.js',        # from loutilities
-        'editor.buttons.editchildrowrefresh.js',  # from loutilities
-        'editor.fieldType.display.js',          # from loutilities
-        'filters.js',                           # from loutilities
-        'utils.js',                             # from loutilities
-        'user/admin/groups.js',                 # from loutilities
+        Bundle('datatables.dataRender.ellipsis.js', filters='jsmin'),    # from loutilities
+        Bundle('datatables.dataRender.datetime.js', filters='jsmin'),    # from loutilities
+        Bundle('editor.buttons.editrefresh.js', filters='jsmin'),        # from loutilities
+        Bundle('editor.buttons.editchildrowrefresh.js', filters='jsmin'),  # from loutilities
+        Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities
+        Bundle('filters.js', filters='jsmin'),                           # from loutilities
+        Bundle('utils.js', filters='jsmin'),                             # from loutilities
+        Bundle('user/admin/groups.js', filters='jsmin'),                 # from loutilities
 
-        'admin/editor.buttons.invites.js',
-        'admin/afterdatatables.js',
+        Bundle('admin/editor.buttons.invites.js', filters='jsmin'),
+        Bundle('admin/afterdatatables.js', filters='jsmin'),
 
         output='gen/admin.js',
-        filters='jsmin',
         ),
 
     'admin_css': Bundle(
-        'js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver),
-        'js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver),
-        'js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver),
-        'js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver),
-        'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
+        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver), filters=['cssrewrite', 'cssmin']),
 
-        'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
-        'js/Editor-{ver}/css/editor.dataTables.css'.format(ver=dt_editor_ver),
-        'js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver),
-        'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
-        'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
-        'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
-        'js/RowReorder-{ver}/css/rowReorder.jqueryui.css'.format(ver=dt_rowreorder_ver),
-        'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
+        Bundle('js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/Editor-{ver}/css/editor.dataTables.css'.format(ver=dt_editor_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/RowReorder-{ver}/css/rowReorder.jqueryui.css'.format(ver=dt_rowreorder_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver), filters=['cssrewrite', 'cssmin']),
         
-        'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
-        'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
+        Bundle('js/select2-{ver}/css/select2.css'.format(ver=s2_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver), filters=['cssrewrite', 'cssmin']),
 
-        'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver),
-        'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver),
+        Bundle('js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle('js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), filters=['cssrewrite', 'cssmin']),
 
-        'datatables.css',   # from loutilities
-        'editor.css',       # from loutilities
-        'filters.css',      # from loutilities
-        'branding.css',     # from loutilities
+        Bundle('datatables.css', filters=['cssrewrite', 'cssmin']),   # from loutilities
+        Bundle('editor.css', filters=['cssrewrite', 'cssmin']),       # from loutilities
+        Bundle('filters.css', filters=['cssrewrite', 'cssmin']),      # from loutilities
+        Bundle('branding.css', filters=['cssrewrite', 'cssmin']),     # from loutilities
 
-        'style.css',
-        'admin/style.css',
+        Bundle('style.css', filters=['cssrewrite', 'cssmin']),
+        Bundle('admin/style.css', filters=['cssrewrite', 'cssmin']),
 
         output='gen/admin.css',
         # cssrewrite helps find image files when ASSETS_DEBUG = False
-        filters=['cssrewrite', 'cssmin'],
+        # filters=['cssrewrite', 'cssmin'],
         )
 }
 
