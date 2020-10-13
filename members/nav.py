@@ -76,9 +76,10 @@ def nav_menu():
     meetings_member_view = add_view('https://members.readthedocs.io/en/latest/meetings-member-guide.html#')
 
     # create context help menu items for views which can't be navigated to from the main menu
-    meetings_member_view.nomenu_help('My Status Report', 'admin.memberstatusreport', interest=g.interest)
-    meetings_admin_view.nomenu_help('Meeting', 'admin.meeting', interest=g.interest)
-    meetings_admin_view.nomenu_help('Meeting Status', 'admin.meetingstatus', interest=g.interest)
+    if g.interest:
+        meetings_member_view.nomenu_help('My Status Report', 'admin.memberstatusreport', interest=g.interest)
+        meetings_admin_view.nomenu_help('Meeting', 'admin.meeting', interest=g.interest)
+        meetings_admin_view.nomenu_help('Meeting Status', 'admin.meetingstatus', interest=g.interest)
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
