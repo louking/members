@@ -701,9 +701,11 @@ myactionitems_dbattrs = 'id,interest_id,action,status,comments,meeting.date,agen
 myactionitems_formfields = 'rowid,interest_id,action,status,comments,date,agendatitle,agendatext,update_time,updated_by'.split(',')
 myactionitems_dbmapping = dict(zip(myactionitems_dbattrs, myactionitems_formfields))
 myactionitems_formmapping = dict(zip(myactionitems_formfields, myactionitems_dbattrs))
-myactionitems_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
+myactionitems_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date) if row.meeting else ''
 # todo: should this be in tables.py? but see https://github.com/louking/loutilities/issues/25
 myactionitems_dbmapping['meeting.date'] = '__readonly__'
+myactionitems_dbmapping['agendaitem.title'] = '__readonly__'
+myactionitems_dbmapping['agendaitem.agendaitem'] = '__readonly__'
 myactionitems_formmapping['update_time'] = lambda row: displaytime.dt2asc(row.update_time)
 myactionitems_dbmapping['update_time'] = lambda form: datetime.now()
 myactionitems_formmapping['updated_by'] = lambda row: LocalUser.query.filter_by(id=row.updated_by).one().name
