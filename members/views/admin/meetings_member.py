@@ -736,7 +736,7 @@ myactionitems = MyActionItemsView(
     formmapping=myactionitems_formmapping,
     checkrequired=True,
     clientcolumns=[
-        {'data': 'date', 'name': 'date', 'label': 'Date Created',
+        {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
          'type': 'readonly'
          },
         {'data': 'action', 'name': 'action', 'label': 'Action',
