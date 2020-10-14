@@ -170,8 +170,8 @@ asset_bundles = {
         # d3
         Bundle('js/d3-{ver}/d3.v5.js'.format(ver=d3_ver), filters='jsmin'),
 
-        # ckeditor
-        Bundle('js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type)),
+        # ckeditor (note this is already minimized, and filter through jsmin causes problems)
+        'js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type),
 
         Bundle('admin/layout.js', filters='jsmin'),
         Bundle('layout.js', filters='jsmin'),
