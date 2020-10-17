@@ -233,6 +233,9 @@ asset_bundles = {
         Bundle('filters.css', filters=['cssrewrite', 'cssmin']),      # from loutilities
         Bundle('branding.css', filters=['cssrewrite', 'cssmin']),     # from loutilities
 
+        # this doesn't look like it's needed, was testing for #284
+        # Bundle('js/ckeditor5-build-{type}-{ver}/sample/styles.css'.format(ver=cke_ver, type=cke_type),
+        #        filters=['cssrewrite', 'cssmin']),
         Bundle('style.css', filters=['cssrewrite', 'cssmin']),
         Bundle('admin/style.css', filters=['cssrewrite', 'cssmin']),
 

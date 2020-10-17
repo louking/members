@@ -4,7 +4,8 @@ $( function () {
     register_group_for_datatable('interest', '#metanav-select-interest');
 });
 
-// this is a kludge as the basic toolbar isn't showing up without it. This represents the toolbar in #279
+// This represents the toolbar in #279
+// copied from ckeditor build's sample.html
 InlineEditor.defaultConfig = {
     toolbar: {
         items: [
@@ -23,18 +24,24 @@ InlineEditor.defaultConfig = {
             'indent',
             'outdent',
             '|',
-            // 'imageUpload',
             'blockQuote',
             'insertTable',
-            // 'mediaEmbed',
             'undo',
             'redo'
-        ],
-        table: {
-                contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
-            },
-
+        ]
     },
+    language: 'en',
+    table: {
+        contentToolbar: [
+            'tableColumn',
+            'tableRow',
+            'mergeTableCells',
+            'tableCellProperties',
+            'tableProperties'
+        ]
+    },
+    licenseKey: '',
+
 }
 
 function set_cell_status_class(row, data, displayNum, displayIndex, dataIndex) {
