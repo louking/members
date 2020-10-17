@@ -4,6 +4,39 @@ $( function () {
     register_group_for_datatable('interest', '#metanav-select-interest');
 });
 
+// this is a kludge as the basic toolbar isn't showing up without it. This represents the toolbar in #279
+InlineEditor.defaultConfig = {
+    toolbar: {
+        items: [
+            'heading',
+            '|',
+            'bold',
+            'italic',
+            'underline',
+            'link',
+            'bulletedList',
+            'numberedList',
+            'alignment',
+            'strikethrough',
+            'removeFormat',
+            '|',
+            'indent',
+            'outdent',
+            '|',
+            // 'imageUpload',
+            'blockQuote',
+            'insertTable',
+            // 'mediaEmbed',
+            'undo',
+            'redo'
+        ],
+        table: {
+                contentToolbar: [ 'tableColumn', 'tableRow', 'mergeTableCells' ]
+            },
+
+    },
+}
+
 function set_cell_status_class(row, data, displayNum, displayIndex, dataIndex) {
     // the keys for classes need to match the values in viewhelpers(.py).STATUS_DISPLAYORDER
     classes = {

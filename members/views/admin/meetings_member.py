@@ -543,11 +543,6 @@ memberstatusreport = MemberStatusreportView(
         {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
          'visible': False,
          'type': 'ckeditorInline',
-         # 'type': 'ckeditorExt',
-         'opts': {
-             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
-                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
-         }
          },
         # this is hidden, updated automatically by member setting response (see afterdatatables.js)
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',

@@ -48,7 +48,7 @@ d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
 cke_type='inline'           # https://ckeditor.com/ckeditor-5/
-cke_ver='20.0.0'            # https://ckeditor.com/ckeditor-5/
+cke_ver='23.0.0-members-279' # https://ckeditor.com/ckeditor-5/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
@@ -171,7 +171,7 @@ asset_bundles = {
         Bundle('js/d3-{ver}/d3.v5.js'.format(ver=d3_ver), filters='jsmin'),
 
         # ckeditor (note this is already minimized, and filter through jsmin causes problems)
-        'js/ckeditor5-build-{type}-{ver}/ckeditor5-build-{type}/ckeditor.js'.format(ver=cke_ver, type=cke_type),
+        'js/ckeditor5-build-{type}-{ver}/build/ckeditor.js'.format(ver=cke_ver, type=cke_type),
 
         Bundle('admin/layout.js', filters='jsmin'),
         Bundle('layout.js', filters='jsmin'),

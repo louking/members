@@ -1094,19 +1094,11 @@ meeting = MeetingView(
          'type': 'ckeditorInline',
          'visible': False,
          'fieldInfo': 'this comes from the person who wrote the status report',
-         'opts': {
-             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
-                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
-         }
          },
         {'data': 'discussion', 'name': 'discussion', 'label': 'Discussion',
          'type': 'ckeditorInline',
          'visible': False,
          'fieldInfo': 'this is to record any discussion held at the meeting',
-         'opts': {
-             'toolbar': ["heading", "|", "bold", "italic", "link", "bulletedList", "numberedList",
-                         "|", "indent", "outdent", "|", "blockQuote", "insertTable", "undo", "redo"]
-         }
          },
         {'data': 'agendaheading', 'name': 'agendaheading', 'label': 'Agenda Heading',
          'fieldInfo': 'heading under which this agenda item is shown in agenda',

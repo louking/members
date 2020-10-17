@@ -107,6 +107,7 @@ When a :term:`meeting` is being planned, the first thing to do is create it.
 * click **New**
 * **Purpose** should be a short description of the meeting, e.g., *Board Meeting*
 * **Location** can be a physical location, a videoconference URL, or *by email*
+* **Time** the time of the meeting needs to be entered
 * **Show Actions Since** is used to determine which :term:`action items <action item>` are highlighted in
   the :term:`meeting` :term:`invitation <invite>`, in the :term:`agenda`, etc. This should normally be set to the
   date of the last meeting of this type.
