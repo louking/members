@@ -17,15 +17,15 @@ assets - javascript and css asset handling
 from flask_assets import Bundle, Environment
 
 # jquery
-jq_ver = '3.4.1'
+jq_ver = '3.5.1'
 jq_ui_ver = '1.12.1'
 
 # dataTables
-dt_buttons_ver = '1.6.2' # also used for colvis and html5
-dt_datatables_ver = '1.10.21'
-dt_editor_ver = '1.9.4'
+dt_buttons_ver = '1.6.5' # also used for colvis and html5
+dt_datatables_ver = '1.10.22'
+dt_editor_ver = '1.9.5'
 dt_fixedcolumns_ver = '3.3.1'
-dt_responsive_ver = '2.2.5'
+dt_responsive_ver = '2.2.6'
 dt_rowreorder_ver = '1.2.7'
 dt_select_ver = '1.3.1-preXhr-patch'
 jszip_ver = '2.5.0'
@@ -51,7 +51,7 @@ cke_type='inline'           # https://ckeditor.com/ckeditor-5/
 cke_ver='23.0.0-members-279' # https://ckeditor.com/ckeditor-5/
 
 frontend_common_js = Bundle(
-    'js/jquery-{ver}/jquery.js'.format(ver=jq_ver),
+    'js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver),
     'js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver),
 
     'js/lodash-{ver}/lodash.js'.format(ver=lodash_ver),
@@ -66,7 +66,7 @@ frontend_common_js = Bundle(
     'js/Responsive-{ver}/js/responsive.jqueryui.js'.format(ver=dt_responsive_ver),
 
     'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
-    'js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver),
+    'js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver),
 
     'js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver),
 
@@ -137,7 +137,7 @@ asset_bundles = {
         ),
 
     'admin_js': Bundle(
-        Bundle('js/jquery-{ver}/jquery.js'.format(ver=jq_ver), filters='jsmin'),
+        Bundle('js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='jsmin'),
         Bundle('js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver), filters='jsmin'),
 
         Bundle('js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver), filters='jsmin'),
@@ -147,7 +147,7 @@ asset_bundles = {
         Bundle('js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver), filters='jsmin'),
         Bundle('js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver), filters='jsmin'),
         Bundle('js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver), filters='jsmin'),
-        Bundle('js/Editor-{ver}/js/editor.jqueryui.patch-discussion-63653.js'.format(ver=dt_editor_ver), filters='jsmin'),
+        Bundle('js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver), filters='jsmin'),
         Bundle('js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver), filters='jsmin'),
         Bundle('js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver), filters='jsmin'),
         Bundle('js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver), filters='jsmin'),
