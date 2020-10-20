@@ -6,7 +6,7 @@ $( function () {
 
 // This represents the toolbar in #279
 // copied from ckeditor build's sample.html
-InlineEditor.defaultConfig = {
+ClassicEditor.defaultConfig = {
     toolbar: {
         items: [
             'heading',
@@ -215,7 +215,7 @@ function meeting_send_email(url) {
         messagediv.append($('<br>'));
         messagediv.append($('<div>', {id:  'message', name: 'message', width: 'auto'}).addClass('form-input'));
         var msgeditor;
-        InlineEditor
+        ClassicEditor
             .create( form.find('#message')[0] )
             .then( function( newEditor) {
                 msgeditor = newEditor;

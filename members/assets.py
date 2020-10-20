@@ -47,7 +47,7 @@ d3_ver = '5.14.2'           # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
-cke_type='inline'           # https://ckeditor.com/ckeditor-5/
+cke_type='classic'           # https://ckeditor.com/ckeditor-5/
 cke_ver='23.0.0-members-279' # https://ckeditor.com/ckeditor-5/
 
 frontend_common_js = Bundle(
