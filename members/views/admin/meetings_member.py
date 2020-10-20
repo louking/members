@@ -430,6 +430,9 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
             content=statusreport,
             order=order,
         )
+        # a bit of a kludge to resolve #289, pick up rsvp_response and attended from invite record
+        formdata['rsvp_response'] = invite.response
+        formdata['attended'] = invite.attended == 'yes'
         self.dte.set_dbrow(formdata, dbrow)
         self.db.session.add(dbrow)
         self.db.session.flush()
