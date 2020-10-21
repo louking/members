@@ -72,25 +72,32 @@ My Status Report view
 **Navigation:** Meetings > My Meetings > [select meeting] > **My Status Report** (or via the link in the emailed
 :term:`invitation <invite>`)
 
-You will see a table similar to the following, with a row for your :term:`RSVP <rsvp>` and a row for each of your
+You will see a table similar to the following, with a button for your :term:`RSVP <rsvp>` and a row for each of your
 :term:`position` based :term:`status reports <status report>`.
 
 .. image:: images/my-status-report-view.*
     :align: center
 
+.. important::
+    * to *view* the contents of a row, use |icon-expand| to expand, |icon-collapse| to collapse
+    * to *edit* a row, first select the row by clicking on the text to the right of |icon-expand| or |icon-collapse|
+      under **Report Title**, then click the **Edit** button at the top of the table
+
+.. |icon-expand| image:: images/icon-expand.*
+.. |icon-collapse| image:: images/icon-collapse.*
+
 RSVP for the meeting
 ------------------------
 First you need to record whether you plan to come to the :term:`meeting` or not
 
-* select the **RSVP** row
-* click **Edit** at the top of the table
+* click the **RSVP** button
 
-This opens an Edit form for your :term:`RSVP <rsvp>`:
+This opens a form for your :term:`RSVP <rsvp>`:
 
 .. image:: images/my-status-report-edit-rsvp.*
     :align: center
 
-* under **Attending** select your response, one of *attending*, *not attending*
+* next to **RSVP** select your response, one of *attending*, *not attending*
 * click **Save**
 
 Update your status report(s)
@@ -124,6 +131,12 @@ to the :term:`meeting` :term:`agenda`.
 
 * select the row for the :term:`status report` you want to enter a :term:`discussion item` about
 * click **Edit** at the top of the table
+
+This opens an Edit form for this :term:`status report`:
+
+.. image:: images/my-status-report-edit-status.*
+    :align: center
+
 * under **Discussion Items**, click **New**
 
 This opens a Create form for the :term:`discussion item`:

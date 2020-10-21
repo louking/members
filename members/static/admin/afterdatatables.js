@@ -266,33 +266,5 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
-    // special processing for history
-    } else if (location.pathname.includes('/memberstatusreport')) {
-        // for create show all fields except rsvp response, attended
-        editor.on('initCreate', function(e) {
-            editor.show();
-            editor.hide('rsvp_response');
-            editor.hide('attended');
-        });
-
-        // for edit add and clear additional fields appropriately
-        editor.on('initEdit', function(e, node, data, items, type) {
-            editor.show();
-            editor.hide('title');
-            editor.hide('attended');
-            if (data.is_rsvp) {
-                editor.hide('statusreport');
-            } else {
-                editor.hide('rsvp_response');
-            }
-        });
-
-        // default attended field based on rsvp response
-        editor.dependent('rsvp_response', function(val, data, callback) {
-            return val === 'attending' ?
-                { values: { attended: true} } :
-                { values: { attended: false} }
-        })
-
     }
 }

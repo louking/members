@@ -5,12 +5,14 @@ meetings_member - handling for meetings member
 
 # standard
 from datetime import date, datetime
+from traceback import format_exc, format_exception_only
 
 # pypi
-from flask import request, flash, g
+from flask import request, flash, g, jsonify, current_app
 from flask_security import current_user, logout_user, login_user
+from flask.views import MethodView
 from sqlalchemy import func
-from dominate.tags import div, h1, ol, li, p, em, strong, a
+from dominate.tags import div, h1, ol, li, p, em, strong, a, i
 from dominate.util import text
 from slugify import slugify
 
@@ -19,7 +21,7 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem
 from ...model import MemberStatusReport, StatusReport, DiscussionItem
-from ...model import invite_response_all, action_all
+from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
 from .viewhelpers import localuser2user, user2localuser, localinterest
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -298,14 +300,20 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
             with div(id='mystatus-instructions', style='display: none;'):
                 p('Please respond as follows:')
                 with ol():
-                    li('RSVP to the meeting by clicking/editing the first row')
-                    li('Provide Status Reports for each of your positions by clicking/editing subsequent rows')
+                    with li():
+                        text('RSVP to the meeting by clicking ')
+                        strong('RSVP')
+                        text(' button')
+                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
                     with li():
                         em('Optionally')
-                        text(' add a Status Report for something outside your assigned position by clicking New')
+                        text(' add a Status Report for something outside your assigned position by clicking the ')
+                        strong('New')
+                        text(' button')
                 with p():
-                    text('If you would like to add a discussion item to the meeting agenda, click on "New" in the '
-                         'Discussion Item ')
+                    text('If you would like to add a discussion item to the meeting agenda, click ')
+                    strong('New')
+                    text(' in the Discussion Item ')
                     strong('while editing')
                     text(' the relevant status report')
                 with p():
@@ -314,6 +322,26 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
                       href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
                            + slugify('My Status Report view'),
                       target='_blank')
+                p(strong('NOTE:'))
+                with ol():
+                    with li():
+                        text('to view the contents of a row, use ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
+                        text(' to expand, ')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
+                        text(' to collapse')
+                    with li():
+                        text('to edit a row, first select the row by clicking on the text to the right of ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
+                        text(' or ')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
+                        text(' under Report Title, then click the ')
+                        strong('Edit')
+                        text(' button at the top of the table')
+
+
+
+            div(id='mystatus_button_error', style='display: none;')
 
         return html.render()
 
@@ -344,25 +372,6 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         # if no MemberStatusReport records configured, start order at 1
         else:
             order = 1
-
-        # add rsvp record if it doesn't exist
-        if not MemberStatusReport.query.filter_by(is_rsvp=True, **self.queryparams).filter(*self.queryfilters).one_or_none():
-            statusreport = StatusReport(
-                title='RSVP',
-                interest=localinterest(),
-                meeting=self.meeting,
-            )
-            db.session.add(statusreport)
-            rsvprec = MemberStatusReport(
-                interest=localinterest(), 
-                meeting_id=self.meeting.id, 
-                invite=invite,
-                content=statusreport,
-                is_rsvp=True, 
-                order=order
-            )
-            db.session.add(rsvprec)
-            order += 1
 
         # check member's current positions
         # see https://stackoverflow.com/questions/36916072/flask-sqlalchemy-filter-on-many-to-many-relationship-with-parent-model
@@ -430,9 +439,6 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
             content=statusreport,
             order=order,
         )
-        # a bit of a kludge to resolve #289, pick up rsvp_response and attended from invite record
-        formdata['rsvp_response'] = invite.response
-        formdata['attended'] = invite.attended == 'yes'
         self.dte.set_dbrow(formdata, dbrow)
         self.db.session.add(dbrow)
         self.db.session.flush()
@@ -491,6 +497,12 @@ def memberstatusreport_buttons():
         buttons = [
             'create',
             'editChildRowRefresh',
+            {'text': 'RSVP',
+             'action': {
+                 'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
+                                                                                interest=g.interest),
+                                                                   invite.invitekey)}
+             },
             {'text': 'Instructions',
              'action': {'eval': 'mystatus_instructions()'}
              },
@@ -500,9 +512,9 @@ def memberstatusreport_buttons():
 
     return buttons
 
-memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,invite.response,invite.attended,'\
+memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,'\
                              'content.id,content.statusreport,content.position_id'.split(',')
-memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,rsvp_response,attended,'\
+memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,'\
                                 'statusreport_id,statusreport,position_id'.split(',')
 memberstatusreport_dbmapping = dict(zip(memberstatusreport_dbattrs, memberstatusreport_formfields))
 memberstatusreport_formmapping = dict(zip(memberstatusreport_formfields, memberstatusreport_dbattrs))
@@ -539,18 +551,9 @@ memberstatusreport = MemberStatusreportView(
         {'data': 'title', 'name': 'title', 'label': 'Report Title',
          'className': 'field_req',
          },
-        {'data': 'rsvp_response', 'name': 'rsvp_response', 'label': 'Attending',
-         'type': 'select2', 'options': invite_response_all,
-         'visible': False,
-         },
         {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
          'visible': False,
          'type': 'ckeditorClassic',
-         },
-        # this is hidden, updated automatically by member setting response (see afterdatatables.js)
-        {'data': 'attended', 'name': 'attended', 'label': 'Attended',
-         'visible': False,
-         'type': 'hidden',
          },
     ],
     childrowoptions= {
@@ -623,6 +626,7 @@ mymeetings_formmapping['gs_status'] = lambda row: row.meeting.gs_status if row.m
 mymeetings_formmapping['gs_minutes'] = lambda row: row.meeting.gs_minutes if row.meeting.gs_minutes else ''
 
 mymeetings = MyMeetingsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
     db=db,
@@ -717,6 +721,7 @@ agendaitems_yadcf_options = [
 ]
 
 myactionitems = MyActionItemsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
     db=db,
@@ -778,4 +783,77 @@ myactionitems = MyActionItemsView(
     },
 )
 myactionitems.register()
+
+##########################################################################################
+# mymeetingrsvp api endpoint
+##########################################################################################
+
+class MyMeetingRsvpApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+
+        # must have invitekey query arg
+        if request.args.get('invitekey', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+
+        return allowed
+
+    def get(self):
+        try:
+            invitekey = request.args['invitekey']
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            options = [r for r in invite_response_all
+                       # copy if no response yet, or (if a response) anything but no response
+                       if invite.response == INVITE_RESPONSE_NO_RESPONSE or r != INVITE_RESPONSE_NO_RESPONSE]
+            return jsonify(status='success', response=invite.response, options=options)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            invitekey = request.args['invitekey']
+            response = request.form['response']
+
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            invite.response = response
+            invite.attended = response == INVITE_RESPONSE_ATTENDING
+            db.session.commit()
+
+            output_result = {'status' : 'success'}
+            return jsonify(output_result)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_mymeetingrsvp/rest', view_func=MyMeetingRsvpApi.as_view('_mymeetingrsvp'),
+                methods=['GET', 'POST'])
+
 

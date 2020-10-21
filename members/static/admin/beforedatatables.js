@@ -301,6 +301,103 @@ function meeting_send_email(url) {
 }
 
 /**
+ * handles RSVP button from My Status Report view
+ *
+ * @param url - rest url
+ * @returns {fn} - button action
+ */
+function mystatus_rsvp(url) {
+    fn = function() {
+        var that = this;
+        var formerror;
+        that.processing(true);
+
+        // url is preset including invitekey
+        var get = $.get(url, function(data, textStatus, jqXHR) {
+            if (textStatus === "success") {
+                if (data.status === "success") {
+                    var form = $('<form>', {id: 'doc-form', action: url, method:'POST'})
+                    var responsediv = $('<div>', {class: 'DTE_Field field_req'});
+                    form.append(responsediv);
+                    responsediv.append($('<label>', {for: 'response', text: 'RSVP', class: 'DTE_Label'}));
+                    var attending = $('<select>', {id:  'response', name: 'response', class: 'form-input DTE_Field_Input',
+                                                   style: 'width: 80%;'});
+                    responsediv.append(attending);
+                    for (var i=0; i<data.options.length; i++) {
+                        attending.append($('<option>', {value: data.options[i], text: data.options[i]}));
+                    }
+                    attending.val(data.response);
+                    attending.select2({
+                        minimumResultsForSearch: Infinity
+                    });
+
+                    // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
+                    form.dialog({
+                        title: 'RSVP',
+                        modal: true,
+                        minWidth: 400,
+                        height: 'auto',
+                        close: function(event, ui) {
+                            that.processing(false);
+                        },
+                        buttons: [
+                            {
+                                text: 'Save',
+                                click: function() {
+                                    var url = form.attr( "action" );
+                                    var formfields = {};
+                                    var inputs = form.find('.form-input');
+                                    inputs.each(function() {
+                                        formfields[$(this).attr('name')] = $(this).val();
+                                    });
+                                    var post = $.post(url, formfields, function(data, textStatus, jqXHR) {
+                                        if (textStatus === "success") {
+                                            if (data.status === "success") {
+                                                form.dialog('close');
+                                            } else {
+                                                formerror.text(data.error);
+                                                formerror.show();
+                                            }
+                                        } else {
+                                            formerror.text('error occurred: ' + textStatus);
+                                            formerror.show();
+                                        }
+                                    });
+                                },
+                            },
+                            {
+                                text: 'Cancel',
+                                click: function() {
+                                    form.dialog('close');
+                                }
+                            },
+                        ]
+                    });
+            
+                    // need to create formerror div after dialog shown
+                    $('.ui-dialog-buttonpane').append($('<div>', {id: 'form-error', 'class': 'DTE_Form_Error'}))
+                    formerror = $('.ui-dialog-buttonpane #form-error');
+                    formerror.hide();
+
+                } else {
+                    var buttonerror = $('#mystatus_button_error');
+                    buttonerror.text(data.error);
+                    buttonerror.show();
+                    that.processing(false);
+                }
+            } else {
+                var buttonerror = $('#mystatus_button_error');
+                buttonerror.text('error occurred: ' + textStatus);
+                buttonerror.show();
+                that.processing(false);
+            }
+        });
+
+    }
+    return fn;
+}
+
+/**
  * handles Instructions button for My Status Report view
  *
  * @returns {fn}
