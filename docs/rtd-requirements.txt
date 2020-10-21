@@ -30,7 +30,6 @@ loutilities==3.4.0
 Mako==1.1.2
 Markdown==3.2.1
 MarkupSafe==1.1.1
-mysqlclient==1.4.6
 packaging==20.3
 passlib==1.7.2
 pycparser==2.20
