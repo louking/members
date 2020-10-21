@@ -318,7 +318,7 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
                     text(' the relevant status report')
                 with p():
                     text('For step by step instructions, see the ')
-                    a('Member Guide',
+                    a('Help for My Status Report',
                       href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
                            + slugify('My Status Report view'),
                       target='_blank')
