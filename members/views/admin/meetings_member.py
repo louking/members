@@ -47,6 +47,32 @@ memberdiscussions_dbmapping = dict(zip(memberdiscussions_dbattrs, memberdiscussi
 memberdiscussions_formmapping = dict(zip(memberdiscussions_formfields, memberdiscussions_dbattrs))
 
 class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
+    def permission(self):
+        '''
+        verify current_user has access to this user's discussions.
+        as side effect, set self.theuser (User)
+
+        :return: True if permission is to be granted
+        '''
+        permitted = super().permission()
+        if permitted:
+            invitekey = request.args.get('invitekey', None)
+            localuser_id = Invite.query.filter_by(invitekey=invitekey).one().user.id if invitekey else user2localuser(current_user).id
+            localuser = LocalUser.query.filter_by(id=localuser_id).one()
+            self.theuser = localuser2user(localuser)
+            # ok for current user, otherwise, must have super admin or meetings admin permission,
+            # and be allowed current interest
+            if not (self.theuser == current_user
+                    or
+                    # one of current user's roles is super admin or meetings admin
+                    (set([r.name for r in current_user.roles]) & set([ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN])
+                     and
+                     # targeted user is allowed current interest
+                     g.interest in [i.interest for i in self.theuser.interests])):
+                permitted = False
+        return permitted
+
+
     def beforequery(self):
         '''
         add meeting_id to query parameters
@@ -76,10 +102,10 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         agendatitle = formdata['discussiontitle']
         if 'position_id' in formdata and formdata['position_id']:
             position = Position.query.filter_by(id=formdata['position_id']).one()
-            agendatitle += ' [{} / {}]'.format(current_user.name, position.position)
+            agendatitle += ' [{} / {}]'.format(self.theuser.name, position.position)
             agendaheading = position.agendaheading
         else:
-            agendatitle += ' [{}]'.format(current_user.name)
+            agendatitle += ' [{}]'.format(self.theuser.name)
             agendaheading = None
 
         # todo: should this be a critical region because of order? possibly that doesn't matter
@@ -179,7 +205,7 @@ memberdiscussions = MemberDiscussionsView(
         {'data': 'hidden_reason', 'name': 'hidden_reason', 'label': 'Reason for Hiding',
          'type':'readonly',
          },
-        # meeting_id and statusreport_id are required for tying to meeting view row
+        # the following fields are required for tying to meeting view row and other housekeeping
         # put these last so as not to confuse indexing between datatables (python vs javascript)
         {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
          'type': 'hidden',
@@ -218,13 +244,119 @@ memberdiscussions.register()
 # memberstatusreport endpoint
 ##########################################################################################
 
-class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
-    # remove auth_required() decorator
-    decorators = []
+def get_invite_response(dbrow):
+    invite = dbrow.invite
+    return invite.response
 
+def memberstatusreport_buttons():
+    invitekey = request.args.get('invitekey', None)
+    if invitekey:
+        invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
+        meeting = invite.meeting
+        today = date.today()
+    if invitekey and meeting.date >= today:
+        buttons = [
+            'create',
+            'editChildRowRefresh',
+            {'text': 'RSVP',
+             'action': {
+                 'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
+                                                                                interest=g.interest),
+                                                                   invite.invitekey)}
+             },
+            {'text': 'Instructions',
+             'action': {'eval': 'mystatus_instructions()'}
+             },
+        ]
+    else:
+        buttons = []
+
+    return buttons
+
+memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,'\
+                             'content.id,content.statusreport,content.position_id'.split(',')
+memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,'\
+                                'statusreport_id,statusreport,position_id'.split(',')
+memberstatusreport_dbmapping = dict(zip(memberstatusreport_dbattrs, memberstatusreport_formfields))
+memberstatusreport_formmapping = dict(zip(memberstatusreport_formfields, memberstatusreport_dbattrs))
+memberstatusreport_dbmapping['invite.attended'] = lambda form: True if form['attended'] == 'true' else False
+
+# used by MemberStatusReportView and meetings_admin.TheirStatusReportView
+class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
     def __init__(self, **kwargs):
         args = dict(
-            pretablehtml = self.format_pretablehtml
+            local_interest_model=LocalInterest,
+            app=bp,  # use blueprint instead of app
+            db=db,
+            model=MemberStatusReport,
+            version_id_col='version_id',  # optimistic concurrency control
+            template='datatables.jinja2',
+            pretablehtml=self.format_pretablehtml,
+            dbmapping=memberstatusreport_dbmapping,
+            formmapping=memberstatusreport_formmapping,
+            checkrequired=True,
+            tableidtemplate='actionitems-{{ meeting_id }}-{{ comment_id }}',
+            clientcolumns=[
+                {'data': '',  # needs to be '' else get exception converting options from meetings render_template
+                 # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+                 'name': 'details-control',
+                 'className': 'details-control shrink-to-fit',
+                 'orderable': False,
+                 'defaultContent': '',
+                 'label': '',
+                 'type': 'hidden',  # only affects editor modal
+                 'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
+                 'render': {'eval': 'render_plus'},
+                 },
+                {'data': 'title', 'name': 'title', 'label': 'Report Title',
+                 'className': 'field_req',
+                 },
+                {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
+                 'visible': False,
+                 'type': 'ckeditorClassic',
+                 },
+            ],
+            childrowoptions={
+                'template': 'memberstatusreport-child-row.njk',
+                'showeditor': True,
+                'group': 'interest',
+                'groupselector': '#metanav-select-interest',
+                'childelementargs': [
+                    {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
+                     'postcreatehook': 'discussionitems_postcreate',
+                     'args': {
+                         'buttons': ['create', 'editRefresh', 'remove'],
+                         'columns': {
+                             'datatable': {
+                                 # uses data field as key
+                                 'purpose': {'visible': False},
+                                 'date': {'visible': False},
+                                 'statusreport': {'visible': False},
+                             },
+                             'editor': {
+                                 # uses name field as key
+                                 'purpose': {'type': 'hidden'},
+                                 'date': {'type': 'hidden'},
+                                 # 'statusreport': {'type': 'hidden'},
+                             },
+                         },
+                         'updatedtopts': {
+                             'dom': 'Brt',
+                             'paging': False,
+                         },
+                     }
+                     },
+                ],
+            },
+            idSrc='rowid',
+            buttons=memberstatusreport_buttons,
+            dtoptions={
+                'scrollCollapse': True,
+                'scrollX': True,
+                'scrollXInner': "100%",
+                'scrollY': True,
+                'paging': False,
+            },
         )
         args.update(kwargs)
 
@@ -233,40 +365,6 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
 
         # this causes self.dte.get_response_data to execute postprocessrow() to transform returned response
         self.dte.set_response_hook(self.postprocessrow)
-
-    def permission(self):
-        invitekey = request.args.get('invitekey', None)
-        if invitekey:
-            permitted = True
-            invite = Invite.query.filter_by(invitekey=invitekey).one()
-            user = localuser2user(invite.user)
-            self.meeting = invite.meeting
-            self.interest = self.meeting.interest
-
-            if current_user != user:
-                # log out and in automatically
-                # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
-                logout_user()
-                login_user(user)
-                db.session.commit()
-                flash('you have been automatically logged in as {}'.format(current_user.name))
-
-            # at this point, if current_user has the target user (may have been changed by invitekey)
-            # check role permissions, permitted = True (from above) unless determined otherwise
-            roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
-            allowed = False
-            for role in roles_accepted:
-                if current_user.has_role(role):
-                    allowed = True
-                    break
-            if not allowed:
-                permitted = False
-
-        # no invitekey, not permitted
-        else:
-            permitted = False
-
-        return permitted
 
     def get_meeting(self):
         invitekey = request.args.get('invitekey', None)
@@ -281,80 +379,6 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
             meeting = Meeting.query.filter_by(id=meeting_id).one()
 
         return meeting
-
-    def get_invite(self):
-        meeting = self.get_meeting()
-        invite = Invite.query.filter_by(meeting_id=meeting.id, user_id=user2localuser(current_user).id).one_or_none()
-        if not invite:
-            raise ParameterError('no invitation found for this meeting/user combination')
-        return invite
-
-    def format_pretablehtml(self):
-        meeting = self.get_meeting()
-
-        html = div()
-        with html:
-            h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
-
-            # id referenced from beforedatatables.js meeting_send_email()
-            with div(id='mystatus-instructions', style='display: none;'):
-                p('Please respond as follows:')
-                with ol():
-                    with li():
-                        text('RSVP to the meeting by clicking ')
-                        strong('RSVP')
-                        text(' button')
-                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
-                    with li():
-                        em('Optionally')
-                        text(' add a Status Report for something outside your assigned position by clicking the ')
-                        strong('New')
-                        text(' button')
-                with p():
-                    text('If you would like to add a discussion item to the meeting agenda, click ')
-                    strong('New')
-                    text(' in the Discussion Item ')
-                    strong('while editing')
-                    text(' the relevant status report')
-                with p():
-                    text('For step by step instructions, see the ')
-                    a('Help for My Status Report',
-                      href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
-                           + slugify('My Status Report view'),
-                      target='_blank')
-                p(strong('NOTE:'))
-                with ol():
-                    with li():
-                        text('to view the contents of a row, use ')
-                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
-                        text(' to expand, ')
-                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
-                        text(' to collapse')
-                    with li():
-                        text('to edit a row, first select the row by clicking on the text to the right of ')
-                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
-                        text(' or ')
-                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
-                        text(' under Report Title, then click the ')
-                        strong('Edit')
-                        text(' button at the top of the table')
-
-
-
-            div(id='mystatus_button_error', style='display: none;')
-
-        return html.render()
-
-    def beforequery(self):
-        '''
-        add meeting_id to query parameters
-        '''
-        super().beforequery()
-
-        # self.meeting set up in self.permission()
-        self.queryparams['meeting_id'] = self.meeting.id
-        invite = self.get_invite()
-        self.queryparams['invite_id'] = invite.id
 
     def open(self):
         # before standard open handling, create records if they don't exist
@@ -377,7 +401,7 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         # see https://stackoverflow.com/questions/36916072/flask-sqlalchemy-filter-on-many-to-many-relationship-with-parent-model
         # see https://stackoverflow.com/questions/34804756/sqlalchemy-filter-many-to-one-relationship-where-the-one-object-has-a-list-cont
         positions = Position.query.filter_by(has_status_report=True)\
-            .filter(Position.users.any(LocalUser.id == user2localuser(current_user).id)).all()
+            .filter(Position.users.any(LocalUser.id == user2localuser(self.theuser).id)).all()
         for position in positions:
             filters = [StatusReport.position == position] + self.queryfilters
             # has the member status report already been created? if not, create one
@@ -485,118 +509,122 @@ class MemberStatusreportView(DbCrudApiInterestsRolePermissions):
         if tableid:
             row['tableid'] = tableid
 
-def get_invite_response(dbrow):
-    invite = dbrow.invite
-    return invite.response
+class MemberStatusReportView(MemberStatusReportBase):
+    # remove auth_required() decorator
+    decorators = []
 
-def memberstatusreport_buttons():
-    invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
-    meeting = invite.meeting
-    today = date.today()
-    if meeting.date >= today:
-        buttons = [
-            'create',
-            'editChildRowRefresh',
-            {'text': 'RSVP',
-             'action': {
-                 'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
-                                                                                interest=g.interest),
-                                                                   invite.invitekey)}
-             },
-            {'text': 'Instructions',
-             'action': {'eval': 'mystatus_instructions()'}
-             },
-        ]
-    else:
-        buttons = []
+    def permission(self):
+        invitekey = request.args.get('invitekey', None)
+        if invitekey:
+            permitted = True
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            user = localuser2user(invite.user)
+            self.meeting = invite.meeting
+            self.interest = self.meeting.interest
 
-    return buttons
+            if current_user != user:
+                # log out and in automatically
+                # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
+                logout_user()
+                login_user(user)
+                db.session.commit()
+                flash('you have been automatically logged in as {}'.format(current_user.name))
 
-memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,'\
-                             'content.id,content.statusreport,content.position_id'.split(',')
-memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,'\
-                                'statusreport_id,statusreport,position_id'.split(',')
-memberstatusreport_dbmapping = dict(zip(memberstatusreport_dbattrs, memberstatusreport_formfields))
-memberstatusreport_formmapping = dict(zip(memberstatusreport_formfields, memberstatusreport_dbattrs))
-memberstatusreport_dbmapping['invite.attended'] = lambda form: True if form['attended'] == 'true' else False
+            # at this point, if current_user has the target user (may have been changed by invitekey)
+            # check role permissions, permitted = True (from above) unless determined otherwise
+            roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
+            allowed = False
+            for role in roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+            if not allowed:
+                permitted = False
 
-memberstatusreport = MemberStatusreportView(
-    local_interest_model=LocalInterest,
-    app=bp,  # use blueprint instead of app
-    db=db,
-    model=MemberStatusReport,
-    version_id_col='version_id',  # optimistic concurrency control
-    template='datatables.jinja2',
+        # no invitekey, not permitted
+        else:
+            permitted = False
+
+        return permitted
+
+    def beforequery(self):
+        # set user based on invite key
+        invite = self.get_invite()
+        self.theuser = invite.user
+        super().beforequery()
+        self.queryparams['meeting_id'] = self.meeting.id
+        self.queryparams['invite_id'] = invite.id
+
+    def get_invite(self):
+        meeting = self.get_meeting()
+        invite = Invite.query.filter_by(meeting_id=meeting.id, user_id=user2localuser(current_user).id).one_or_none()
+        if not invite:
+            raise ParameterError('no invitation found for this meeting/user combination')
+        return invite
+
+    def format_pretablehtml(self):
+        meeting = self.get_meeting()
+
+        html = div()
+        with html:
+            h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
+
+            # id referenced from beforedatatables.js meeting_send_email()
+            with div(id='mystatus-instructions', style='display: none;'):
+                p('Please respond as follows:')
+                with ol():
+                    with li():
+                        text('RSVP to the meeting by clicking ')
+                        strong('RSVP')
+                        text(' button')
+                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
+                    with li():
+                        em('Optionally')
+                        text(' add a Status Report for something outside your assigned position by clicking the ')
+                        strong('New')
+                        text(' button')
+                with p():
+                    text('If you would like to add a discussion item to the meeting agenda, click ')
+                    strong('New')
+                    text(' in the Discussion Item ')
+                    strong('while editing')
+                    text(' the relevant status report')
+                with p():
+                    text('For step by step instructions, see the ')
+                    a('Help for My Status Report',
+                      href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
+                           + slugify('My Status Report view'),
+                      target='_blank')
+                p(strong('NOTE:'))
+                with ol():
+                    with li():
+                        text('to view the contents of a row, use ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
+                        text(' to expand, ')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
+                        text(' to collapse')
+                    with li():
+                        text('to edit a row, first select the row by clicking on the text to the right of ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
+                        text(' or ')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
+                        text(' under Report Title, then click the ')
+                        strong('Edit')
+                        text(' button at the top of the table')
+
+
+
+            div(id='mystatus_button_error', style='display: none;')
+
+        return html.render()
+
+
+memberstatusreport = MemberStatusReportView(
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
     pagename='My Status Report',
     endpoint='admin.memberstatusreport',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/memberstatusreport',
-    dbmapping=memberstatusreport_dbmapping,
-    formmapping=memberstatusreport_formmapping,
-    checkrequired=True,
-    tableidtemplate ='actionitems-{{ meeting_id }}-{{ comment_id }}',
-    clientcolumns=[
-        {'data':'', # needs to be '' else get exception converting options from meetings render_template
-                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
-         'name':'details-control',
-         'className': 'details-control shrink-to-fit',
-         'orderable': False,
-         'defaultContent': '',
-         'label': '',
-         'type': 'hidden',  # only affects editor modal
-         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
-         'render': {'eval':'render_plus'},
-         },
-        {'data': 'title', 'name': 'title', 'label': 'Report Title',
-         'className': 'field_req',
-         },
-        {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
-         'visible': False,
-         'type': 'ckeditorClassic',
-         },
-    ],
-    childrowoptions= {
-        'template': 'memberstatusreport-child-row.njk',
-        'showeditor': True,
-        'group': 'interest',
-        'groupselector': '#metanav-select-interest',
-        'childelementargs': [
-            {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
-             'postcreatehook': 'discussionitems_postcreate',
-             'args': {
-                 'buttons': ['create', 'editRefresh', 'remove'],
-                 'columns': {
-                     'datatable': {
-                         # uses data field as key
-                         'purpose': {'visible': False},
-                         'date': {'visible': False},
-                         'statusreport': {'visible': False},
-                     },
-                     'editor': {
-                         # uses name field as key
-                         'purpose': {'type': 'hidden'},
-                         'date': {'type': 'hidden'},
-                         # 'statusreport': {'type': 'hidden'},
-                     },
-                 },
-                 'updatedtopts': {
-                     'dom': 'Brt',
-                     'paging': False,
-                 },
-             }
-             },
-        ],
-    },
-    idSrc='rowid',
-    buttons=memberstatusreport_buttons,
-    dtoptions={
-        'scrollCollapse': True,
-        'scrollX': True,
-        'scrollXInner': "100%",
-        'scrollY': True,
-        'paging': False,
-    },
 )
 memberstatusreport.register()
 
@@ -677,7 +705,7 @@ mymeetings = MyMeetingsView(
         {
             'extend': 'edit',
             'text': 'My Status Report',
-            'action': {'eval': 'mymeeting_statusreport'}
+            'action': {'eval': 'mystatus_statusreport'}
         },
         'csv',
     ],

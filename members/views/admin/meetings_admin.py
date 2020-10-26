@@ -7,10 +7,11 @@ from datetime import datetime, date
 from traceback import format_exception_only, format_exc
 
 # pypi
-from flask import g, request, jsonify, current_app
+from flask import g, request, jsonify, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import h1, div, label, input
+from dominate.tags import h1, div, label, input, select, option, script
+from dominate.util import text, raw
 from sqlalchemy import func, or_
 from sqlalchemy.orm import aliased
 
@@ -25,6 +26,7 @@ from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
+from .meetings_member import MemberStatusReportBase
 from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -220,12 +222,17 @@ meetings = MeetingsView(
         {
             'extend': 'edit',
             'text': 'View Meeting',
-            'action': {'eval': 'meeting_details'}
+            'action': {'eval': 'meetings_details'}
         },
         {
             'extend': 'edit',
             'text': 'Meeting Status',
-            'action': {'eval': 'meeting_status'}
+            'action': {'eval': 'meetings_status'}
+        },
+        {
+            'extend': 'edit',
+            'text': 'Their Status Report',
+            'action': {'eval': 'meetings_theirstatusreport'}
         },
     ],
     dtoptions={
@@ -1226,6 +1233,91 @@ meeting = MeetingView(
 },
 )
 meeting.register()
+
+##########################################################################################
+# theirstatusreport endpoint
+##########################################################################################
+
+class TheirStatusReportView(MemberStatusReportBase):
+    def permission(self):
+        invitekey = request.args.get('invitekey', None)
+        meeting_id = request.args.get('meeting_id', None)
+        if not invitekey and not meeting_id:
+            return False
+        return super().permission()
+
+    def beforequery(self):
+        super().beforequery()
+        invitekey = request.args.get('invitekey', None)
+        meeting_id = request.args.get('meeting_id', None)
+        self.theuser = None
+        # set user based on invite key
+        if invitekey:
+            invite = self.get_invite()
+            self.theuser = localuser2user(invite.user)
+            self.meeting = self.get_meeting()
+            self.queryparams['invite_id'] = invite.id
+        # if no invitekey, there's no query. See self.open()
+
+    def get_invite(self):
+        invitekey = request.args.get('invitekey')
+        invite = Invite.query.filter_by(invitekey=invitekey).one()
+        return invite
+
+    def format_pretablehtml(self):
+        # for some reason self.theuser doesn't exist within this instance when called, maybe because of the way
+        # pluggable views works. Recalculate theuser
+        theuser = None
+        invitekey = request.args.get('invitekey', None)
+        if invitekey:
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            theuser = invite.user
+
+        meeting = self.get_meeting()
+        html = div()
+        with html:
+            with h1(_class='TextCenter'):
+                text('{} - {} - '.format(meeting.date, meeting.purpose))
+                invites = Invite.query.filter_by(meeting=meeting).all()
+                invites.sort(key=lambda item: item.user.name)
+                with select(id='user-select', _class='h1-select', style='width: 20em;'):
+                    option()
+                    for invite in invites:
+                        option(invite.user.name, value=invite.invitekey, selected=(invite.user==theuser))
+            with script():
+                text(
+                    'var userselect = $(\'#user-select\');\n'
+                    'userselect.select2({\n'
+                    '   dropdownAutoWidth: true,\n'
+                    '   placeholder: \'select a member\',\n'
+                    '   allowClear: true,\n'
+                    '});\n'
+                    'userselect.change(function() {\n'
+                )
+                raw('   window.location.href = \'{}?meeting_id={}&invitekey=\' + userselect.val() ;\n'.format(
+                    url_for('admin.theirstatusreport', interest=g.interest), meeting.id
+                ))
+                text('});')
+        return html.render()
+
+    def open(self):
+        # if user is known, do the normal processing
+        if self.theuser:
+            super().open()
+
+        # if user isn't known, this is a no-op
+        else:
+            self.rows = iter([])
+
+theirstatusreport = TheirStatusReportView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    pagename='Their Status Report',
+    endpoint='admin.theirstatusreport',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/theirstatusreport',
+)
+theirstatusreport.register()
 
 ##########################################################################################
 # meetinggendocs api endpoint

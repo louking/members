@@ -326,6 +326,10 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are two navigati
         this gives status of the meeting for use prior to the meeting, showing missing and entered status reports. This
         brings up :ref:`Meeting Status view`
 
+    :Their Status Report:
+        this allows the :term:`meeting admin` to :term:`RSVP <rsvp>` and enter :term:`status reports <status report>`
+        on behalf of another :term:`member`. This brings up :ref:`Their Status Report view`
+
 .. image:: images/meetings-view.*
     :align: center
 
@@ -482,3 +486,17 @@ e.g., for invitations to be sent for a :term:`meeting`, or to indicate who may :
     :align: center
 
 
+.. _Their Status Report view:
+
+Their Status Report view
+==============================
+**Navigation:** Meetings > Meetings > [select meeting] > **Their Status Report**
+
+This view is used to enter :term:`RSVP <rsvp>` or :term:`status reports <status report>` on behalf of a :term:`member`.
+The view is exactly the same as :ref:`My Status Report view`, with the exception that the header above the table allows
+the :term:`meeting admin` to choose which :term:`member's <member>` :term:`status report` to work on.
+
+.. image:: images/their-status-report-view.*
+    :align: center
+
+See :ref:`My Status Report view` for more details on how to use this view.

@@ -453,7 +453,7 @@ function member_details(e, dt, node, config) {
  * @param node
  * @param config
  */
-function meeting_details(e, dt, node, config) {
+function meetings_details(e, dt, node, config) {
     var args = allUrlParams();
     var meetingid = dt.rows({selected:true}).data()[0].rowid;
     args.meeting_id = meetingid;
@@ -471,7 +471,7 @@ function meeting_details(e, dt, node, config) {
  * @param node
  * @param config
  */
-function meeting_status(e, dt, node, config) {
+function meetings_status(e, dt, node, config) {
     var args = allUrlParams();
     var meetingid = dt.rows({selected:true}).data()[0].rowid;
     args.meeting_id = meetingid;
@@ -483,13 +483,31 @@ function meeting_status(e, dt, node, config) {
 }
 
 /**
+ * handles Their Status Report button from Meetings view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
+function meetings_theirstatusreport(e, dt, node, config) {
+    var args = allUrlParams();
+    var meetingid = dt.rows({selected: true}).data()[0].rowid;
+    args.meeting_id = meetingid;
+    var newsearch = $.param(args);
+    var newloclist = window.location.pathname.split('/').slice(0, -1);
+    newloclist.push('theirstatusreport');
+    var newloc = newloclist.join('/') + '?' + newsearch;
+    window.location.href = newloc;
+}
+
+/**
  * handles View Status Report button from My Status Reports view
  * @param e
  * @param dt
  * @param node
  * @param config
  */
-function mymeeting_statusreport(e, dt, node, config) {
+function mystatus_statusreport(e, dt, node, config) {
     var args = allUrlParams();
     var invitekey = dt.rows({selected:true}).data()[0].invitekey;
     args.invitekey = invitekey;

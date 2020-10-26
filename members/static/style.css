@@ -15,14 +15,6 @@
     padding: 4px;
 }
 
-/* jqueryui and dataTables selectize have conflict, this is needed to bring dataTables Editor selectize to front */
-div.selectize-dropdown {
-  z-index: 102;
-}
-.select2-selection__rendered {
-    text-align: left;
-}
-
 /* any form error will be in red */
 div.DTE_Form_Error {
     color: red;
@@ -369,7 +361,7 @@ div.DTE_Field.inhibitlabel > div.DTE_Field_Input {
   width: 100% !important;
 }
 
-/* dropdown and label *?
+/* dropdown and label */
 /* select2 - style the dropdown options - see select2-<ver>/css/select2.css for classes */
 .select2-dropdown {
     font-size: 0.8em;
@@ -378,6 +370,17 @@ div.DTE_Field.inhibitlabel > div.DTE_Field_Input {
 label.interest-label {
     font-family: Verdana, Geneva, sans-serif;
     font-weight: bold;
+}
+/* jqueryui and dataTables selectize have conflict, this is needed to bring dataTables Editor selectize to front */
+div.selectize-dropdown {
+  z-index: 102;
+}
+.select2-selection__rendered {
+    text-align: left;
+}
+h1 .select2-selection__rendered {
+    /* see h1 styling */
+    color: #377ba8 !important;
 }
 
 /* hidden row display */

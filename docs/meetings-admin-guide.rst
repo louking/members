@@ -160,6 +160,20 @@ From the :term:`meeting's <meeting>` :ref:`Meeting Status view`,
 * popup indicates which :term:`members <member>` were sent a reminder
 * click **OK** to dismiss the popup
 
+on behalf of a :term:`member`, enter :term:`RSVP <rsvp>` and :term:`status reports <status report>`
+-----------------------------------------------------------------------------------------------------
+
+If a :term:`member` isn't able to use the system to :term:`RSVP <rsvp>` and/or enter their
+:term:`status reports <status report>`, the :term:`meeting admin` can use the :ref:`Their Status Report view` to
+enter the information provided outside the system.
+
+To access the :term:`meeting's <meeting>` :ref:`Their Status Report view`, from :ref:`Meetings view` select the
+meeting and click **Their Status Report**. An empty view is displayed.
+
+To enter the :term:`member's <member>` :term:`RSVP <rsvp>` and/or :term:`status reports <status report>`, select the
+member in the table heading. From there, you can proceed as if you were the selected :term:`member`, using the instructions
+from :ref:`My Status Report view`.
+
 review the :term:`agenda`
 -------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
