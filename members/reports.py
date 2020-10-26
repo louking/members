@@ -135,7 +135,8 @@ def meeting_gen_reports(meeting_id, reports):
                 continue
 
             report = {
-                'title': sr.title,
+                # there should only be one MemberStatusReport linked to this StatusReport
+                'title': '{} - {}'.format(sr.title, sr.memberstatusreports[0].invite.user.name),
                 'statusreport': obj2dict(sr.statusreport),
                 'discussions': [obj2dict(d) for d in discussions if d.statusreport_id == sr.id]
             }
