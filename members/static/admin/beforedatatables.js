@@ -518,6 +518,79 @@ function mystatus_statusreport(e, dt, node, config) {
     window.location.href = newloc;
 }
 
+/**
+ * handles New button from My Status Reports view
+ * @param e
+ * @param dt
+ * @param node
+ * @param config
+ */
+function mystatus_create(e, dt, node, config) {
+    var that = this;
+    var show_editor = function() {
+        dt.editor()
+            .title('Add ad hoc status report')
+            .buttons('Save')
+            .create();
+    }
+    var missing_reports = [];
+    var reports = dt.data();
+    for (var i=0; i<reports.length; i++) {
+        var report = reports[i];
+        if (report.position_id !== "" && (report.statusreport === null || report.statusreport === "")) {
+            missing_reports.push(report.title);
+        }
+    }
+    if (missing_reports.length != 0) {
+        var messagediv = $('<div>',
+            {
+                class: 'DTE_Field field_req',
+                title: 'WARNING!'
+            });
+        messagediv.append($('<p>', {
+            text: 'Creating a "New" status report starts a report for a topic outside your assigned position(s), which ' +
+                'is fine, but may not be what you want to do. Please use the preassigned Position status report(s) to ' +
+                'report on your assigned role(s). '
+        }));
+        messagediv.append($('<p>', {text: 'Empty Position reports:'}))
+        var list = messagediv.append($('<ul>'));
+        for (var i=0; i<missing_reports.length; i++) {
+            list.append('<li>'+ missing_reports[i] + '</li>');
+        }
+        messagediv.append($('<p>', {text: 'Continue to create a new ad hoc report'}));
+        messagediv.append($('<p>', {text: 'Cancel to edit your Position reports'}));
+        messagediv.dialog({
+            modal: true,
+            minWidth: 400,
+            height: 'auto',
+            dialogClass: 'new-challenge',
+            buttons: [
+                {
+                    text: 'Continue',
+                    click: function () {
+                        $(this).dialog('close');
+                        show_editor();
+                    },
+                },
+                {
+                    text: 'Cancel',
+                    click: function () {
+                        $(this).dialog('close');
+                    }
+                }
+
+            ],
+        });
+        // #ffc107 from https://getbootstrap.com/docs/4.0/utilities/colors/
+        $('.new-challenge').children('.ui-dialog-titlebar')
+            .prepend('<span style="float: left;">&nbsp;</span>')
+            .prepend('<i class="fa fa-exclamation-circle" style="color: #ffc107; font-size: 125%; float: left;">');
+    } else {
+        show_editor();
+    }
+}
+
+
 // hide/show fields for discussionitems child table
 function discussionitems_postcreate(dt, ed) {
     if (ed) {

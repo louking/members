@@ -256,7 +256,9 @@ def memberstatusreport_buttons():
         today = date.today()
     if invitekey and meeting.date >= today:
         buttons = [
-            'create',
+            {'text': 'New',
+             'action': {'eval': 'mystatus_create'}
+             },
             'editChildRowRefresh',
             {'text': 'RSVP',
              'action': {

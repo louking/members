@@ -100,6 +100,8 @@ This opens a form for your :term:`RSVP <rsvp>`:
 * next to **RSVP** select your response, one of *attending*, *not attending*
 * click **Save**
 
+.. _My Status Report update report:
+
 Update your status report(s)
 --------------------------------
 Now you can enter your :term:`status report(s) <status report>`.
@@ -167,11 +169,22 @@ You can edit the discussion item up until the meeting.
 Optionally create ad hoc status for areas not covered by one of your positions
 --------------------------------------------------------------------------------
 Occasionally, there might be a need to create a :term:`status report` or :term:`discussion item` which
-doesn't neatly fit under one of your positions.
+doesn't neatly fit under one of your assigned :term:`positions <position>`.
 
 * above the Status Report table, click **New**
 
-This opens a Create form for the :term:`status report`:
+If you have one or more empty :term:`position` :term:`status reports <status report>`, you will be shown the
+following challenge:
+
+.. image:: images/my-status-report-new-challenge.*
+    :align: center
+
+Assuming you really do mean to create an ad hoc report, click **Continue**. But if you mean to create a report for
+one of your assigned :term:`positions <position>`, click **Cancel** and then follow the directions at
+:ref:`My Status Report update report`.
+
+If all of your assigned :term:`positions <position>` reports have been filled in, or if you click **Continue**
+at the challenge, you will see a form to add an ad hoc :term:`status report`:
 
 .. image:: images/my-status-report-create.*
     :align: center
