@@ -79,12 +79,15 @@ You will see a table similar to the following, with a button for your :term:`RSV
     :align: center
 
 .. important::
-    * to *view* the contents of a row, use |icon-expand| to expand, |icon-collapse| to collapse
-    * to *edit* a row, first select the row by clicking on the text to the right of |icon-expand| or |icon-collapse|
-      under **Report Title**, then click the **Edit** button at the top of the table
+    * to *view* a status report, click on |icon-expand| to expand, |icon-collapse| to collapse
+    * to *edit* a status report, click on |icon-edit-orangered|
+    * if the edit button is displayed as |icon-edit-forestgreen| this means the status report has been
+      entered -- it can still be edited, though
 
 .. |icon-expand| image:: images/icon-expand.*
 .. |icon-collapse| image:: images/icon-collapse.*
+.. |icon-edit-orangered| image:: images/icon-edit-orangered.*
+.. |icon-edit-forestgreen| image:: images/icon-edit-forestgreen.*
 
 RSVP for the meeting
 ------------------------
@@ -106,8 +109,8 @@ Update your status report(s)
 --------------------------------
 Now you can enter your :term:`status report(s) <status report>`.
 
-* select the row for the :term:`status report` you want to enter
-* click **Edit** at the top of the table
+* on the row for the :term:`status report` you want to enter, click the edit button ( |icon-edit-orangered| or
+  |icon-edit-forestgreen|)
 
 This opens an Edit form for this :term:`status report`:
 
@@ -118,10 +121,12 @@ This opens an Edit form for this :term:`status report`:
 * click **Save**
 
 .. note::
-    :term:`Status reports <status report>` are by :term:`position`. So if there is more than one :term:`member` in the
+    :term:`Status reports <status report>` are by :term:`position`. So if there are more than one :term:`member` in the
     same :term:`position`, they will see the same :term:`status report` for that :term:`position`. If one :term:`member`
-    edits the report the other :term:`member(s) <member>` will be able to see the edits when they open the
-    :term:`position` row. So if the position is shared, there needs to be coordination for producing the
+    edits the report the other :term:`member(s) <member>` will be able to see those edits when they open the
+    :term:`position` row.
+
+    So if the position is shared, there needs to be coordination for producing the
     :term:`status report`.
 
 .. _add discussion item:
@@ -131,12 +136,11 @@ Optionally add discussion items for the meeting
 If a topic needs to be discussed at the meeting, a :term:`discussion item` must be created. This adds the topic
 to the :term:`meeting` :term:`agenda`.
 
-* select the row for the :term:`status report` you want to enter a :term:`discussion item` about
-* click **Edit** at the top of the table
+* click |icon-edit-forestgreen| for the :term:`status report` you want to enter a :term:`discussion item` about
 
 This opens an Edit form for this :term:`status report`:
 
-.. image:: images/my-status-report-edit-status.*
+.. image:: images/my-status-report-edit-status-filled.*
     :align: center
 
 * under **Discussion Items**, click **New**
@@ -153,8 +157,7 @@ This opens a Create form for the :term:`discussion item`:
 
 You can edit the discussion item up until the meeting.
 
-* select the row for the :term:`status report` which holds the :term:`discussion item`
-* click **Edit** at the top of the table
+* click |icon-edit-forestgreen| for the :term:`status report` which holds the :term:`discussion item`
 * under **Discussion Items**, select the :term:`discussion item` to be edited
 * under **Discussion Items**, click **Edit**
 * make the desired edits to **Discussion Details**
@@ -196,8 +199,7 @@ at the challenge, you will see a form to add an ad hoc :term:`status report`:
 If an item about this report needs to be added to the :term:`meeting` :term:`agenda`, create a
 :term:`discussion item`.
 
-* select the new :term:`status report` you just created
-* above the Status Report table, click **Edit**
+* click |icon-edit-forestgreen| for the new ad hoc :term:`status report` you just created
 * add the :term:`discussion item` as described in :ref:`add discussion item`
 
 

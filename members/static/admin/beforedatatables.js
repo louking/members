@@ -530,7 +530,7 @@ function mystatus_create(e, dt, node, config) {
     var show_editor = function() {
         dt.editor()
             .title('Add ad hoc status report')
-            .buttons('Save')
+            .buttons('Create')
             .create();
     }
     var missing_reports = [];

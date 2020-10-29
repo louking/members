@@ -617,24 +617,27 @@ class MemberStatusReportView(MemberStatusReportBase):
                       href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
                            + slugify('My Status Report view'),
                       target='_blank')
-                p(strong('NOTE:'))
+                p(strong('NOTES:'))
                 with ol():
                     with li():
-                        text('to view the contents of a row, use ')
-                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
+                        text('to ')
+                        i('view')
+                        text(' a status report, click on ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white; padding: 2px; '
+                                                     'font-size: 60%;')
                         text(' to expand, ')
-                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white; padding: 2px; '
+                                                     'font-size: 60%;')
                         text(' to collapse')
                     with li():
-                        text('to edit a row, first select the row by clicking on the text to the right of ')
-                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white;')
-                        text(' or ')
-                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white;')
-                        text(' under Report Title, then click the ')
-                        strong('Edit')
-                        text(' button at the top of the table')
-
-
+                        text('to ')
+                        i('edit')
+                        text(' a status report, click on ')
+                        i(_class='fas fa-edit', style='color: orangered;')
+                    with li():
+                        text('if the edit button is displayed as ')
+                        i(_class='fas fa-edit', style='color: forestgreen;')
+                        text(' this means the status report has been entered -- it can still be edited, though')
 
             div(id='mystatus_button_error', style='display: none;')
 
