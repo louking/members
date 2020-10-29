@@ -259,7 +259,7 @@ def memberstatusreport_buttons():
             {'text': 'New',
              'action': {'eval': 'mystatus_create'}
              },
-            'editChildRowRefresh',
+            {'extend': 'editChildRowRefresh', 'editor':{'eval': 'editor'}, 'className': 'Hidden'},
             {'text': 'RSVP',
              'action': {
                  'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
@@ -309,6 +309,17 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                  'type': 'hidden',  # only affects editor modal
                  'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
                  'render': {'eval': 'render_plus'},
+                 },
+                {'data': '',  # needs to be '' else get exception converting options from meetings render_template
+                 # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+                 'name': 'edit-control',
+                 'className': 'edit-control shrink-to-fit',
+                 'orderable': False,
+                 'defaultContent': '',
+                 'label': '',
+                 'type': 'hidden',  # only affects editor modal
+                 'title': 'Edit',
+                 'render': {'eval': 'render_edit'},
                  },
                 {'data': 'title', 'name': 'title', 'label': 'Report Title',
                  'className': 'field_req',
@@ -481,10 +492,16 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         :param row: row dict about to be returned to client
         :return: updated row dict
         """
+        rowclasses = []
+
         # flag if this row has hidden discussion items
         hiddenagendaitems = AgendaItem.query.filter_by(statusreport_id=row['statusreport_id'], is_hidden=True).all()
         if hiddenagendaitems:
-            row['DT_RowClass'] = 'hidden-row'
+            rowclasses.append('hidden-row')
+
+        # set class needsedit depending on whether statusreport is present
+        if not row['statusreport']:
+            rowclasses.append('needsedit')
 
         # set context for table filtering
         invite = Invite.query.filter_by(id=row['invite_id']).one()
@@ -510,6 +527,9 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         tableid = self.tableid(**context)
         if tableid:
             row['tableid'] = tableid
+
+        # set DT_RowClass based on accumulated classes
+        row['DT_RowClass'] = ' '.join(rowclasses)
 
 class MemberStatusReportView(MemberStatusReportBase):
     # remove auth_required() decorator
