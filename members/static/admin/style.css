@@ -102,3 +102,10 @@
     color: green;
 }
 
+/* view selection/control management */
+td.view-control {
+    text-align: center;
+    cursor: pointer;
+    /* same as jquery-ui-theme.css ui_state_default */
+    color: #2779aa;
+}

@@ -695,6 +695,17 @@ mymeetings = MyMeetingsView(
     formmapping=mymeetings_formmapping,
     checkrequired=True,
     clientcolumns=[
+        {'data': '',  # needs to be '' else get exception converting options from meetings render_template
+         # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+         'name': 'view-control',
+         'className': 'view-control shrink-to-fit',
+         'orderable': False,
+         'defaultContent': '',
+         'label': '',
+         'type': 'hidden',  # only affects editor modal
+         'title': 'View',
+         'render': {'eval': 'render_icon("fas fa-eye")'},
+         },
         {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
          'type': 'readonly'
          },
@@ -729,8 +740,10 @@ mymeetings = MyMeetingsView(
     buttons=[
         {
             'extend': 'edit',
+            'name': 'view-status',
             'text': 'My Status Report',
-            'action': {'eval': 'mystatus_statusreport'}
+            'action': {'eval': 'mystatus_statusreport'},
+            'className': 'Hidden',
         },
         'csv',
     ],

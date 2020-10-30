@@ -266,11 +266,16 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
-    // special processing for meeting
+    // special processing for memberstatusreport, theirstatusreport
     } else if (location.pathname.includes('/memberstatusreport') || location.pathname.includes('/theirstatusreport')) {
         // update 'needsedit' class depending on value of statusreport field
         editor.on('preEdit', function(e, json, data, id) {
             $($(editor.s.table).DataTable().row('#'+id).node()).removeClass('needsedit');
         });
+        onclick_trigger(_dt_table, 'td.edit-control', 'editRefresh');
+
+    // special processing for mymeetings
+    } else if (location.pathname.includes('/mymeetings')) {
+        onclick_trigger(_dt_table, 'td.view-control', 'view-status');
     }
 }

@@ -603,4 +603,3 @@ function discussionitems_postcreate(dt, ed) {
     }
 }
 
-
