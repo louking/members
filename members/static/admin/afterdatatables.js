@@ -129,6 +129,7 @@ function afterdatatables() {
             clear_field_vals(e);
             clear_fields(e);
         });
+        onclick_trigger(_dt_table, 'td.view-task', 'view-task');
 
     // special processing for task details
     } else if (location.pathname.includes('/taskdetails')) {

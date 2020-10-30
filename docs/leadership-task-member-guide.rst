@@ -24,10 +24,12 @@ see **Task Checklist** in the menu, make sure **Interest** is set correctly at t
 The :term:`status` tells you whether the :term:`task` needs to be completed now (*overdue*), is coming up
 (*expires soon*), is completed (*up to date* or *done*), or if the task is optional (*optional*).
 
-When you select a :term:`task` and then click **View Task**, a window will open. Some tasks may have one or more
-fields which need to be filled in, but many just give instructions (e.g., to read a particular document). Once you have
-completed the instructions and filled in any required fields, click **Mark Complete** to tell the system you've
-completed the task.
+When you click the view button (|icon-view-2779aa|) next to a :term:`task`, a window will open. Some tasks may
+have one or more fields which need to be filled in, but many just give instructions (e.g., to read a particular
+document). Once you have completed the instructions and filled in any required fields, click **Mark Complete** to
+tell the system you've completed the task.
+
+.. |icon-view-2779aa| image:: images/icon-view-2779aa.*
 
 .. note::
     When you click on a document link, Google may tell you

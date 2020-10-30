@@ -91,18 +91,17 @@
     color: red;
 }
 .status-expires-soon{
-    color: orange;
+    color: darkorange;
 }
 .status-optional {
 }
+.status-done,
 .status-up-to-date {
-    color: green;
-}
-.status-done {
     color: green;
 }
 
 /* view selection/control management */
+td.view-task,
 td.view-control {
     text-align: center;
     cursor: pointer;

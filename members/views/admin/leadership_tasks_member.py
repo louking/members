@@ -124,6 +124,17 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             formmapping=taskchecklist_formmapping,
             validate = self._validate,
             clientcolumns=[
+                {'data': '',  # needs to be '' else get exception converting options from meetings render_template
+                 # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+                 'name': 'view-task',
+                 'className': 'view-task shrink-to-fit',
+                 'orderable': False,
+                 'defaultContent': '',
+                 'label': '',
+                 'type': 'hidden',  # only affects editor modal
+                 'title': 'View',
+                 'render': {'eval': 'render_icon("fas fa-eye")'},
+                 },
                 {'data': 'order', 'name': 'order', 'label': 'Display Order',
                  'type':'hidden',
                  'className': 'Hidden',
@@ -162,8 +173,10 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             buttons=[
                 {
                     'extend':'edit',
+                    'name': 'view-task',
                     'text':'View Task',
-                    'editor': {'eval':'editor'}
+                    'editor': {'eval':'editor'},
+                    'className': 'Hidden',
                 }
             ],
             dtoptions={
