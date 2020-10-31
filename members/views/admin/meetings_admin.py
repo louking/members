@@ -341,6 +341,7 @@ invites = InvitesView(
         'csv'
     ],
     dtoptions={
+        'order': [['date:name','desc'], ['name:name','asc']],
         'scrollCollapse': True,
         'scrollX': True,
         'scrollXInner': "100%",
