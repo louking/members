@@ -531,6 +531,63 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         # set DT_RowClass based on accumulated classes
         row['DT_RowClass'] = ' '.join(rowclasses)
 
+    def instructions(self):
+        theinstructions = div()
+
+        with theinstructions:
+
+            # id referenced from beforedatatables.js meeting_send_email()
+            with div(id='mystatus-instructions', style='display: none;'):
+                p('Please respond as follows:')
+                with ol():
+                    with li():
+                        text('RSVP to the meeting by clicking ')
+                        strong('RSVP')
+                        text(' button')
+                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
+                    with li():
+                        em('Optionally')
+                        text(' add a Status Report for something outside your assigned position by clicking the ')
+                        strong('New')
+                        text(' button')
+                with p():
+                    text('If you would like to add a discussion item to the meeting agenda, click ')
+                    strong('New')
+                    text(' in the Discussion Item ')
+                    strong('while editing')
+                    text(' the relevant status report')
+                with p():
+                    text('For step by step instructions, see the ')
+                    a('Help for My Status Report',
+                      href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
+                           + slugify('My Status Report view'),
+                      target='_blank')
+                p(strong('NOTES:'))
+                with ol():
+                    with li():
+                        text('to ')
+                        i('view')
+                        text(' a status report, click on ')
+                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white; padding: 2px; '
+                                                     'font-size: 60%;')
+                        text(' to expand, ')
+                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white; padding: 2px; '
+                                                      'font-size: 60%;')
+                        text(' to collapse')
+                    with li():
+                        text('to ')
+                        i('edit')
+                        text(' a status report, click on ')
+                        i(_class='fas fa-edit', style='color: orangered;')
+                    with li():
+                        text('if the edit button is displayed as ')
+                        i(_class='fas fa-edit', style='color: forestgreen;')
+                        text(' this means the status report has been entered -- it can still be edited, though')
+
+            div(id='mystatus_button_error', style='display: none;')
+
+        return theinstructions
+
 class MemberStatusReportView(MemberStatusReportBase):
     # remove auth_required() decorator
     decorators = []
@@ -589,57 +646,8 @@ class MemberStatusReportView(MemberStatusReportBase):
 
         html = div()
         with html:
+            self.instructions()
             h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
-
-            # id referenced from beforedatatables.js meeting_send_email()
-            with div(id='mystatus-instructions', style='display: none;'):
-                p('Please respond as follows:')
-                with ol():
-                    with li():
-                        text('RSVP to the meeting by clicking ')
-                        strong('RSVP')
-                        text(' button')
-                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
-                    with li():
-                        em('Optionally')
-                        text(' add a Status Report for something outside your assigned position by clicking the ')
-                        strong('New')
-                        text(' button')
-                with p():
-                    text('If you would like to add a discussion item to the meeting agenda, click ')
-                    strong('New')
-                    text(' in the Discussion Item ')
-                    strong('while editing')
-                    text(' the relevant status report')
-                with p():
-                    text('For step by step instructions, see the ')
-                    a('Help for My Status Report',
-                      href='https://members.readthedocs.io/en/latest/meetings-member-guide.html#'
-                           + slugify('My Status Report view'),
-                      target='_blank')
-                p(strong('NOTES:'))
-                with ol():
-                    with li():
-                        text('to ')
-                        i('view')
-                        text(' a status report, click on ')
-                        i(_class='fa fa-plus', style='background-color: forestgreen; color: white; padding: 2px; '
-                                                     'font-size: 60%;')
-                        text(' to expand, ')
-                        i(_class='fa fa-minus', style='background-color: deepskyblue; color: white; padding: 2px; '
-                                                     'font-size: 60%;')
-                        text(' to collapse')
-                    with li():
-                        text('to ')
-                        i('edit')
-                        text(' a status report, click on ')
-                        i(_class='fas fa-edit', style='color: orangered;')
-                    with li():
-                        text('if the edit button is displayed as ')
-                        i(_class='fas fa-edit', style='color: forestgreen;')
-                        text(' this means the status report has been entered -- it can still be edited, though')
-
-            div(id='mystatus_button_error', style='display: none;')
 
         return html.render()
 

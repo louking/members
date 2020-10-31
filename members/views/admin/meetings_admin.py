@@ -1277,6 +1277,7 @@ class TheirStatusReportView(MemberStatusReportBase):
         meeting = self.get_meeting()
         html = div()
         with html:
+            self.instructions()
             with h1(_class='TextCenter'):
                 text('{} - {} - '.format(meeting.date, meeting.purpose))
                 invites = Invite.query.filter_by(meeting=meeting).all()
