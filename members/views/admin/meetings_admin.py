@@ -82,6 +82,7 @@ tag = DbCrudApiInterestsRolePermissions(
          '_treatment': {
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                               'dbfield': 'positions', 'uselist': True,
+                              'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
          },
@@ -94,6 +95,7 @@ tag = DbCrudApiInterestsRolePermissions(
                               'formfield': 'users', 'dbfield': 'users',
                               'viadbattr': LocalUser.user_id,
                               'viafilter': localinterest_viafilter,
+                              'searchbox': True,
                               'queryparams': {'active': True},
                               'uselist': True}}
          },
@@ -200,6 +202,7 @@ meetings = MeetingsView(
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'tags',
                               'dbfield': 'tags', 'uselist': True,
+                              'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
          },
@@ -208,6 +211,7 @@ meetings = MeetingsView(
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'votetags',
                               'dbfield': 'votetags', 'uselist': True,
+                              'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
          },
@@ -459,6 +463,7 @@ actionitems = ActionItemsView(
              'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
                               'formfield': 'assignee', 'dbfield': 'assignee',
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'searchbox': True,
                               'uselist': False}}
          },
         {'data': 'status', 'name': 'status', 'label': 'Status',
@@ -777,6 +782,7 @@ motions = MotionsView(
                               'queryfilters': voting_members,
                               # onclause is required for serverside=True tables with ambiguous foreign keys
                               'onclause': Motion.mover_id == LocalUser.id,
+                              'searchbox': True,
                               'uselist': False}}
          },
         {'data': 'seconder', 'name': 'seconder', 'label': 'Seconder',
@@ -788,6 +794,7 @@ motions = MotionsView(
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
                               'queryfilters': voting_members,
                               'onclause': Motion.seconder_id == localuser_alias.id,
+                              'searchbox': True,
                               'uselist': False}}
          },
         # meeting_id and agendaitem_id are required for tying to meeting view row
@@ -1114,6 +1121,7 @@ meeting = MeetingView(
              'relationship': {'fieldmodel': AgendaHeading, 'labelfield': 'heading', 'formfield': 'agendaheading',
                               'dbfield': 'agendaheading', 'uselist': False,
                               'queryparams': localinterest_query_params,
+                              'searchbox': True,
                               'nullable': True,
                               }}
          },
@@ -1606,6 +1614,7 @@ agendaheadings = DbCrudApiInterestsRolePermissions(
          '_treatment': {
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                               'dbfield': 'positions', 'uselist': True,
+                              'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
          }
