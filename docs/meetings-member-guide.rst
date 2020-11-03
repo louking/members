@@ -194,7 +194,7 @@ at the challenge, you will see a form to add an ad hoc :term:`status report`:
 .. image:: images/my-status-report-create.*
     :align: center
 
-* give the report a clear, concise **Report Title**
+* give the report a clear, concise **Status Report Title**
 * put details into the **Status Report** field
 * click **Create**
 

@@ -321,7 +321,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                  'title': 'Edit',
                  'render': {'eval': 'render_edit'},
                  },
-                {'data': 'title', 'name': 'title', 'label': 'Report Title',
+                {'data': 'title', 'name': 'title', 'label': 'Status Report Title',
                  'className': 'field_req',
                  },
                 {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
