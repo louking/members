@@ -77,6 +77,10 @@ My Status Report view
 You will see a table similar to the following, with a button for your :term:`RSVP <rsvp>` and a row for each of your
 :term:`position` based :term:`status reports <status report>`.
 
+If the RSVP button is orange-red, that means the RSVP hasn't been indicated.
+
+If the edit icon on a row is orange-red (|icon-edit-orangered|), that means the status report hasn't been entered.
+
 .. image:: images/my-status-report-view.*
     :align: center
 

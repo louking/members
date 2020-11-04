@@ -108,3 +108,8 @@ td.view-control {
     /* same as jquery-ui-theme.css ui_state_default */
     color: #2779aa;
 }
+
+/* rsvp management */
+.rsvp-noresponse {
+    color: orangered;
+}

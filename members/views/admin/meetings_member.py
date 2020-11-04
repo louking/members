@@ -254,6 +254,9 @@ def memberstatusreport_buttons():
         invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
         meeting = invite.meeting
         today = date.today()
+    rsvpclass = ''
+    if invite.response == INVITE_RESPONSE_NO_RESPONSE:
+        rsvpclass = 'rsvp-noresponse'
     if invitekey and meeting.date >= today:
         buttons = [
             {'text': 'New',
@@ -261,6 +264,7 @@ def memberstatusreport_buttons():
              },
             {'extend': 'editChildRowRefresh', 'editor':{'eval': 'editor'}, 'className': 'Hidden'},
             {'text': 'RSVP',
+             'className': rsvpclass,
              'action': {
                  'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
                                                                                 interest=g.interest),

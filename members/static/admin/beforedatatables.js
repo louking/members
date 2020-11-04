@@ -350,9 +350,15 @@ function mystatus_rsvp(url) {
                                     inputs.each(function() {
                                         formfields[$(this).attr('name')] = $(this).val();
                                     });
+                                    // post and handle acknowledgement
                                     var post = $.post(url, formfields, function(data, textStatus, jqXHR) {
                                         if (textStatus === "success") {
                                             if (data.status === "success") {
+                                                // need to remove no response indicator from button, unless they hit
+                                                // save without changing anything
+                                                if (formfields.response != 'response pending') {
+                                                    $('.rsvp-noresponse').removeClass('rsvp-noresponse');
+                                                }
                                                 form.dialog('close');
                                             } else {
                                                 formerror.text(data.error);
