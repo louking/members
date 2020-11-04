@@ -250,13 +250,13 @@ def get_invite_response(dbrow):
 
 def memberstatusreport_buttons():
     invitekey = request.args.get('invitekey', None)
+    rsvpclass = ''
     if invitekey:
         invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
         meeting = invite.meeting
         today = date.today()
-    rsvpclass = ''
-    if invite.response == INVITE_RESPONSE_NO_RESPONSE:
-        rsvpclass = 'rsvp-noresponse'
+        if invite.response == INVITE_RESPONSE_NO_RESPONSE:
+            rsvpclass = 'rsvp-noresponse'
     if invitekey and meeting.date >= today:
         buttons = [
             {'text': 'New',
