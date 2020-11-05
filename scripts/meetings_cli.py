@@ -4,7 +4,7 @@ meeting_cli - background tasks needed for meeting management
 
 # standard
 from re import match
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 # pypi
 from flask import g
@@ -13,9 +13,9 @@ from click import argument, group
 
 # homegrown
 from scripts import catch_errors, ParameterError
-from members.model import db, Meeting, Invite, localinterest_query_params
+from members.model import db, Meeting, Invite, StatusReport, DiscussionItem, localinterest_query_params
 from members.meeting_invites import generateinvites
-from members.reports import meeting_gen_reports, meeting_reports_premeeting, meeting_report2attr
+from members.reports import meeting_gen_reports, meeting_reports_nightly, meeting_reports_status, meeting_report2attr
 from loutilities.timeu import asctime
 
 
@@ -113,7 +113,7 @@ def updateinvites(interest, startdate):
 @argument('startdate', default='auto')
 @with_appcontext
 @catch_errors
-def regenreports(interest, startdate):
+def nightlyreports(interest, startdate):
     """
     for all future meetings, regenerate reports
     """
@@ -123,15 +123,14 @@ def regenreports(interest, startdate):
     # set local interest
     g.interest = interest
 
-
     # for all the meetings after or equal to start, generate reports, but only if the report has been previously generated
     futuremeetings = Meeting.query.filter_by(**localinterest_query_params()).filter(Meeting.date >= start).all()
     for meeting in futuremeetings:
 
         # determine which reports have been generated already
-        # we're only regenerating reports which happen pre-meeting
+        # we're only regenerating reports which happen nightly
         reports = []
-        for report in meeting_reports_premeeting:
+        for report in meeting_reports_nightly:
             if getattr(meeting, meeting_report2attr[report]):
                 reports.append(report)
 
@@ -139,5 +138,47 @@ def regenreports(interest, startdate):
             reportsgenned = meeting_gen_reports(meeting.id, reports)
 
         # this actually shouldn't be required, but shouldn't hurt
+        db.session.commit()
+
+@meetings.command()
+@argument('interest')
+@argument('startdate', default='auto')
+@with_appcontext
+@catch_errors
+def continuousreports(interest, startdate):
+    """
+    for up to the minute reports (status report), (re)generate reports if needed
+    """
+    # calculate start date
+    start = getstartdate(startdate)
+
+    # set local interest
+    g.interest = interest
+
+    # for all the meetings after or equal to start, generate reports
+    futuremeetings = Meeting.query.filter_by(**localinterest_query_params()).filter(Meeting.date >= start).all()
+    for meeting in futuremeetings:
+
+        # we're (re)generating reports which happen continuously
+        # but we may not need to, so that's the default unless proven otherwise
+        reports = []
+
+        # if report has been generated, regenerate if any status reports or discussion items have been updated
+        # since the last time the report was generated
+        if meeting.last_status_gen:
+            statussince = StatusReport.query.filter(StatusReport.update_time >= meeting.last_status_gen).all()
+            discusssince = DiscussionItem.query.filter(DiscussionItem.update_time >= meeting.last_status_gen).all()
+            if statussince or discusssince:
+                reports = [meeting_reports_status]
+
+        # else no report generated yet, so generate for the first time
+        else:
+            reports = [meeting_reports_status]
+
+        if reports:
+            reportsgenned = meeting_gen_reports(meeting.id, reports)
+            meeting.last_status_gen = datetime.now()
+
+        # we may have updated meeting
         db.session.commit()
 

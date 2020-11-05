@@ -5,6 +5,8 @@ models - database models for application
 
 # pypi
 from flask import g
+from sqlalchemy import text
+from sqlalchemy.schema import FetchedValue
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
@@ -279,6 +281,7 @@ class TaskCompletion(Base):
     task_id             = Column(Integer, ForeignKey('task.id'))
     task                = relationship('Task', backref=backref('taskcompletions'))
     completion          = Column(DateTime)
+    # track last update
     update_time         = Column(DateTime)
     updated_by          = Column(Integer)   # localuser.id
     version_id = Column(Integer, nullable=False, default=1)
@@ -334,6 +337,8 @@ class Meeting(Base):
     gs_status           = Column(Text)
     gs_agenda           = Column(Text)
     gs_minutes          = Column(Text)
+    # keep track of last time status generated
+    last_status_gen     = Column(DateTime)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -383,6 +388,11 @@ class DiscussionItem(Base):
     agendaitem          = relationship('AgendaItem', backref=backref('discussionitem', uselist=False))
     statusreport_id     = Column(Integer, ForeignKey('statusreport.id'))
     statusreport        = relationship('StatusReport', backref=backref('discussionitems'))
+    # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time         = Column(DateTime,
+                                 server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                                 server_onupdate=FetchedValue()
+                                 )
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -400,6 +410,11 @@ class StatusReport(Base):
     position            = relationship('Position', backref=backref('statusreports'))
     title               = Column(String(TITLE_LEN))
     statusreport        = Column(Text)
+    # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time         = Column(DateTime,
+                                 server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                                 server_onupdate=FetchedValue()
+                                 )
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id

@@ -24,9 +24,10 @@ from loutilities.nesteddict import obj2dict
 
 # must match doc keys in meeting_gen_reports(), and names attrs in beforedatatables.js: meeting_generate_docs()
 meeting_reports = ['agenda', 'status-report', 'minutes']
-meeting_reports_premeeting = ['agenda', 'status-report']
 meeting_report_attrs = ['gs_agenda', 'gs_status', 'gs_minutes']
 meeting_report2attr = dict(zip(meeting_reports, meeting_report_attrs))
+meeting_reports_nightly = ['agenda']
+meeting_reports_status = 'status-report'
 
 def meeting_gen_reports(meeting_id, reports):
     """

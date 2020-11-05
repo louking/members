@@ -127,12 +127,10 @@ function meeting_generate_docs(url) {
         that.processing(true);
 
         // allUrlParams() picks up at least meeting_id
+        // names must match reports.meeting_reports (python)
         var form = $('<form>', {id: 'doc-form', action: url + '?' + setParams(allUrlParams()), method:'POST'})
         form.append($('<input>', {type: 'checkbox', id:  'agenda', name: 'agenda'}));
         form.append($('<label>', {for: 'agenda', text: 'Agenda'}));
-        form.append($('<br>'));
-        form.append($('<input>', {type: 'checkbox', id:  'status-report', name: 'status-report'}));
-        form.append($('<label>', {for: 'status-report', text: 'Status Report'}));
         form.append($('<br>'));
         form.append($('<input>', {type: 'checkbox', id:  'minutes', name: 'minutes'}));
         form.append($('<label>', {for: 'minutes', text: 'Minutes'}));

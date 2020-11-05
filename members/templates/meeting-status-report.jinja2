@@ -10,7 +10,9 @@
         <p><b>For discussion:</b></p>
         <ul class="statusreport">
             {% for discussion in report.discussions %}
-                <li><p>{{ discussion.discussiontitle }}</p>{{ discussion.agendaitem.agendaitem }}</li>
+                <li><p>{{ discussion.discussiontitle }}</p><br>
+                    {%- if discussion.agendaitem.agendaitem -%}{{ discussion.agendaitem.agendaitem }}{%- endif -%}
+                </li>
             {% endfor %}
         </ul>
     {% endif %}
