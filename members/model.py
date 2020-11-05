@@ -330,7 +330,7 @@ class Meeting(Base):
     interest            = relationship('LocalInterest', backref=backref('meetings'))
     purpose             = Column(String(DESCR_LEN))
     date                = Column(Date)
-    time                = Column(String(TIME_LEN))
+    time                = Column(Text)
     location            = Column(Text)
     show_actions_since  = Column(Date)
     # gs_ are google fileids if configured to save in g suite
