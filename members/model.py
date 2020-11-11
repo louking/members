@@ -3,10 +3,11 @@ models - database models for application
 ===========================================
 '''
 
+# standard
+from datetime import datetime
+
 # pypi
 from flask import g
-from sqlalchemy import text
-from sqlalchemy.schema import FetchedValue
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
@@ -390,8 +391,8 @@ class DiscussionItem(Base):
     statusreport        = relationship('StatusReport', backref=backref('discussionitems'))
     # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
     update_time         = Column(DateTime,
-                                 server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-                                 server_onupdate=FetchedValue()
+                                 default=datetime.now,
+                                 onupdate=datetime.now
                                  )
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -412,8 +413,8 @@ class StatusReport(Base):
     statusreport        = Column(Text)
     # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
     update_time         = Column(DateTime,
-                                 server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-                                 server_onupdate=FetchedValue()
+                                 default=datetime.now,
+                                 onupdate=datetime.now
                                  )
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
