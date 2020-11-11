@@ -324,9 +324,3 @@ def meeting_gen_reports(meeting_id, reports):
         else:
             gs.update_file(fileid, docpath, filename=docname, doctype='html')
 
-    # tmpdir and contents are deleted
-    try:
-        rmtree(tmpdir.name)
-    except:
-        pass
-
