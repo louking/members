@@ -1,0 +1,35 @@
+<p>Just a friendly reminder that you have been invited to the {{ meeting.purpose }} on {{ meeting.date }} {{ meeting.time }}.</p>
+
+<p>Location / URL</p>
+
+<p style="white-space:pre-wrap;">{{ meeting.location }}</p>
+
+<p><b>Please RSVP and update your status report</b> by clicking <a href={{ rsvpurl }}>here</a>.</p>
+
+{% if positions %}
+<p>This reminder is being sent specifically for the following Position reports, but please note you may have other
+reports outstanding.</p>
+
+<ul>
+{% for position in positions %}
+<li>{{ position.position }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+
+{% if actionitems %}
+<p>Your outstanding action items are listed below. You can update the action item status by clicking <a href={{ actionitemurl }}>here</a>.</p>
+
+<table>
+<tr><th>Action Item</th><th>Status</th></tr>
+{% for actionitem in actionitems %}
+<tr>
+<td>{{ actionitem.action }}</td>
+<td>{{ actionitem.status }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% else %}
+<p>You have no outstanding action items.</p>
+{% endif %}

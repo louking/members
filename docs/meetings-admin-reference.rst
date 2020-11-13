@@ -239,16 +239,25 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are three action
         use this to send the initial :term:`invitation <invite>` to the meeting, or if any positions have been updated
         which affect the meeting attendance
 
+        :Subject:
+            default subject is [<purpose> <date>], but you should add at least that this is an invitation
+
+        :Message:
+            add additional message to the invitiation if desired
+
+        :From:
+            defaults to the email address of the :term:`meeting` **Organizer**, but can be updated if desired
+
         .. note::
             if any positions which affect meeting attendance have been updated, a nightly job will take care of
             sending additional :term:`invitations <invite>`
 
-        .. note::
-            sometimes the list of who the :term:`invites <invite>` will be sent to is not shown. This is a known
-            problem and will be fixed in a future release [#209]
-
     :Generate Docs:
         use this to generate documents associated with the meeting
+
+        .. note::
+            the status report document is automatically created and updated as people write or update
+            their status reports
 
         .. note::
             for upcoming meetings, a nightly process regenerates documents which were previously generated, in case changes
@@ -301,6 +310,10 @@ this view is used to navigate to the individual meeting for administration purpo
     :Show Actions Since:
         action items are shown in agenda, minutes, etc. Any action items which have been updated after this
         date will be shown associated with this meeting
+
+    :Organizer:
+        the meeting organizer. When emails are sent from this view, the **From** address will default to this
+        :term:`member's <member>` email address. This defaults to the currently logged in member
 
     :Agenda:
         if agenda has been generated to Google Workplace, this is the link to the file

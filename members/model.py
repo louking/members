@@ -329,6 +329,8 @@ class Meeting(Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('meetings'))
+    organizer_id        = Column(Integer, ForeignKey('localuser.id'))
+    organizer           = relationship('LocalUser', backref=backref('meetings'))
     purpose             = Column(String(DESCR_LEN))
     date                = Column(Date)
     time                = Column(Text)
@@ -595,6 +597,23 @@ class Tag(Base):
         'version_id_col' : version_id
     }
 
+class Email(Base):
+    __tablename__ =  'email'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('emails'))
+    meeting_id          = Column(Integer, ForeignKey('meeting.id'))
+    meeting             = relationship('Meeting', backref=backref('emails'))
+    # type needs to be unique within interest, or if meeting specified unique within meeting
+    type                = Column(Text)
+    from_email          = Column(Text)
+    subject             = Column(Text)
+    message             = Column(Text)
+    options             = Column(Text)
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
 
 # supporting functions
 def update_local_tables():

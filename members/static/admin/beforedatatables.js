@@ -69,6 +69,65 @@ function submit_button() {
     this.submit();
 }
 
+var meeting_invites_editor;
+
+function meeting_sendinvites(url) {
+    fn = function (e, dt, node, config) {
+        var that = this;
+
+        // update the url parameter for the create view
+        var editorajax = meeting_invites_editor.ajax() || {};
+        editorajax.url = url + '?' + setParams(allUrlParams());
+        meeting_invites_editor.ajax(editorajax);
+
+        // Ajax request to refresh the data
+        $.ajax( {
+            // application specific: my application has different urls for different methods
+            url: url + '?' + setParams(allUrlParams()),
+            type: 'get',
+            dataType: 'json',
+            success: function ( json ) {
+                // if error, display message - application specific
+                if (json.error) {
+                    // this is application specific
+                    // not sure if there's a generic way to find the current editor instance
+                    meeting_invites_editor.error('ERROR retrieving row from server:<br>' + json.error);
+
+                } else {
+                    // create table from json response. for some reason need dummy div element
+                    // else html doesn't have <table> in it
+                    var invitestbl = $('<table>')
+                    var invites = $('<div>').append(invitestbl)
+                    var $th = $('<tr>').append(
+                        $('<th>').text('name').attr('align', 'left'),
+                        $('<th>').text('email').attr('align', 'left'),
+                        $('<th>').text('state').attr('align', 'left'),
+                    ).appendTo(invitestbl);
+                    $.each(json.invitestates, function(i, invite) {
+                        var $tr = $('<tr>').append(
+                            $('<td>').text(invite.name),
+                            $('<td>').text(invite.email),
+                            $('<td>').text(invite.state),
+                        ).appendTo(invitestbl);
+                    });
+
+                    meeting_invites_editor
+                        .title('Send Invitations')
+                        .edit(null, false)
+                        // no editing id, and don't show immediately
+                        .set('invitestates', invites.html())
+                        .set('from_email', json.from_email)
+                        .set('subject', json.subject)
+                        .set('message', json.message)
+                        .set('options', json.options)
+                        .open();
+                }
+            }
+        } );
+    }
+    return fn;
+}
+
 /**
  * handles Send Reminders button from Meeting view
  *

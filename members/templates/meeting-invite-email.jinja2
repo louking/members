@@ -1,0 +1,28 @@
+<p>You have been invited to the {{ meeting.purpose }} on {{ meeting.date }} {{ meeting.time }}.</p>
+
+<p>Location / URL</p>
+
+<p style="white-space:pre-wrap; margin-left: 1em;">{{ meeting.location }}</p>
+
+{{ message }}
+
+<p>Please RSVP {% if 'statusreport' in options %}and update your status report{% endif %} by clicking <a href={{ rsvpurl }}>here</a>.</p>
+
+{% if 'actionitems' in options %}
+    {% if actionitems %}
+    <p>Your outstanding action items are listed below. You can update the action item status by clicking <a href={{ actionitemurl }}>here</a>.</p>
+
+    <table>
+    <tr><th>Action Item</th><th>Status</th></tr>
+    {% for actionitem in actionitems %}
+    <tr>
+    <td>{{ actionitem.action }}</td>
+    <td>{{ actionitem.status }}</td>
+    </tr>
+    {% endfor %}
+    </table>
+
+    {% else %}
+    <p>You have no outstanding action items.</p>
+    {% endif %}
+{% endif %}

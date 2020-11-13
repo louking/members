@@ -10,7 +10,7 @@ from traceback import format_exception_only, format_exc
 from flask import g, request, jsonify, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import h1, div, label, input, select, option, script
+from dominate.tags import h1, div, label, input, select, option, script, dd
 from dominate.util import text, raw
 from sqlalchemy import func, or_
 from sqlalchemy.orm import aliased
@@ -20,21 +20,22 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Tag
 from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
+from ...model import Email
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
-from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
+from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, MEETING_INVITE_EMAIL
 from .meetings_member import MemberStatusReportBase
-from .viewhelpers import dtrender, localinterest, localuser2user, get_tags_users
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action, rest_url_for, CHILDROW_TYPE_TABLE
+from loutilities.tables import _editormethod, get_request_action, get_request_data, rest_url_for, CHILDROW_TYPE_TABLE
 
 from loutilities.timeu import asctime
 isodate = asctime('%Y-%m-%d')
@@ -42,6 +43,7 @@ isodate = asctime('%Y-%m-%d')
 class ParameterError(Exception): pass
 
 debug = False
+
 
 ##########################################################################################
 # tags endpoint
@@ -117,9 +119,9 @@ tag.register()
 ###########################################################################################
 
 meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,'\
-                   'gs_agenda,gs_status,gs_minutes'.split(',')
+                   'gs_agenda,gs_status,gs_minutes,organizer'.split(',')
 meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,' \
-                      'gs_agenda,gs_status,gs_minutes'.split(',')
+                      'gs_agenda,gs_status,gs_minutes,organizer'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
@@ -132,6 +134,7 @@ def meetingcreatefieldvals():
     return {
         'tags.id': [t.id for t in interest.interestmeetingtags],
         'votetags.id': [t.id for t in interest.interestmeetingvotetags],
+        'organizer.id': user2localuser(current_user).id
     }
 
 class MeetingsView(DbCrudApiInterestsRolePermissions):
@@ -184,6 +187,15 @@ meetings = MeetingsView(
         {'data': 'show_actions_since', 'name': 'show_actions_since', 'label': 'Show Actions Since',
          'type': 'datetime',
          'className': 'field_req',
+         },
+        {'data': 'organizer', 'name': 'organizer', 'label': 'Organizer',
+         'className': 'field_req',
+         '_treatment': {
+             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
+                              'formfield': 'organizer', 'dbfield': 'organizer',
+                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
+                              'searchbox': True,
+                              'uselist': False}}
          },
         {'data': 'gs_agenda', 'name': 'gs_agenda', 'label': 'Agenda',
          'type': 'googledoc', 'opts': {'text': 'Agenda'},
@@ -259,6 +271,13 @@ invites_dbmapping = dict(zip(invites_dbattrs, invites_formfields))
 invites_formmapping = dict(zip(invites_formfields, invites_dbattrs))
 # invites_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
+# need aliased because LocalUser referenced twice within motions
+# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
+# need to use single variable with onclause so duplicate join checking in tables.DbCrudApi.__init__() doesn't duplicate join
+localuser_invites_alias = aliased(LocalUser)
+localuser_invites_onclause = localuser_invites_alias.id == Invite.user_id
+
+
 class InvitesView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
         '''
@@ -315,13 +334,21 @@ invites = InvitesView(
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'readonly',
          '_ColumnDT_args' :
-             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
+             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
          },
         {'data': 'name', 'name': 'name', 'label': 'Name',
          'type': 'readonly',
+         '_ColumnDT_args' :
+             {'sqla_expr': localuser_invites_alias.name},
+         'aliased': localuser_invites_alias,
+         'onclause': localuser_invites_onclause,
          },
         {'data': 'email', 'name': 'email', 'label': 'Email',
          'type': 'readonly',
+         '_ColumnDT_args' :
+             {'sqla_expr': localuser_invites_alias.email},
+         'aliased': localuser_invites_alias,
+         'onclause': localuser_invites_onclause,
          },
         {'data': 'attended', 'name': 'attended', 'label': 'Attended',
          'className': 'TextCenter',
@@ -363,6 +390,12 @@ actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,dat
 actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
 actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
 # actionitems_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
+
+# need aliased because LocalUser referenced twice within motions
+# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
+# need to use single variable with onclause so duplicate join checking in tables.DbCrudApi.__init__() doesn't duplicate join
+localuser_actionitems_alias = aliased(LocalUser)
+localuser_actionitems_onclause = localuser_actionitems_alias.id == ActionItem.assignee_id
 
 class ActionItemsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
@@ -460,7 +493,8 @@ actionitems = ActionItemsView(
         {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
          'className': 'field_req',
          '_treatment': {
-             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
+             'relationship': {'fieldmodel': localuser_actionitems_alias, 'labelfield': 'name',
+                              'onclause': localuser_actionitems_onclause,
                               'formfield': 'assignee', 'dbfield': 'assignee',
                               'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
                               'searchbox': True,
@@ -720,6 +754,7 @@ def voting_members():
     return [LocalUser.id.in_([lu.id for lu in localusers])]
 
 # need aliased because LocalUser referenced twice within motions
+# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
 localuser_alias = aliased(LocalUser)
 
 motions = MotionsView(
@@ -1050,6 +1085,14 @@ def meeting_pretablehtml():
             div(meeting.date.isoformat(), id='meeting_date')
             div(meeting.purpose, id='meeting_purpose')
 
+        # make dom repository for Editor send invites standalone form
+        with div(style='display: none;'):
+            dd(**{'data-editor-field': 'invitestates'})
+            dd(**{'data-editor-field': 'from_email'})
+            dd(**{'data-editor-field': 'subject'})
+            dd(**{'data-editor-field': 'message'})
+            dd(**{'data-editor-field': 'options'})
+
     return pretablehtml.render()
 
 
@@ -1214,7 +1257,14 @@ meeting = MeetingView(
         'editChildRowRefresh',
         'remove',
         # 'editor' gets eval'd to editor instance
-        {'extend':'newInvites', 'editor': {'eval': 'editor'}},
+        {'text': 'Send Invites',
+         'name': 'send-invites',
+         'editor': {'eval': 'meeting_invites_editor'},
+         'url': url_for('admin.meetinginvite', interest=g.interest),
+         'action': {
+             'eval': 'meeting_sendinvites("{}")'.format(rest_url_for('admin.meetinginvite',
+                                                                       interest=g.interest))}
+         },
         {'text':'Generate Docs',
          'action': {
              'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin.meetinggendocs',
@@ -1438,6 +1488,118 @@ class MeetingEmailApi(MethodView):
 
 bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('meetingsendemail'),
                 methods=['POST'])
+
+
+#########################################################################################
+# meetinginvite api endpoint
+#########################################################################################
+
+class MeetingInviteApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+
+        # must have meeting_id query arg
+        if request.args.get('meeting_id', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+
+        return allowed
+
+    def get(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            meeting_id = request.args['meeting_id']
+            invitestates, invites = get_invites(meeting_id)
+
+            # set defaults
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            from_email = meeting.organizer.email
+            subject = '[{} {}] '.format(meeting.purpose, meeting.date)
+            message = ''
+            # todo: need to tailor when #274 is fixed
+            options = 'statusreport,actionitems'
+
+            # if mail has previously been sent, pick up values used prior
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+                subject = email.subject
+                message = email.message
+                options = email.options
+
+            return jsonify(from_email=from_email, subject=subject, message=message, options=options,
+                           invitestates=invitestates)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            # there should be one 'id' in this form data, 'keyless'
+            requestdata = get_request_data(request.form)
+            meeting_id = request.args['meeting_id']
+            from_email = requestdata['keyless']['from_email']
+            subject = requestdata['keyless']['subject']
+            message = requestdata['keyless']['message']
+            options = requestdata['keyless']['options']
+
+            email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if not email:
+                email = Email(interest=localinterest(), type=MEETING_INVITE_EMAIL, meeting_id=meeting_id)
+                db.session.add(email)
+
+            # save updates, used by generateinvites()
+            email.from_email = from_email
+            email.subject = subject
+            email.message = message
+            email.options = options
+            db.session.flush()
+
+            agendaitem = generateinvites(meeting_id)
+
+            # use meeting view's dte to get the response data
+            thisrow = meeting.dte.get_response_data(agendaitem)
+            self._responsedata = [thisrow]
+
+            db.session.commit()
+            return jsonify(self._responsedata)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_meetinginvite/rest', view_func=MeetingInviteApi.as_view('meetinginvite'),
+                methods=['GET', 'POST'])
 
 
 ##########################################################################################

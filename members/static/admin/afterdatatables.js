@@ -233,6 +233,50 @@ function afterdatatables() {
 
     // special processing for meeting
     } else if (location.pathname.includes('/meeting') && !location.pathname.includes('/meetings')) {
+        // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
+        meeting_invites_editor = new $.fn.dataTable.Editor({
+            fields: [
+                {name: 'invitestates', data: 'invitestates', label: 'Invitation Status', type: 'display',
+                    className: 'field_req full block'},
+                {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
+                {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
+                    className: 'field_req full block'},
+                {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
+                {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
+                    options: [
+                        {label: 'Request Status Report', value: 'statusreport'},
+                        {label: 'Show Action Items', value: 'actionitems'},
+                    ],
+                    separator: ',',
+                }
+            ],
+        });
+
+        // buttons needs to be set up outside of ajax call (beforedatatables.js meeting_sendinvites()
+        // else the button action doesn't fire (see https://stackoverflow.com/a/19237302/799921 for ajax hint)
+        meeting_invites_editor
+            .buttons([
+                {
+                    'text': 'Send Invitations',
+                    'action': function () {
+                        this.submit( null, null, function(data){
+                            var that = this;
+                        });
+                    }
+                },
+                {
+                    'text': 'Cancel',
+                    'action': function() {
+                        this.close();
+                    }
+                }
+            ])
+
+        // need to redraw after invite submission in case new Attendees row added to table
+        meeting_invites_editor.on('submitComplete closed', function(e) {
+            _dt_table.draw();
+        });
+
         // need on 'preInvites' to translate interest for Send Invites button
         editor.on( 'preInvites', translate_editor_group );
 

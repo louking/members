@@ -7,18 +7,20 @@ from uuid import uuid4
 from datetime import datetime
 
 # pypi
-from flask import g
+from flask import g, render_template
 from jinja2 import Template
 
 # homegrown
 from .model import db
-from .model import Meeting, Invite, AgendaItem, ActionItem, EmailTemplate
+from .model import Meeting, Invite, AgendaItem, ActionItem, EmailTemplate, Email
 from .model import INVITE_RESPONSE_ATTENDING, ACTION_STATUS_CLOSED
 from .views.admin.viewhelpers import localuser2user, localinterest
 from loutilities.flask_helpers.mailer import sendmail
 from loutilities.tables import page_url_for
 
 class ParameterError(Exception): pass
+
+MEETING_INVITE_EMAIL = 'meeting-invite-email'
 
 
 def get_invites(meetingid):
@@ -99,14 +101,10 @@ def check_add_invite(meeting, localuser, agendaitem):
             filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
 
         # send email to user
-        emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-invite-email',
-                                                      interest=localinterest()).one()
-        template = Template(emailtemplate.template)
-        subject = emailtemplate.subject
+        email = Email.query.filter_by(meeting=meeting, type=MEETING_INVITE_EMAIL).one()
+        subject = email.subject
 
-        fromlist = localinterest().from_email
-        if emailtemplate.from_email:
-            fromlist = emailtemplate.from_email
+        fromlist = email.from_email
 
         rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
                                urlargs={'invitekey': invitekey},
@@ -117,9 +115,11 @@ def check_add_invite(meeting, localuser, agendaitem):
             'meeting': meeting,
             'actionitems': actionitems,
             'rsvpurl': rsvpurl,
-            'actionitemurl': actionitemurl
+            'actionitemurl': actionitemurl,
+            'message': email.message,
+            'options': email.options,
         }
-        html = template.render(**context)
+        html = render_template('meeting-invite-email.jinja2', **context)
         tolist = localuser.email
         cclist = None
         sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
@@ -139,16 +139,16 @@ def generateinvites(meetingid):
     if not meeting:
         raise ParameterError('meeting with id "{}" not found'.format(meetingid))
 
-    # check if agendaitem already exists. If any invites to the meeting there should already be the agenda item
-    # also use this later to deactivate any invites which are not still needed
-    previnvites = Invite.query.filter_by(interest=localinterest(), meeting=meeting).all()
-    if not previnvites:
+    # check if agendaitem already exists.
+    agendaitem = AgendaItem.query.filter_by(interest=localinterest(), meeting=meeting, is_attendee_only=True).one_or_none()
+    if not agendaitem:
         agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
                                 is_attendee_only=True)
         db.session.add(agendaitem)
-    # all of the invites should have the same agendaitem, so just use the first
-    else:
-        agendaitem = previnvites[0].agendaitem
+
+    # have there been any invites previous to this? used later to deactivate any invites which are not still needed
+    # need to check now because check_add_invite may add additional invites
+    previnvites = Invite.query.filter_by(interest=localinterest(), meeting=meeting).all()
 
     # send invitations to all those who are tagged like the meeting [invite] tags
     # track current invitations; make current invitations active

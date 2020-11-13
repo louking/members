@@ -179,8 +179,9 @@ asset_bundles = {
         # must be before datatables
         Bundle('js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver), filters='jsmin'),
         Bundle('admin/nunjucks/*.js', filters='jsmin'),
-        Bundle('admin/beforedatatables.js', filters='jsmin'),
+        Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities
         Bundle('editor.ckeditor5.js', filters='jsmin'),                  # from loutilities
+        Bundle('admin/beforedatatables.js', filters='jsmin'),
         Bundle('editor.googledoc.js', filters='jsmin'),                  # from loutilities
         Bundle('datatables.dataRender.googledoc.js', filters='jsmin'),   # from loutilities
         Bundle('user/admin/beforedatatables.js', filters='jsmin'),       # from loutilities
@@ -195,12 +196,11 @@ asset_bundles = {
         Bundle('datatables.dataRender.datetime.js', filters='jsmin'),    # from loutilities
         Bundle('editor.buttons.editrefresh.js', filters='jsmin'),        # from loutilities
         Bundle('editor.buttons.editchildrowrefresh.js', filters='jsmin'),  # from loutilities
-        Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities
         Bundle('filters.js', filters='jsmin'),                           # from loutilities
         Bundle('utils.js', filters='jsmin'),                             # from loutilities
         Bundle('user/admin/groups.js', filters='jsmin'),                 # from loutilities
 
-        Bundle('admin/editor.buttons.invites.js', filters='jsmin'),
+        # Bundle('admin/editor.buttons.invites.js', filters='jsmin'),
         Bundle('admin/afterdatatables.js', filters='jsmin'),
 
         output='gen/admin.js',
