@@ -1019,21 +1019,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
         super().open()
         self.postprocessrows(self.output_result['data'])
 
-    @_editormethod(checkaction='create,checkinvites,sendinvites,refresh', formrequest=True)
-    def post(self):
-        action = get_request_action(request.form)
-        if action == 'checkinvites':
-            invitestates, invites = get_invites(request.args['meeting_id'])
-            self._responsedata = []
-            self.responsekeys['checkinvites'] = invitestates
-        elif action == 'sendinvites':
-            agendaitem = generateinvites(request.args['meeting_id'])
-            thisrow = self.dte.get_response_data(agendaitem)
-            self._responsedata = [thisrow]
-        else:
-            # note we're already wrapped with _editormethod, don't wrap again
-            super().do_post()
-
     def createrow(self, formdata):
         formdata['meeting_id'] = request.args['meeting_id']
         max = db.session.query(func.max(AgendaItem.order)).filter_by(**self.queryparams).filter(*self.queryfilters).one()
