@@ -311,6 +311,72 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
+    // special processing for meeting
+    } else if (location.pathname.includes('/meetingstatus')) {
+        // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
+        meeting_reminders_editor = new $.fn.dataTable.Editor({
+            fields: [
+                {name: 'invitestates', data: 'invitestates', label: 'Invitation Status', type: 'display',
+                    className: 'field_req full block'},
+                {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
+                {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
+                    className: 'field_req full block'},
+                {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
+                {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
+                    options: [
+                        {label: 'Request Status Report', value: 'statusreport'},
+                        {label: 'Show Action Items', value: 'actionitems'},
+                    ],
+                    separator: ',',
+                }
+            ],
+        });
+
+        // buttons needs to be set up outside of ajax call (beforedatatables.js meeting_sendinvites()
+        // else the button action doesn't fire (see https://stackoverflow.com/a/19237302/799921 for ajax hint)
+        meeting_reminders_editor
+            .buttons([
+                {
+                    'text': 'Send Reminders',
+                    'action': function () {
+                        this.submit( null, null, function(data){
+                            var that = this;
+                        });
+                    }
+                },
+                {
+                    'text': 'Cancel',
+                    'action': function() {
+                        this.close();
+                    }
+                }
+            ]);
+        _dt_table.button('send-reminders:name').disable();
+
+
+        // need to redraw after reminder submission to update status
+        meeting_reminders_editor.on('submitSuccess', function(e, json, data, action) {
+            if (json.error == "") {
+                // update the returned rows
+                for (i = 0; i < json.length; i++) {
+                    var retrow = json[i];
+                    if (_dt_table.row('#' + retrow.rowid)) {
+                        _dt_table.row('#' + retrow.rowid).data(retrow);
+                    }
+                }
+                _dt_table.draw();
+            }
+        });
+
+        _dt_table.on('select deselect', function(e, dt, type, indexes) {
+            var ids = _dt_table.rows({selected:true}).ids();
+            if (ids.length == 0) {
+                _dt_table.button('send-reminders:name').disable();
+            } else {
+                _dt_table.button('send-reminders:name').enable();
+            }
+        });
+
     // special processing for memberstatusreport, theirstatusreport
     } else if (location.pathname.includes('/memberstatusreport') || location.pathname.includes('/theirstatusreport')) {
         // update 'needsedit' class depending on value of statusreport field

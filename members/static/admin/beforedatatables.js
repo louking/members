@@ -99,14 +99,12 @@ function meeting_sendinvites(url) {
                     var invitestbl = $('<table>')
                     var invites = $('<div>').append(invitestbl)
                     var $th = $('<tr>').append(
-                        $('<th>').text('name').attr('align', 'left'),
-                        $('<th>').text('email').attr('align', 'left'),
+                        $('<th>').text('name (email)').attr('align', 'left'),
                         $('<th>').text('state').attr('align', 'left'),
                     ).appendTo(invitestbl);
                     $.each(json.invitestates, function(i, invite) {
                         var $tr = $('<tr>').append(
-                            $('<td>').text(invite.name),
-                            $('<td>').text(invite.email),
+                            $('<td>').text(invite.name + ' (' + invite.email + ')'),
                             $('<td>').text(invite.state),
                         ).appendTo(invitestbl);
                     });
@@ -128,47 +126,78 @@ function meeting_sendinvites(url) {
     return fn;
 }
 
+var meeting_reminders_editor;
+
 /**
  * handles Send Reminders button from Meeting view
  *
- * @param ed - editor instance
+ * @param url - url for ajax get / editor submission
  * @returns {fn} - button action
  */
-function meeting_sendreminders(ed) {
-    fn = function() {
+function meeting_sendreminders(url) {
+    fn = function (e, dt, node, config) {
         var that = this;
-        that.processing(true);
-        ed.one('postEdit', function(e, json, data, id) {
-            that.processing(false);
-            var message = $('<div>', {title: 'Generated reminders'});
-            var popuphtml = $('<ul>').appendTo(message);
-            if (json.newinvites.length > 0) {
-                var newinvites = $('<p>', {html: 'new invites sent to'}).appendTo(popuphtml);
-                var newinvitesul = $('<ul>').appendTo(newinvites);
-                for (var i=0; i<json.newinvites.length; i++) {
-                    $('<li>', {html: json.newinvites[i]}).appendTo(newinvitesul);
-                }
-            }
-            if (json.reminded.length > 0) {
-                var reminders = $('<p>', {html: 'reminders sent to'}).appendTo(popuphtml);
-                var remindersul = $('<ul>').appendTo(reminders);
-                for (var i=0; i<json.reminded.length; i++) {
-                    $('<li>', {html: json.reminded[i]}).appendTo(remindersul);
-                }
-            }
-            message.dialog({
-                modal: true,
-                minWidth: 200,
-                height: 'auto',
-                buttons: {
-                    OK: function() {
-                        $(this).dialog('close');
+
+        // Ajax request to refresh the data
+        var urlparams = allUrlParams();
+        var ids = [];
+        var apiids = dt.rows({selected:true}).ids();
+        for (i=0; i<apiids.length; i++) {
+            ids.push(apiids[i]);
+        }
+        if (ids.length > 0) {
+            urlparams.ids = ids.join(',');
+        }
+
+        // update the url parameter for the create view
+        var editorajax = meeting_reminders_editor.ajax() || {};
+        editorajax.url = url + '?' + setParams(urlparams);
+        meeting_reminders_editor.ajax(editorajax);
+
+        $.ajax({
+            // application specific: my application has different urls for different methods
+            url: url + '?' + setParams(urlparams),
+            type: 'get',
+            dataType: 'json',
+            success: function (json) {
+                // if error, display message - application specific
+                if (json.error) {
+                    // this is application specific
+                    // not sure if there's a generic way to find the current editor instance
+                    meeting_reminders_editor.error('ERROR retrieving row from server:<br>' + json.error);
+
+                } else {
+                    // create table from json response. for some reason need dummy div element
+                    // else html doesn't have <table> in it
+                    var invites = $('<div>');
+                    if (json.invitestates.reminders.length > 0) {
+                        var remindersp = invites.append($('<p>').text('Reminders will be sent to'));
+                        var remindersul = remindersp.append($('<ul>'));
+                        $.each(json.invitestates.reminders, function (i, invite) {
+                            remindersul.append($('<li>').text(invite.name + ' (' + invite.email + ')'));
+                        });
                     }
+                    if (json.invitestates.invites.length > 0) {
+                        var invitesp = invites.append($('<p>').text('New invites will be sent to'));
+                        var invitesul = invitesp.append($('<ul>'));
+                        $.each(json.invitestates.invites, function (i, invite) {
+                            invitesul.append($('<li>').text(invite.name + ' (' + invite.email + ')'));
+                        });
+                    }
+
+                    meeting_reminders_editor
+                        .title('Send Reminders')
+                        .edit(null, false)
+                        // no editing id, and don't show immediately
+                        .set('invitestates', invites.html())
+                        .set('from_email', json.from_email)
+                        .set('subject', json.subject)
+                        .set('message', json.message)
+                        .set('options', json.options)
+                        .open();
                 }
-            });
-        })
-        // selected rows, false means don't display form
-        ed.edit({selected:true}, false).submit();
+            }
+        });
     }
     return fn;
 }

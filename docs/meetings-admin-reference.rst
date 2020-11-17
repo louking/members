@@ -180,8 +180,29 @@ There is one action button.
         select the row(s) for which a reminder should be sent. The :term:`members <member>` who hold the selected
         :term:`positions <position>` will be sent a reminder.
 
+        :Subject:
+            default subject is provided by the system, but can be changed if desired
+
+        :Message:
+            add additional message to the reminder if desired
+
+        :From:
+            defaults to **From** from the last **Send Invites** or **Send Reminders** (see note), but can be updated
+            if desired
+
+        :option checkboxes:
+            * check **Request Status Report** if the text in the email should mention that a status report is needed
+            * check **Show Action Items** if outstanding action items should be shown in the email
+
         .. note::
-            Generally, the **Status** filter should be set to *missing* before using this feature
+            For best results, set the **Status** filter to *missing* before using **Send Reminders**
+
+        .. note::
+            **Message**, **From**, and option checkboxes default from the last **Send Reminders**, or the last
+            :ref:`Meeting view`'s **Send Invites** if **Send Reminders** hasn't been used for this meeting
+
+.. image:: images/meeting-status-reminders.*
+    :align: center
 
 
 .. _Meeting view:
@@ -240,13 +261,17 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are three action
         which affect the meeting attendance
 
         :Subject:
-            default subject is [<purpose> <date>], but you should add at least that this is an invitation
+            default subject is provided by the system, but can be changed if desired
 
         :Message:
             add additional message to the invitiation if desired
 
         :From:
             defaults to the email address of the :term:`meeting` **Organizer**, but can be updated if desired
+
+        :option checkboxes:
+            * check **Request Status Report** if the text in the email should mention that a status report is needed
+            * check **Show Action Items** if outstanding action items should be shown in the email
 
         .. note::
             if any positions which affect meeting attendance have been updated, a nightly job will take care of

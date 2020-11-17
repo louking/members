@@ -26,7 +26,8 @@ from ...model import invite_response_all
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
-from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, MEETING_INVITE_EMAIL
+from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
+from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL
 from .meetings_member import MemberStatusReportBase
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -1514,7 +1515,7 @@ class MeetingInviteApi(MethodView):
             # set defaults
             meeting = Meeting.query.filter_by(id=meeting_id).one()
             from_email = meeting.organizer.email
-            subject = '[{} {}] '.format(meeting.purpose, meeting.date)
+            subject = '[{} {}] Invitation -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
             message = ''
             # todo: need to tailor when #274 is fixed
             options = 'statusreport,actionitems'
@@ -1664,6 +1665,14 @@ def meetingstatus_pretablehtml():
         with meetingstatus_filters:
             filterdiv('meetingstatus-external-filter-status', 'Status')
 
+        # make dom repository for Editor send reminders standalone form
+        with div(style='display: none;'):
+            dd(**{'data-editor-field': 'invitestates'})
+            dd(**{'data-editor-field': 'from_email'})
+            dd(**{'data-editor-field': 'subject'})
+            dd(**{'data-editor-field': 'message'})
+            dd(**{'data-editor-field': 'options'})
+
     return pretablehtml.render()
 
 meetingstatus_dbattrs = 'id,interest_id,position,users,status'.split(',')
@@ -1708,13 +1717,16 @@ meetingstatus = MeetingStatusView(
     ],
     servercolumns=None,  # not server side
     idSrc='rowid',
-    buttons=[
-        {
-            'extend':'edit',
-            'editor': {'eval':'editor'},
-            'text': 'Send Reminders',
-            'action': {'eval':'meeting_sendreminders(editor)'}
-        },
+    buttons=lambda: [
+        # 'editor' gets eval'd to editor instance
+        {'text': 'Send Reminders',
+         'name': 'send-reminders',
+         'editor': {'eval': 'meeting_invites_editor'},
+         'url': url_for('admin.meetinginvite', interest=g.interest),
+         'action': {
+             'eval': 'meeting_sendreminders("{}")'.format(rest_url_for('admin.meetingstatusreminder',
+                                                                       interest=g.interest))}
+         },
         'csv'
     ],
     dtoptions={
@@ -1726,6 +1738,184 @@ meetingstatus = MeetingStatusView(
     },
 )
 meetingstatus.register()
+
+
+#########################################################################################
+# meetingstatusreminder api endpoint
+#########################################################################################
+
+class MeetingStatusReminderApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+
+        # must have meeting_id and ids query arg
+        if request.args.get('meeting_id', False) and request.args.get('ids', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+
+        return allowed
+
+    def get_reminders(self, meeting_id, theseposids):
+        '''
+        get users who need to be reminded, and their positions
+
+        :param meeting_id: id of meeting to check for invites
+        :param theseposids: position ids to check
+        :return: {user:invitestate, user:invitestate, ...}, [position, position, ...]
+        '''
+        positions = []
+        users = set()
+        for id in theseposids:
+            # try to coerce to int, but ok if not
+            try:
+                id = int(id)
+            except ValueError:
+                pass
+
+            # collect users which hold this position, and positions which have been selected
+            position = Position.query.filter_by(id=id).one()
+            users |= set(position.users)
+            positions.append(position)
+
+        userinvitestates = {}
+        for user in users:
+            invite = Invite.query.filter_by(meeting_id=meeting_id, user=user).one_or_none()
+            if invite:
+                userinvitestates[user] = True
+            else:
+                userinvitestates[user] = False
+
+        return userinvitestates, positions
+
+    def get(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            # this returns reminder form options, similar to MeetingInviteAPI
+            meeting_id = request.args['meeting_id']
+            # set defaults from meeting first, then from invite email if it exists (it should)
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            from_email = meeting.organizer.email
+            subject = '[{} {}] Reminder -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
+            message = ''
+            # todo: need to tailor when #274 is fixed
+            options = 'statusreport,actionitems'
+
+            # if mail has been sent as invite, pick up values used prior
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+                # override default subject
+                subject = '[{} {}] Reminder -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
+                message = email.message
+                options = email.options
+
+            # if mail has been sent as reminder, pick up values used prior
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_REMINDER_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+                subject = email.subject
+                message = email.message
+                options = email.options
+
+            theseposids = request.args['ids'].split(',')
+            userstates, positions = self.get_reminders(meeting_id, theseposids)
+
+            invitestates = {'reminders': [], 'invites': []}
+            for user in userstates:
+                # if already invited, send reminder
+                if userstates[user]:
+                    invitestates['reminders'].append({'name': user.name, 'email': user.email})
+                # otherwise send invite
+                else:
+                    invitestates['invites'].append({'name': user.name, 'email': user.email})
+
+            return jsonify(from_email=from_email, subject=subject, message=message, options=options,
+                           invitestates=invitestates)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            meeting_id = request.args['meeting_id']
+            theseposids = request.args['ids'].split(',')
+            userstates, positions = self.get_reminders(meeting_id, theseposids)
+
+            # there should be one 'id' in this form data, 'keyless'
+            requestdata = get_request_data(request.form)
+            meeting_id = request.args['meeting_id']
+            from_email = requestdata['keyless']['from_email']
+            subject = requestdata['keyless']['subject']
+            message = requestdata['keyless']['message']
+            options = requestdata['keyless']['options']
+
+            # if mail has been sent as reminder, save in previous record, else create record then save
+            email = Email.query.filter_by(interest=localinterest(), meeting_id=meeting_id, type=MEETING_REMINDER_EMAIL).one_or_none()
+            if not email:
+                email = Email(interest=localinterest(), meeting_id=meeting_id, type=MEETING_REMINDER_EMAIL)
+                db.session.add(email)
+            email.from_email = from_email
+            email.subject = subject
+            email.message = message
+            email.options = options
+            # flush so generatereminder() can pick up latest email record
+            db.session.flush()
+
+            # send reminder email to each user
+            for user in userstates:
+                reminder = generatereminder(request.args['meeting_id'], user, positions)
+            # note need to flush to pick up any new invites
+            db.session.flush()
+
+            # do this at the end to pick up invite.lastreminded (updated in generatereminder())
+            self._responsedata = []
+            for user in userstates:
+                for position in user.positions:
+                    # todo: needs update after #272 fixed
+                    if position.has_status_report:
+                        thisrow = meetingstatus.dte.get_response_data(position)
+                        self._responsedata += [thisrow]
+
+            db.session.commit()
+            return jsonify(self._responsedata)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_meetingstatusreminder/rest', view_func=MeetingStatusReminderApi.as_view('meetingstatusreminder'),
+                methods=['GET', 'POST'])
+
 
 ##########################################################################################
 # agendaheadings endpoint

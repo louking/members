@@ -21,7 +21,7 @@ from loutilities.tables import page_url_for
 class ParameterError(Exception): pass
 
 MEETING_INVITE_EMAIL = 'meeting-invite-email'
-
+MEETING_REMINDER_EMAIL = 'meeting-reminder-email'
 
 def get_invites(meetingid):
     """
@@ -182,19 +182,20 @@ def generatereminder(meetingid, member, positions):
     """
     # find member's invitation, if it exists
     invite = Invite.query.filter_by(meeting_id=meetingid, user=member).one_or_none()
+    meeting = Meeting.query.filter_by(id=meetingid).one()
 
     # invite already exists, send reminder
     if invite:
-        # send reminder email to user
-        emailtemplate = EmailTemplate.query.filter_by(templatename='meeting-reminder-email',
-                                                      interest=localinterest()).one()
+        # email record should exist, else software error, so it's ok to use one()
+        email = Email.query.filter_by(interest=localinterest(), meeting_id=meetingid, type=MEETING_REMINDER_EMAIL).one()
 
-        subject = emailtemplate.subject
-        fromlist = localinterest().from_email
-        if emailtemplate.from_email:
-            fromlist = emailtemplate.from_email
+        # send reminder email to user
+        subject = email.subject
+        fromlist = email.from_email
+        message = email.message
         tolist = member.email
         cclist = None
+        options = email.options
 
         # get user's outstanding action items
         actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=member). \
@@ -210,15 +211,16 @@ def generatereminder(meetingid, member, positions):
         memberpositions = [p for p in positions if p in member.positions]
 
         # create and send email
-        template = Template(emailtemplate.template)
         context = {
             'meeting': invite.meeting,
+            'message': message,
             'actionitems': actionitems,
             'rsvpurl': rsvpurl,
             'actionitemurl': actionitemurl,
             'positions': memberpositions,
+            'options': options,
         }
-        html = template.render(**context)
+        html = render_template('meeting-reminder-email.jinja2', **context)
 
         sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
         invite.lastreminder = datetime.now()

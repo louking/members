@@ -633,7 +633,7 @@ class MemberStatusReportView(MemberStatusReportBase):
     def beforequery(self):
         # set user based on invite key
         invite = self.get_invite()
-        self.theuser = invite.user
+        self.theuser = localuser2user(invite.user)
         super().beforequery()
         self.queryparams['meeting_id'] = self.meeting.id
         self.queryparams['invite_id'] = invite.id
