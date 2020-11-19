@@ -1420,14 +1420,15 @@ class MeetingGenDocsApi(MethodView):
 
 bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('_meetinggendocs'), methods=['POST'])
 
-##########################################################################################
-# meetingemail api endpoint
-##########################################################################################
+#########################################################################################
+# meeting api base
+#########################################################################################
 
-class MeetingEmailApi(MethodView):
+class MeetingApiBase(MethodView):
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
 
     def permission(self):
         '''
@@ -1444,6 +1445,13 @@ class MeetingEmailApi(MethodView):
                     break
 
         return allowed
+
+
+##########################################################################################
+# meetingemail api endpoint
+##########################################################################################
+
+class MeetingEmailApi(MeetingApiBase):
 
     def post(self):
         try:
@@ -1474,33 +1482,6 @@ class MeetingEmailApi(MethodView):
 
 bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('_meetingsendemail'),
                 methods=['POST'])
-
-
-#########################################################################################
-# meeting api base
-#########################################################################################
-
-class MeetingApiBase(MethodView):
-
-    def __init__(self):
-        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
-
-
-    def permission(self):
-        '''
-        determine if current user is permitted to use the view
-        '''
-        # adapted from loutilities.tables.DbCrudApiRolePermissions
-        allowed = False
-
-        # must have meeting_id query arg
-        if request.args.get('meeting_id', False):
-            for role in self.roles_accepted:
-                if current_user.has_role(role):
-                    allowed = True
-                    break
-
-        return allowed
 
 
 #########################################################################################
