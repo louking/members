@@ -1246,19 +1246,19 @@ meeting = MeetingView(
         {'text': 'Send Invites',
          'name': 'send-invites',
          'editor': {'eval': 'meeting_invites_editor'},
-         'url': url_for('admin.meetinginvite', interest=g.interest),
+         'url': url_for('admin._meetinginvite', interest=g.interest),
          'action': {
-             'eval': 'meeting_sendinvites("{}")'.format(rest_url_for('admin.meetinginvite',
+             'eval': 'meeting_sendinvites("{}")'.format(rest_url_for('admin._meetinginvite',
                                                                        interest=g.interest))}
          },
         {'text':'Generate Docs',
          'action': {
-             'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin.meetinggendocs',
+             'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin._meetinggendocs',
                                                                        interest=g.interest))}
          },
         {'text':'Send Email',
          'action': {
-             'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin.meetingsendemail',
+             'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin._meetingsendemail',
                                                                     interest=g.interest))}
          },
     ],
@@ -1418,7 +1418,7 @@ class MeetingGenDocsApi(MethodView):
             current_app.logger.error(format_exc())
             return jsonify(output_result)
 
-bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('meetinggendocs'), methods=['POST'])
+bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.as_view('_meetinggendocs'), methods=['POST'])
 
 ##########################################################################################
 # meetingemail api endpoint
@@ -1472,18 +1472,19 @@ class MeetingEmailApi(MethodView):
             current_app.logger.error(format_exc())
             return jsonify(output_result)
 
-bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('meetingsendemail'),
+bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('_meetingsendemail'),
                 methods=['POST'])
 
 
 #########################################################################################
-# meetinginvite api endpoint
+# meeting api base
 #########################################################################################
 
-class MeetingInviteApi(MethodView):
+class MeetingApiBase(MethodView):
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+
 
     def permission(self):
         '''
@@ -1500,6 +1501,13 @@ class MeetingInviteApi(MethodView):
                     break
 
         return allowed
+
+
+#########################################################################################
+# meetinginvite api endpoint
+#########################################################################################
+
+class MeetingInviteApi(MeetingApiBase):
 
     def get(self):
         try:
@@ -1584,7 +1592,7 @@ class MeetingInviteApi(MethodView):
             current_app.logger.error(format_exc())
             return jsonify(output_result)
 
-bp.add_url_rule('/<interest>/_meetinginvite/rest', view_func=MeetingInviteApi.as_view('meetinginvite'),
+bp.add_url_rule('/<interest>/_meetinginvite/rest', view_func=MeetingInviteApi.as_view('_meetinginvite'),
                 methods=['GET', 'POST'])
 
 
@@ -1722,9 +1730,9 @@ meetingstatus = MeetingStatusView(
         {'text': 'Send Reminders',
          'name': 'send-reminders',
          'editor': {'eval': 'meeting_invites_editor'},
-         'url': url_for('admin.meetinginvite', interest=g.interest),
+         'url': url_for('admin._meetingstatusreminder', interest=g.interest),
          'action': {
-             'eval': 'meeting_sendreminders("{}")'.format(rest_url_for('admin.meetingstatusreminder',
+             'eval': 'meeting_sendreminders("{}")'.format(rest_url_for('admin._meetingstatusreminder',
                                                                        interest=g.interest))}
          },
         'csv'
@@ -1744,24 +1752,17 @@ meetingstatus.register()
 # meetingstatusreminder api endpoint
 #########################################################################################
 
-class MeetingStatusReminderApi(MethodView):
-
-    def __init__(self):
-        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
+class MeetingStatusReminderApi(MeetingApiBase):
 
     def permission(self):
         '''
         determine if current user is permitted to use the view
         '''
-        # adapted from loutilities.tables.DbCrudApiRolePermissions
-        allowed = False
+        allowed = super().permission()
 
-        # must have meeting_id and ids query arg
-        if request.args.get('meeting_id', False) and request.args.get('ids', False):
-            for role in self.roles_accepted:
-                if current_user.has_role(role):
-                    allowed = True
-                    break
+        # must have ids query arg, overrides super().permission() check
+        if not request.args.get('ids', False):
+            allowed = False
 
         return allowed
 
@@ -1913,7 +1914,7 @@ class MeetingStatusReminderApi(MethodView):
             current_app.logger.error(format_exc())
             return jsonify(output_result)
 
-bp.add_url_rule('/<interest>/_meetingstatusreminder/rest', view_func=MeetingStatusReminderApi.as_view('meetingstatusreminder'),
+bp.add_url_rule('/<interest>/_meetingstatusreminder/rest', view_func=MeetingStatusReminderApi.as_view('_meetingstatusreminder'),
                 methods=['GET', 'POST'])
 
 
