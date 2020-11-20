@@ -96,8 +96,9 @@ function meeting_sendinvites(url) {
                 } else {
                     // create table from json response. for some reason need dummy div element
                     // else html doesn't have <table> in it
-                    var invitestbl = $('<table>')
-                    var invites = $('<div>').append(invitestbl)
+                    var invites = $('<div>');
+                    var invitestbl = $('<table style="margin-left: 1em">');
+                    invites.append(invitestbl);
                     var $th = $('<tr>').append(
                         $('<th>').text('name (email)').attr('align', 'left'),
                         $('<th>').text('state').attr('align', 'left'),
@@ -172,14 +173,16 @@ function meeting_sendreminders(url) {
                     var invites = $('<div>');
                     if (json.invitestates.reminders.length > 0) {
                         var remindersp = invites.append($('<p>').text('Reminders will be sent to'));
-                        var remindersul = remindersp.append($('<ul>'));
+                        var remindersul = $('<ul>');
+                        remindersp.append(remindersul);
                         $.each(json.invitestates.reminders, function (i, invite) {
                             remindersul.append($('<li>').text(invite.name + ' (' + invite.email + ')'));
                         });
                     }
                     if (json.invitestates.invites.length > 0) {
                         var invitesp = invites.append($('<p>').text('New invites will be sent to'));
-                        var invitesul = invitesp.append($('<ul>'));
+                        var invitesul = $('<ul>');
+                        invitesp.append(invitesul);
                         $.each(json.invitestates.invites, function (i, invite) {
                             invitesul.append($('<li>').text(invite.name + ' (' + invite.email + ')'));
                         });
@@ -274,6 +277,11 @@ function meeting_generate_docs(url) {
     return fn;
 }
 
+
+/**
+ * define editor for send email button
+ */
+var meeting_email_editor;
 /**
  * handles Send Mail button from Meeting view
  *
@@ -281,107 +289,52 @@ function meeting_generate_docs(url) {
  * @returns {fn} - button action
  */
 function meeting_send_email(url) {
-    fn = function() {
+    fn = function (e, dt, node, config) {
         var that = this;
-        var formerror;
-        that.processing(true);
 
-        // allUrlParams() picks up at least meeting_id
-        var form = $('<form>', {id: 'doc-form', action: url + '?' + setParams(allUrlParams()), method:'POST'})
-        var subjectdiv = $('<div>', {class: 'DTE_Field field_req'});
-        form.append(subjectdiv);
-        subjectdiv.append($('<label>', {for: 'subject', text: 'Subject', class: 'DTE_Label'}));
-        var subject = $('<input>', {type: 'text', id:  'subject', name: 'subject', class: 'form-input DTE_Field_Input'});
-        subject.val('[' + $('#meeting_purpose').text() + ' ' + $('#meeting_date').text() + '] ');
-        subjectdiv.append(subject);
-        form.append($('<br>'));
-        var messagediv = $('<div>', {class: 'DTE_Field field_req'});
-        form.append(messagediv);
-        messagediv.append($('<label>', {for: 'message', text: 'Message'}));
-        messagediv.append($('<br>'));
-        messagediv.append($('<div>', {id:  'message', name: 'message', width: 'auto'}).addClass('form-input'));
-        var msgeditor;
-        ClassicEditor
-            .create( form.find('#message')[0] )
-            .then( function( newEditor) {
-                msgeditor = newEditor;
-            })
-            .catch( function(error) {
-                    console.error(error)
-            });
+        // Ajax request to refresh the data
+        var urlparams = allUrlParams();
 
-        // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
-        form.dialog({
-            title: 'Send Email to Invitees',
-            modal: true,
-            minWidth: 600,
-            height: 'auto',
-            close: function(event, ui) {
-                that.processing(false);
-            },
-            buttons: [
-                {
-                    text: 'Submit',
-                    click: function() {
-                        var url = form.attr( "action" );
-                        var terms = {};
-                        var inputs = form.find('.form-input');
-                        inputs.each(function() {
-                            // .val() works for input, .getData() works for ckeditor content
-                            if ($(this).hasClass('ck-content')) {
-                                terms[$(this).attr('name')] = msgeditor.getData();
-                            } else {
-                                terms[$(this).attr('name')] = $(this).val();
-                            }
+        // update the url parameter for the create view
+        var editorajax = meeting_email_editor.ajax() || {};
+        editorajax.url = url + '?' + setParams(urlparams);
+        meeting_email_editor.ajax(editorajax);
+
+        $.ajax({
+            // application specific: my application has different urls for different methods
+            url: url + '?' + setParams(urlparams),
+            type: 'get',
+            dataType: 'json',
+            success: function (json) {
+                // if error, display message - application specific
+                if (json.error) {
+                    // this is application specific
+                    // not sure if there's a generic way to find the current editor instance
+                    meeting_email_editor.error('ERROR retrieving row from server:<br>' + json.error);
+
+                } else {
+                    // create table from json response. for some reason need dummy div element
+                    // else html doesn't have <table> in it
+                    var emaildiv = $('<div>');
+                    if (json.invitestates.length > 0) {
+                        var emailul = $('<ul style="list-style-type:none;">');
+                        emaildiv.append(emailul);
+                        $.each(json.invitestates, function (i, invite) {
+                            emailul.append($('<li>').text(invite.name + ' (' + invite.email + ')'));
                         });
-                        var post = $.post(url, terms, function(data, textStatus, jqXHR) {
-                            if (textStatus === "success") {
-                                if (data.status === "success") {
-                                    form.dialog('close');
-                                    var confirmation = $('<div>', {title: 'Sent mail to'});
-                                    var tolist = $('<ul>').appendTo(confirmation);
-                                    if (data.sent_to.length > 0) {
-                                        $.each(data.sent_to, function (ndx, val) {
-                                            $('<li>', {text: val}).appendTo(tolist)
-                                        })
-                                    } else {
-                                        $('<li>', {text: 'No mail sent - use Send Invites before Send Email'}).appendTo(tolist)
-                                    }
-                                    confirmation.dialog({
-                                        modal: true,
-                                        minWidth: 600,
-                                        height: 'auto',
-                                        buttons: {
-                                            OK: function() {
-                                                $(this).dialog('close');
-                                            }
-                                        }
-                                    });
-
-                                } else {
-                                    formerror.text(data.error);
-                                    formerror.show();
-                                }
-                            } else {
-                                formerror.text('error occurred: ' + textStatus);
-                                formerror.show();
-                            }
-                        });
-                    },
-                },
-                {
-                    text: 'Cancel',
-                    click: function() {
-                        form.dialog('close');
                     }
-                },
-            ]
-        });
 
-        // need to create formerror div after dialog shown
-        $('.ui-dialog-buttonpane').append($('<div>', {id: 'form-error', 'class': 'DTE_Form_Error'}))
-        formerror = $('.ui-dialog-buttonpane #form-error');
-        formerror.hide();
+                    meeting_email_editor
+                        .title('Send Email')
+                        .edit(null, false)
+                        // no editing id, and don't show immediately
+                        .set('invitestates', emaildiv.html())
+                        .set('from_email', json.from_email)
+                        .set('subject', json.subject)
+                        .open();
+                }
+            }
+        });
     }
     return fn;
 }

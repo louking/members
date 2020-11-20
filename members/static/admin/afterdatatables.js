@@ -277,8 +277,37 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
-        // need on 'preInvites' to translate interest for Send Invites button
-        editor.on( 'preInvites', translate_editor_group );
+        // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
+        meeting_email_editor = new $.fn.dataTable.Editor({
+            fields: [
+                {name: 'invitestates', data: 'invitestates', label: 'To', type: 'display',
+                    className: 'field_req full block'},
+                {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
+                {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
+                    className: 'field_req full block'},
+                {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
+            ],
+        });
+
+        // buttons needs to be set up outside of ajax call (beforedatatables.js meeting_sendinvites()
+        // else the button action doesn't fire (see https://stackoverflow.com/a/19237302/799921 for ajax hint)
+        meeting_email_editor
+            .buttons([
+                {
+                    'text': 'Send Email',
+                    'action': function () {
+                        this.submit( null, null, function(data){
+                            var that = this;
+                        });
+                    }
+                },
+                {
+                    'text': 'Cancel',
+                    'action': function() {
+                        this.close();
+                    }
+                }
+            ])
 
         // only show hidden_reason field if is_hidden is true (yes)
         editor.dependent('is_hidden', function(val, data, callback) {

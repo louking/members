@@ -294,6 +294,15 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are three action
         use this to send email to the :term:`members <member>` on the :term:`meeting` :term:`invite` list. Note the
         default email subject contains the meeting purpose and date, and can be edited
 
+        :Subject:
+            default subject is provided by the system, but can be changed if desired
+
+        :Message:
+            add message
+
+        :From:
+            defaults to the email address which was used during **Send Invites**, but can be updated if desired
+
 
 .. image:: images/meeting-view.*
     :align: center

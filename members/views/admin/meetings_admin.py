@@ -27,7 +27,7 @@ from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
-from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL
+from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from .meetings_member import MemberStatusReportBase
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -1453,7 +1453,7 @@ class MeetingApiBase(MethodView):
 
 class MeetingEmailApi(MeetingApiBase):
 
-    def post(self):
+    def get(self):
         try:
             # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
             if not self.permission():
@@ -1462,8 +1462,57 @@ class MeetingEmailApi(MeetingApiBase):
                 return jsonify(error=cause)
 
             meeting_id = request.args['meeting_id']
-            subject = request.form['subject']
-            message = request.form['message']
+            invitestates, invites = get_invites(meeting_id)
+
+            # set defaults
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            from_email = meeting.organizer.email
+            subject = '[{} {}] '.format(meeting.purpose, meeting.date)
+            message = ''
+
+            # pick up from address used in invite
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+
+            # if mail has previously been sent, pick up from address used prior (may have overridden invite from_email)
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+
+            return jsonify(from_email=from_email, subject=subject, message=message,
+                           invitestates=invitestates)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            # there should be one 'id' in this form data, 'keyless'
+            requestdata = get_request_data(request.form)
+            meeting_id = request.args['meeting_id']
+            from_email = requestdata['keyless']['from_email']
+            subject = requestdata['keyless']['subject']
+            message = requestdata['keyless']['message']
+
+            email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_EMAIL).one_or_none()
+            if not email:
+                email = Email(interest=localinterest(), meeting_id=meeting_id, type=MEETING_EMAIL)
+                db.session.add(email)
+
+            email.from_email = from_email
+            db.session.flush()
 
             tolist = send_meeting_email(meeting_id, subject, message)
 
@@ -1481,7 +1530,7 @@ class MeetingEmailApi(MeetingApiBase):
             return jsonify(output_result)
 
 bp.add_url_rule('/<interest>/_meetingsendemail/rest', view_func=MeetingEmailApi.as_view('_meetingsendemail'),
-                methods=['POST'])
+                methods=['GET', 'POST'])
 
 
 #########################################################################################
