@@ -28,7 +28,7 @@ from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
-from .meetings_member import MemberStatusReportBase
+from .meetings_common import MemberStatusReportBase
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
