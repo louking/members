@@ -23,7 +23,7 @@ jq_ui_ver = '1.12.1'
 # dataTables
 dt_buttons_ver = '1.6.5' # also used for colvis and html5
 dt_datatables_ver = '1.10.22'
-dt_editor_ver = '1.9.5'
+dt_editor_ver = '1.9.6'
 dt_fixedcolumns_ver = '3.3.1'
 dt_responsive_ver = '2.2.6'
 dt_rowreorder_ver = '1.2.7'
@@ -177,8 +177,8 @@ asset_bundles = {
         Bundle('layout.js', filters='jsmin'),
 
         # must be before datatables
-        Bundle('js/nunjucks-{ver}/nunjucks-slim.js'.format(ver=nunjucks_ver), filters='jsmin'),
-        Bundle('admin/nunjucks/*.js', filters='jsmin'),
+        Bundle('js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver), filters='jsmin'),
+        Bundle('admin/nunjucks/templates.js', filters='jsmin'),
         Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities
         Bundle('editor.ckeditor5.js', filters='jsmin'),                  # from loutilities
         Bundle('admin/beforedatatables.js', filters='jsmin'),

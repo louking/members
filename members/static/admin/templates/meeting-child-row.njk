@@ -1,32 +1,15 @@
-{# row is being edited #}
-{% if _showedit %}
-    {# see https://datatables.net/blog/2017-06-30 #}
-    {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
-    <div id="childrow-editform-" class="childrow-editform"></div>
-
-{# row just needs to be displayed #}
-{% else %}
-    <div class="childrow-display">
-        {% if is_hidden == 'yes' and hidden_reason %}
-            <div class="DTE_Label">HIDDEN: Reason for Hiding</div>
-            <div class="DTE_Field_Input"><p>{{ hidden_reason | safe }}</p></div>
-        {% endif %}
-        {% if agendaitem %}
-            <div class="DTE_Label">Summary</div>
-            <div class="DTE_Field_Input">{{ agendaitem | safe }}</div>
-        {% endif %}
-        {% if discussion %}
-            <div class="DTE_Label">Discussion</div>
-            <div class="DTE_Field_Input">{{ discussion | safe }}</div>
-        {% endif %}
-    </div>
-{% endif %}
-
-{# always display any tables #}
-{# editor display is determined in the ChildRow javascript #}
-<div class="childrow-display">
-    {% for table in tables %}
-        <div class="DTE_Label">{{ table.label }}</div>
-        <table id="childrow-table-{{ table.tableid }}"></table>
-    {% endfor %}
-</div>
+{% extends "child-row-base.njk" %}
+{% block displayfields %}
+    {% if is_hidden == 'yes' and hidden_reason %}
+        <div class="DTE_Label">HIDDEN: Reason for Hiding</div>
+        <div class="DTE_Field_Input"><p>{{ hidden_reason | safe }}</p></div>
+    {% endif %}
+    {% if agendaitem %}
+        <div class="DTE_Label">Summary</div>
+        <div class="DTE_Field_Input">{{ agendaitem | safe }}</div>
+    {% endif %}
+    {% if discussion %}
+        <div class="DTE_Label">Discussion</div>
+        <div class="DTE_Field_Input">{{ discussion | safe }}</div>
+    {% endif %}
+{% endblock %}

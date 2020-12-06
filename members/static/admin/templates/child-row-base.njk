@@ -1,0 +1,34 @@
+{# row is being edited #}
+{% if _showedit %}
+    {# see https://datatables.net/blog/2017-06-30 #}
+    {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
+    {% if parentid != 'top' %}
+        {% block editform %}
+            <div id="childrow-editform-{{ tableid }}" class="childrow-editform"></div>
+            {# else should be like, but best to use default above
+                <div id="childrow-editform-actionitems-{{ parentid }}" class="childrow-editform"></div>
+            #}
+        {% endblock %}
+    {% else %}
+        <div id="childrow-editform-top" class="childrow-editform"></div>
+    {% endif %}
+{% else %}
+    <div class="childrow-display">
+        {% block displayfields %}
+            {# should be like
+                <div class="DTE_Label">Comments</div>
+                <div class="DTE_Field_Input">{{ comments | safe }}</div>
+                    :
+            #}
+        {% endblock %}
+</div>
+{% endif %}
+
+{# always display any tables #}
+{# editor display is determined in the ChildRow javascript #}
+<div class="childrow-display">
+    {% for table in tables %}
+        <div class="DTE_Label">{{ table.label }}</div>
+        <table id="childrow-table-{{ table.tableid }}"></table>
+    {% endfor %}
+</div>

@@ -1,29 +1,7 @@
-{% if _showedit %}
-    {# see https://datatables.net/blog/2017-06-30 #}
-    {# see https://editor.datatables.net/plug-ins/display-controller/editor.onPage #}
-    <div id="childrow-editform-" class="childrow-editform"></div>
-
-{# row just needs to be displayed #}
-{% else %}
-    <div class="childrow-display">
-        {% if is_rsvp %}
-            <div class="DTE_Field_Input">{{ rsvp_response | safe }}</div>
-        {% else %}
-            <div class="DTE_Label"><b>Status Report</b></div>
-            <div class="DTE_Field_Input">{{ statusreport | safe }}</div>
-        {% endif %}
-    </div>
-{% endif %}
-
-{# display any tables if not rsvp #}
-{# editor display is determined in the ChildRow javascript #}
-{% if not is_rsvp %}
-    <div class="childrow-display">
-        {% for table in tables %}
-            <div class="DTE_Label">{{ table.label }}</div>
-            <table id="childrow-table-{{ table.tableid }}"></table>
-        {% endfor %}
-    </div>
-{% endif %}
+{% extends "child-row-base.njk" %}
+{% block displayfields %}
+    <div class="DTE_Label"><b>Status Report</b></div>
+    <div class="DTE_Field_Input">{{ statusreport | safe }}</div>
+{% endblock %}
 
 

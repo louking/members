@@ -327,7 +327,10 @@ invites = InvitesView(
     dbmapping=invites_dbmapping,
     formmapping=invites_formmapping,
     checkrequired=True,
-    tableidtemplate ='invites-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidcontext=lambda row: {
+        'agendaitem_id': row['agendaitem_id'],
+    },
+    tableidtemplate ='invites-{{ agendaitem_id }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -390,7 +393,6 @@ actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,m
 actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,update_time,updated_by'.split(',')
 actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
 actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
-# actionitems_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
 
 # need aliased because LocalUser referenced twice within motions
 # https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
@@ -427,7 +429,6 @@ class ActionItemsView(DbCrudApiInterestsRolePermissions):
                                      ActionItem.status != ACTION_STATUS_CLOSED)]
 
     def _get_localuser(self):
-        # TODO: process request.args to see if different user is needed
         return LocalUser.query.filter_by(user_id=current_user.id, interest=localinterest()).one()
 
     def log_update(self, formdata):
@@ -471,8 +472,22 @@ actionitems = ActionItemsView(
     dbmapping=actionitems_dbmapping,
     formmapping=actionitems_formmapping,
     checkrequired=True,
-    tableidtemplate ='actionitems-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidcontext=lambda row: {
+        'agendaitem_id': row['agendaitem_id'],
+    },
+    tableidtemplate ='actionitems-{{ agendaitem_id }}',
     clientcolumns=[
+        {'data': '', # needs to be '' else get exception converting options from meetings render_template
+                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+         'name':'details-control',
+         'className': 'details-control shrink-to-fit',
+         'orderable': False,
+         'defaultContent': '',
+         'label': '',
+         'type': 'hidden',  # only affects editor modal
+         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
+         'render': {'eval':'render_plus'},
+         },
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
          },
@@ -517,11 +532,18 @@ actionitems = ActionItemsView(
          'visible': False,
          },
     ],
+    childrowoptions={
+        'template': 'actionitem-child-row.njk',
+        'showeditor': True,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest',
+        'childelementargs': [],
+    },
     serverside=True,
     idSrc='rowid',
     buttons=[
         'create',
-        'editRefresh',
+        'editChildRowRefresh',
         'csv'
     ],
     dtoptions={
@@ -587,7 +609,11 @@ motionvotes = MotionVotesView(
     dbmapping=motionvotes_dbmapping,
     formmapping=motionvotes_formmapping,
     checkrequired=True,
-    tableidtemplate ='motionvotes-{{ meeting_id }}-{{ motion_id }}',
+    # todo: should we be picking 'motion_id' or 'rowid'?
+    tableidcontext=lambda row: {
+        'motion_id': row['motion_id'],
+    },
+    tableidtemplate ='motionvotes-{{ motion_id }}',
     clientcolumns=[
         {'data': 'motion', 'name': 'motion', 'label': 'Motion',
          'type': 'readonly',
@@ -662,7 +688,7 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
         for field in delfields:
             del self.queryparams[field]
 
-    def updatetables(self, rows):
+    def postprocessrows(self, rows):
         for row in rows:
             context = {
                 'meeting_id': row['meeting_id'],
@@ -681,18 +707,14 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
 
             row['tables'] = tables
 
-            tableid = self.tableid(**context)
-            if tableid:
-                row['tableid'] = tableid
-
     def editor_method_postcommit(self, form):
         # this is here in case invites changed during edit action
         # self.updateinvites()
-        self.updatetables(self._responsedata)
+        self.postprocessrows(self._responsedata)
 
     def open(self):
         super().open()
-        self.updatetables(self.output_result['data'])
+        self.postprocessrows(self.output_result['data'])
 
     def deleterow(self, thisid):
         MotionVote.query.filter_by(motion_id=thisid).delete()
@@ -776,7 +798,10 @@ motions = MotionsView(
     dbmapping=motions_dbmapping,
     formmapping=motions_formmapping,
     checkrequired=True,
-    tableidtemplate ='motions-{{ meeting_id }}-{{ agendaitem_id }}',
+    tableidcontext=lambda row: {
+        'agendaitem_id': row['agendaitem_id'],
+    },
+    tableidtemplate ='motions-{{ agendaitem_id }}',
     clientcolumns=[
         {'data':'', # needs to be '' else get exception converting options from meetings render_template
                     # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -851,7 +876,8 @@ motions = MotionsView(
         'groupselector': '#metanav-select-interest',
         'childelementargs': [
             {'name':'motionvotes', 'type':CHILDROW_TYPE_TABLE, 'table':motionvotes,
-                 'args':{
+             'tableidtemplate': 'motionvotes-{{ parentid }}',
+             'args':{
                      'buttons': ['create', 'editRefresh', 'remove'],
                      'columns': {
                          'datatable': {
@@ -879,7 +905,7 @@ motions = MotionsView(
     idSrc='rowid',
     buttons=[
         # 'create',
-        # 'editChildRowRefresh',
+        'editChildRowRefresh',
         'csv'
     ],
     dtoptions={
@@ -1007,10 +1033,6 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
             if tables:
                 row['tables'] = tables
 
-            tableid = self.tableid(**context)
-            if tableid:
-                row['tableid'] = tableid
-
     def editor_method_postcommit(self, form):
         # # this is here in case invites changed during edit action
         # self.updateinvites()
@@ -1105,7 +1127,8 @@ meeting = MeetingView(
     pretablehtml=meeting_pretablehtml,
     validate=meeting_validate,
     clientcolumns=[
-        {'data':None,
+        {'data': '', # needs to be '' else get exception converting options from meetings render_template
+                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
          'name':'details-control',
          'className': 'details-control shrink-to-fit',
          'orderable': False,
@@ -1171,7 +1194,8 @@ meeting = MeetingView(
         'groupselector': '#metanav-select-interest',
         'childelementargs': [
             {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
-                 'args':{
+             'tableidtemplate': 'invites-{{ parentid }}',
+             'args':{
                      'buttons': [],
                      'columns': {
                          'datatable': {
@@ -1196,8 +1220,10 @@ meeting = MeetingView(
                  }
              },
             {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems,
+             # rowid is of parent row
+             'tableidtemplate': 'actionitems-{{ parentid }}',
              'args': {
-                 'buttons': ['create', 'editRefresh', 'remove'],
+                 'buttons': ['create', 'editChildRowRefresh', 'remove'],
                  'columns': {
                      'datatable': {
                          # uses data field as key
@@ -1215,6 +1241,7 @@ meeting = MeetingView(
              }
              },
             {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions,
+             'tableidtemplate': 'motions-{{ parentid }}',
              'args': {
                  'buttons': ['create', 'editChildRowRefresh', 'remove'],
                  'columns': {

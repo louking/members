@@ -187,7 +187,10 @@ memberdiscussions = MemberDiscussionsView(
     dbmapping=memberdiscussions_dbmapping,
     formmapping=memberdiscussions_formmapping,
     checkrequired=True,
-    tableidtemplate ='memberdiscussions-{{ meeting_id }}-{{ statusreport_id }}',
+    tableidcontext=lambda row: {
+        'rowid': row['rowid'],
+    },
+    tableidtemplate ='discussionitems-{{ rowid }}',
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
          'type': 'readonly',
@@ -301,7 +304,10 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
             dbmapping=memberstatusreport_dbmapping,
             formmapping=memberstatusreport_formmapping,
             checkrequired=True,
-            tableidtemplate='actionitems-{{ meeting_id }}-{{ comment_id }}',
+            tableidcontext=lambda row: {
+                'comment_id': row['comment_id'],
+            },
+            tableidtemplate='memberstatusreport-{{ comment_id }}',
             clientcolumns=[
                 {'data': '',  # needs to be '' else get exception converting options from meetings render_template
                  # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -340,6 +346,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                 'groupselector': '#metanav-select-interest',
                 'childelementargs': [
                     {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
+                     'tableidtemplate': 'discussionitems-{{ parentid }}',
                      'postcreatehook': 'discussionitems_postcreate',
                      'args': {
                          'buttons': ['create', 'editRefresh', 'remove'],
@@ -513,6 +520,9 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
             'meeting_id': invite.meeting_id,
             'statusreport_id': row['statusreport_id'],
         }
+        templatecontext = {
+            'rowid': row['rowid']
+        }
         if row['position_id']:
             context['position_id'] = row['position_id']
 
@@ -523,14 +533,10 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                 'label': 'Discussion Items',
                 'url': rest_url_for('admin.memberdiscussions', interest=g.interest, urlargs=context),
                 'createfieldvals': context,
-                'tableid': self.childtables[tablename]['table'].tableid(**context)
+                'tableid': self.childtables[tablename]['table'].tableid(**templatecontext)
             }]
 
         row['tables'] = tables
-
-        tableid = self.tableid(**context)
-        if tableid:
-            row['tableid'] = tableid
 
         # set DT_RowClass based on accumulated classes
         row['DT_RowClass'] = ' '.join(rowclasses)
