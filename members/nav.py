@@ -118,6 +118,10 @@ def nav_menu():
                     meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Tags', 'admin.tags', interest=g.interest)
 
+                # meetings member, not admin
+                else:
+                    meetings_member_view(meetingsviews, 'Action Items', 'admin.memberactionitems', interest=g.interest)
+
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                 leadershipadmin = Subgroup('Tasks')

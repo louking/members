@@ -20,7 +20,7 @@ from ...model import db
 from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem
 from ...model import DiscussionItem
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
-from .meetings_common import MemberStatusReportBase
+from .meetings_common import MemberStatusReportBase, ActionItemsBase
 from .viewhelpers import localuser2user, user2localuser, localinterest
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -311,6 +311,26 @@ myactionitems = MyActionItemsView(
     },
 )
 myactionitems.register()
+
+
+##########################################################################################
+# memberactionitems endpoint
+###########################################################################################
+
+class MemberActionItemsView(ActionItemsBase):
+    pass
+
+memberactionitems = MemberActionItemsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
+    pagename='Action Items',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    endpoint='admin.memberactionitems',
+    rule='/<interest>/memberactionitems',
+    buttons=[
+        'csv'
+    ],
+)
+memberactionitems.register()
 
 ##########################################################################################
 # mymeetingrsvp api endpoint

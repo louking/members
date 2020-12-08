@@ -12,7 +12,7 @@ from flask.views import MethodView
 from flask_security import current_user
 from dominate.tags import h1, div, label, input, select, option, script, dd
 from dominate.util import text, raw
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import aliased
 
 # homegrown
@@ -28,7 +28,7 @@ from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
-from .meetings_common import MemberStatusReportBase
+from .meetings_common import MemberStatusReportBase, ActionItemsBase
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -36,7 +36,7 @@ from members.reports import meeting_gen_reports, meeting_reports
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import User
-from loutilities.tables import _editormethod, get_request_action, get_request_data, rest_url_for, CHILDROW_TYPE_TABLE
+from loutilities.tables import _editormethod, get_request_data, rest_url_for, CHILDROW_TYPE_TABLE
 
 from loutilities.timeu import asctime
 isodate = asctime('%Y-%m-%d')
@@ -389,45 +389,7 @@ invites.register()
 # actionitems endpoint
 ###########################################################################################
 
-actionitems_dbattrs = 'id,interest_id,meeting_id,agendaitem_id,meeting.purpose,meeting.date,action,comments,status,assignee,update_time,updated_by'.split(',')
-actionitems_formfields = 'rowid,interest_id,meeting_id,agendaitem_id,purpose,date,action,comments,status,assignee,update_time,updated_by'.split(',')
-actionitems_dbmapping = dict(zip(actionitems_dbattrs, actionitems_formfields))
-actionitems_formmapping = dict(zip(actionitems_formfields, actionitems_dbattrs))
-
-# need aliased because LocalUser referenced twice within motions
-# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
-# need to use single variable with onclause so duplicate join checking in tables.DbCrudApi.__init__() doesn't duplicate join
-localuser_actionitems_alias = aliased(LocalUser)
-localuser_actionitems_onclause = localuser_actionitems_alias.id == ActionItem.assignee_id
-
-class ActionItemsView(DbCrudApiInterestsRolePermissions):
-    def beforequery(self):
-        '''
-        add meeting_id to query parameters
-        '''
-        super().beforequery()
-
-        # add filters if requested
-        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
-        self.queryparams['agendaitem_id'] = request.args.get('agendaitem_id', None)
-
-        # remove empty parameters from query filters
-        delfields = []
-        for field in self.queryparams:
-            if self.queryparams[field] == None:
-                delfields.append(field)
-        for field in delfields:
-            del self.queryparams[field]
-
-        # optionally determine filter for show actions since
-        # NOTE: show_actions_since is only used from Meetings view, and we also need to show any action items
-        # which haven't been closed, regardless of when they were last updated.
-        show_actions_since = request.args.get('show_actions_since', None)
-        if show_actions_since:
-            show_actions_since = dtrender.asc2dt(show_actions_since)
-            self.queryfilters = [or_(ActionItem.update_time >= show_actions_since,
-                                     ActionItem.status != ACTION_STATUS_CLOSED)]
-
+class ActionItemsView(ActionItemsBase):
     def _get_localuser(self):
         return LocalUser.query.filter_by(user_id=current_user.id, interest=localinterest()).one()
 
@@ -443,115 +405,17 @@ class ActionItemsView(DbCrudApiInterestsRolePermissions):
         self.log_update(formdata)
         return super().updaterow(thisid, formdata)
 
-actionitems_filters = filtercontainerdiv()
-actionitems_filters += filterdiv('actionitems-external-filter-date', 'Date')
-actionitems_filters += filterdiv('actionitems-external-filter-assignee', 'Assignee')
-actionitems_filters += filterdiv('actionitems-external-filter-status', 'Status')
-
-actionitems_yadcf_options = [
-    yadcfoption('date:name', 'actionitems-external-filter-date', 'range_date'),
-    yadcfoption('assignee.name:name', 'actionitems-external-filter-assignee', 'multi_select', placeholder='Select names', width='200px'),
-    yadcfoption('status:name', 'actionitems-external-filter-status', 'select', placeholder='Select', width='100px'),
-]
-
 actionitems = ActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
-    local_interest_model=LocalInterest,
-    app=bp,  # use blueprint instead of app
-    db=db,
-    model=ActionItem,
-    version_id_col='version_id',  # optimistic concurrency control
-    template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
-    pretablehtml=actionitems_filters.render(),
-    yadcfoptions=actionitems_yadcf_options,
     pagename='Action Items',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
     endpoint='admin.actionitems',
-    endpointvalues={'interest': '<interest>'},
     rule='/<interest>/actionitems',
-    dbmapping=actionitems_dbmapping,
-    formmapping=actionitems_formmapping,
-    checkrequired=True,
-    tableidcontext=lambda row: {
-        'agendaitem_id': row['agendaitem_id'],
-    },
-    tableidtemplate ='actionitems-{{ agendaitem_id }}',
-    clientcolumns=[
-        {'data': '', # needs to be '' else get exception converting options from meetings render_template
-                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
-         'name':'details-control',
-         'className': 'details-control shrink-to-fit',
-         'orderable': False,
-         'defaultContent': '',
-         'label': '',
-         'type': 'hidden',  # only affects editor modal
-         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
-         'render': {'eval':'render_plus'},
-         },
-        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
-         'type': 'readonly',
-         },
-        {'data': 'date', 'name': 'date', 'label': 'Date',
-         'type': 'readonly',
-         '_ColumnDT_args' :
-             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
-         },
-        {'data': 'action', 'name': 'action', 'label': 'Action',
-         'className': 'field_req',
-         'type': 'textarea',
-         'fieldInfo': 'description of action item',
-         },
-        {'data': 'comments', 'name': 'comments', 'label': 'Comments',
-         'type': 'ckeditorClassic',
-         'fieldInfo': 'details of action item (if needed), notes about progress, and resolution - note won\'t be printed in agenda',
-         'visible': False,
-         },
-        {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
-         'className': 'field_req',
-         '_treatment': {
-             'relationship': {'fieldmodel': localuser_actionitems_alias, 'labelfield': 'name',
-                              'onclause': localuser_actionitems_onclause,
-                              'formfield': 'assignee', 'dbfield': 'assignee',
-                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
-                              'searchbox': True,
-                              'uselist': False}}
-         },
-        {'data': 'status', 'name': 'status', 'label': 'Status',
-         'type': 'select2',
-         'options': action_all,
-         'ed': {'def': ACTION_STATUS_OPEN}
-         },
-        # meeting_id and agendaitem_id are required for tying to meeting view row
-        # put these last so as not to confuse indexing between datatables (python vs javascript)
-        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
-         'type': 'hidden',
-         'visible': False,
-         },
-        {'data': 'agendaitem_id', 'name': 'agendaitem_id', 'label': 'Agenda Item ID',
-         'type': 'hidden',
-         'visible': False,
-         },
-    ],
-    childrowoptions={
-        'template': 'actionitem-child-row.njk',
-        'showeditor': True,
-        'group': 'interest',
-        'groupselector': '#metanav-select-interest',
-        'childelementargs': [],
-    },
-    serverside=True,
-    idSrc='rowid',
     buttons=[
         'create',
         'editChildRowRefresh',
         'csv'
     ],
-    dtoptions={
-        'scrollCollapse': True,
-        'scrollX': True,
-        'scrollXInner': "100%",
-        'scrollY': True,
-    },
 )
 actionitems.register()
 
