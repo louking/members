@@ -17,11 +17,11 @@ from dominate.tags import div, h1
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem
-from ...model import DiscussionItem
+from ...model import LocalInterest, LocalUser, Invite, ActionItem
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
-from .meetings_common import MemberStatusReportBase, ActionItemsBase
-from .viewhelpers import localuser2user, user2localuser, localinterest
+from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
+from .meetings_common import motions_childelementargs
+from .viewhelpers import localuser2user, user2localuser
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.timeu import asctime
@@ -331,6 +331,54 @@ memberactionitems = MemberActionItemsView(
     ],
 )
 memberactionitems.register()
+
+##########################################################################################
+# membermotionsvote endpoint
+###########################################################################################
+
+class MemberMotionVotesView(MotionVotesBase):
+    pass
+
+membermotionvotes = MemberMotionVotesView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
+    pagename='Motion Votes',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    endpoint='admin.membermotionvotes',
+    rule='/<interest>/membermotionvotes',
+    buttons=[
+        'csv'
+    ],
+)
+membermotionvotes.register()
+
+##########################################################################################
+# membermotions endpoint
+###########################################################################################
+
+class MemberMotionsView(MotionsBase):
+    pass
+
+membermotions = MemberMotionsView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
+    pagename='Motions',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    endpoint='admin.membermotions',
+    rule='/<interest>/membermotions',
+    buttons=[
+        'csv'
+    ],
+    childrowoptions={
+        'template': 'motion-child-row.njk',
+        'showeditor': False,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest',
+        'childelementargs': motions_childelementargs.get_childelementargs({
+            'motionvotes': membermotionvotes,
+        }),
+    },
+)
+membermotions.register()
+
 
 ##########################################################################################
 # mymeetingrsvp api endpoint

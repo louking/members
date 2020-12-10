@@ -19,16 +19,15 @@ from sqlalchemy.orm import aliased
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Tag
-from ...model import Meeting, Invite, AgendaItem, ActionItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
+from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import Email
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all
-from ...model import action_all, motion_all, motionvote_all
-from ...model import MOTION_STATUS_OPEN, MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
-from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
+from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
-from .meetings_common import MemberStatusReportBase, ActionItemsBase
+from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
+from .meetings_common import motions_childelementargs
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -423,103 +422,20 @@ actionitems.register()
 # motionsvote endpoint
 ###########################################################################################
 
-motionvotes_dbattrs = 'id,interest_id,meeting.date,motion.motion,user.name,vote,meeting_id,motion_id'.split(',')
-motionvotes_formfields = 'rowid,interest_id,date,motion,user,vote,meeting_id,motion_id'.split(',')
-motionvotes_dbmapping = dict(zip(motionvotes_dbattrs, motionvotes_formfields))
-motionvotes_formmapping = dict(zip(motionvotes_formfields, motionvotes_dbattrs))
-# motionsvote_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
-
-class MotionVotesView(DbCrudApiInterestsRolePermissions):
-    def beforequery(self):
-        '''
-        add meeting_id to query parameters
-        '''
-        super().beforequery()
-
-        # add filters if requested
-        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
-        self.queryparams['motion_id'] = request.args.get('motion_id', None)
-
-        # remove empty parameters from query filters
-        delfields = []
-        for field in self.queryparams:
-            if self.queryparams[field] == None:
-                delfields.append(field)
-        for field in delfields:
-            del self.queryparams[field]
-
-motionvotes_filters = filtercontainerdiv()
-motionvotes_filters += filterdiv('motionvotes-external-filter-date', 'Date')
-
-motionvotes_yadcf_options = [
-    yadcfoption('date:name', 'motionvotes-external-filter-date', 'range_date'),
-]
+class MotionVotesView(MotionVotesBase):
+    pass
 
 motionvotes = MotionVotesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
-    local_interest_model=LocalInterest,
-    app=bp,  # use blueprint instead of app
-    db=db,
-    model=MotionVote,
-    version_id_col='version_id',  # optimistic concurrency control
-    template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
-    pretablehtml=motionvotes_filters.render(),
-    yadcfoptions=motionvotes_yadcf_options,
     pagename='Motion Votes',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
     endpoint='admin.motionvotes',
-    endpointvalues={'interest': '<interest>'},
     rule='/<interest>/motionvotes',
-    dbmapping=motionvotes_dbmapping,
-    formmapping=motionvotes_formmapping,
-    checkrequired=True,
-    # todo: should we be picking 'motion_id' or 'rowid'?
-    tableidcontext=lambda row: {
-        'motion_id': row['motion_id'],
-    },
-    tableidtemplate ='motionvotes-{{ motion_id }}',
-    clientcolumns=[
-        {'data': 'motion', 'name': 'motion', 'label': 'Motion',
-         'type': 'readonly',
-         },
-        {'data': 'date', 'name': 'date', 'label': 'Date',
-         'type': 'readonly',
-         '_ColumnDT_args' :
-             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
-         },
-        {'data': 'user', 'name': 'user', 'label': 'Member',
-         'type':'readonly',
-         # onclause required when ambiguous foreign keys in a subsequent join
-         'onclause': MotionVote.user_id == LocalUser.id,
-         },
-        {'data': 'vote', 'name': 'vote', 'label': 'Vote',
-         'type': 'select2',
-         'options': motionvote_all,
-         },
-        # meeting_id and motion_id are required for tying to motion view row
-        # put these last so as not to confuse indexing between datatables (python vs javascript)
-        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
-         'type': 'hidden',
-         'visible': False,
-         },
-        {'data': 'motion_id', 'name': 'motion_id', 'label': 'Motion ID',
-         'type': 'hidden',
-         'visible': False,
-         },
-    ],
-    serverside=True,
-    idSrc='rowid',
     buttons=[
         'create',
         'editRefresh',
         'csv'
     ],
-    dtoptions={
-        'scrollCollapse': True,
-        'scrollX': True,
-        'scrollXInner': "100%",
-        'scrollY': True,
-    },
 )
 motionvotes.register()
 
@@ -527,58 +443,11 @@ motionvotes.register()
 # motions endpoint
 ###########################################################################################
 
-motions_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion,comments,status,meeting_id,agendaitem_id,mover,seconder'.split(',')
-motions_formfields = 'rowid,interest_id,purpose,date,motion,comments,status,meeting_id,agendaitem_id,mover,seconder'.split(',')
-motions_dbmapping = dict(zip(motions_dbattrs, motions_formfields))
-motions_formmapping = dict(zip(motions_formfields, motions_dbattrs))
-# motions_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
-
-class MotionsView(DbCrudApiInterestsRolePermissions):
-    def beforequery(self):
-        '''
-        add meeting_id to query parameters
-        '''
-        super().beforequery()
-
-        # add filters if requested
-        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
-        self.queryparams['agendaitem_id'] = request.args.get('agendaitem_id', None)
-
-        # remove empty parameters from query filters
-        delfields = []
-        for field in self.queryparams:
-            if self.queryparams[field] == None:
-                delfields.append(field)
-        for field in delfields:
-            del self.queryparams[field]
-
-    def postprocessrows(self, rows):
-        for row in rows:
-            context = {
-                'meeting_id': row['meeting_id'],
-                'agendaitem_id': row['agendaitem_id'],
-                'motion_id': row['rowid'],
-            }
-
-            tablename = 'motionvotes'
-            tables = [
-                {
-                    'name': tablename,
-                    'label': 'Votes',
-                    'url': rest_url_for('admin.motionvotes', interest=g.interest, urlargs=context),
-                    'tableid': self.childtables[tablename]['table'].tableid(**context)
-                }]
-
-            row['tables'] = tables
-
+class MotionsView(MotionsBase):
     def editor_method_postcommit(self, form):
         # this is here in case invites changed during edit action
         # self.updateinvites()
         self.postprocessrows(self._responsedata)
-
-    def open(self):
-        super().open()
-        self.postprocessrows(self.output_result['data'])
 
     def deleterow(self, thisid):
         MotionVote.query.filter_by(motion_id=thisid).delete()
@@ -615,168 +484,24 @@ class MotionsView(DbCrudApiInterestsRolePermissions):
 
         return output
 
-motions_filters = filtercontainerdiv()
-motions_filters += filterdiv('motions-external-filter-date', 'Date')
-
-motions_yadcf_options = [
-    yadcfoption('date:name', 'motions-external-filter-date', 'range_date'),
-]
-
-def voting_members():
-    """
-    return list containing sql expression which finds voting members for this meeting
-
-    :return: LocalUsers sql expression
-    """
-    meeting_id = request.args.get('meeting_id', None)
-
-    # if we're outside of meeting, not allowed to edit or create anyway, so this should be ok
-    if not meeting_id:
-        return []
-
-    meeting = Meeting.query.filter_by(id=meeting_id).one()
-    votetags = meeting.votetags
-    localusers = set()
-    get_tags_users(votetags, localusers)
-    return [LocalUser.id.in_([lu.id for lu in localusers])]
-
-# need aliased because LocalUser referenced twice within motions
-# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
-localuser_alias = aliased(LocalUser)
-
 motions = MotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
-    local_interest_model=LocalInterest,
-    app=bp,  # use blueprint instead of app
-    db=db,
-    model=Motion,
-    version_id_col='version_id',  # optimistic concurrency control
-    template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
-    pretablehtml=motions_filters.render(),
-    yadcfoptions=motions_yadcf_options,
     pagename='Motions',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
     endpoint='admin.motions',
-    endpointvalues={'interest': '<interest>'},
     rule='/<interest>/motions',
-    dbmapping=motions_dbmapping,
-    formmapping=motions_formmapping,
-    checkrequired=True,
-    tableidcontext=lambda row: {
-        'agendaitem_id': row['agendaitem_id'],
-    },
-    tableidtemplate ='motions-{{ agendaitem_id }}',
-    clientcolumns=[
-        {'data':'', # needs to be '' else get exception converting options from meetings render_template
-                    # TypeError: '<' not supported between instances of 'str' and 'NoneType'
-         'name':'details-control',
-         'className': 'details-control shrink-to-fit',
-         'orderable': False,
-         'defaultContent': '',
-         'label': '',
-         'type': 'hidden',  # only affects editor modal
-         'title': '<i class="fa fa-plus-square" aria-hidden="true"></i>',
-         'render': {'eval':'render_plus'},
-         },
-        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting',
-         'type': 'readonly',
-         },
-        {'data': 'date', 'name': 'date', 'label': 'Date',
-         'type': 'readonly',
-         '_ColumnDT_args' :
-             {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
-         },
-        {'data': 'motion', 'name': 'motion', 'label': 'Motion',
-         'type': 'ckeditorClassic',
-         },
-        {'data': 'comments', 'name': 'comments', 'label': 'Comments',
-         'type': 'ckeditorClassic',
-         },
-        {'data': 'status', 'name': 'status', 'label': 'Status',
-         'type': 'select2',
-         'options': motion_all,
-         'ed': {'def': MOTION_STATUS_OPEN}
-         },
-        {'data': 'mover', 'name': 'mover', 'label': 'Mover',
-         'className': 'field_req',
-         'visible': False,
-         '_treatment': {
-             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name',
-                              'formfield': 'mover', 'dbfield': 'mover',
-                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
-                              'queryfilters': voting_members,
-                              # onclause is required for serverside=True tables with ambiguous foreign keys
-                              'onclause': Motion.mover_id == LocalUser.id,
-                              'searchbox': True,
-                              'uselist': False}}
-         },
-        {'data': 'seconder', 'name': 'seconder', 'label': 'Seconder',
-         'className': 'field_req',
-         'visible': False,
-         '_treatment': {
-             'relationship': {'fieldmodel': localuser_alias, 'labelfield': 'name',
-                              'formfield': 'seconder', 'dbfield': 'seconder',
-                              'queryparams': lambda: {'active':True, 'interest':localinterest_query_params()['interest']},
-                              'queryfilters': voting_members,
-                              'onclause': Motion.seconder_id == localuser_alias.id,
-                              'searchbox': True,
-                              'uselist': False}}
-         },
-        # meeting_id and agendaitem_id are required for tying to meeting view row
-        # put these last so as not to confuse indexing between datatables (python vs javascript)
-        {'data': 'meeting_id', 'name': 'meeting_id', 'label': 'Meeting ID',
-         'type': 'hidden',
-         'visible': False,
-         },
-        {'data': 'agendaitem_id', 'name': 'agendaitem_id', 'label': 'Agenda Item ID',
-         'type': 'hidden',
-         'visible': False,
-         },
+    buttons=[
+        'editChildRowRefresh',
+        'csv'
     ],
-    childrowoptions= {
+    childrowoptions={
         'template': 'motion-child-row.njk',
         'showeditor': True,
         'group': 'interest',
         'groupselector': '#metanav-select-interest',
-        'childelementargs': [
-            {'name':'motionvotes', 'type':CHILDROW_TYPE_TABLE, 'table':motionvotes,
-             'tableidtemplate': 'motionvotes-{{ parentid }}',
-             'args':{
-                     'buttons': ['create', 'editRefresh', 'remove'],
-                     'columns': {
-                         'datatable': {
-                             # uses data field as key
-                             'date': {'visible': False}, 'motion': {'visible': False},
-                         },
-                         'editor': {
-                             # uses name field as key
-                             'date': {'type': 'hidden'}, 'motion': {'type': 'hidden'},
-                         },
-                     },
-                     'inline' : {
-                         # uses name field as key; value is used for editor.inline() options
-                         'vote': {'submitOnBlur': True}
-                     },
-                     'updatedtopts': {
-                         'dom': 'frt',
-                         'paging': False,
-                     },
-                 }
-             },
-        ],
-    },
-    serverside=True,
-    idSrc='rowid',
-    buttons=[
-        # 'create',
-        'editChildRowRefresh',
-        'csv'
-    ],
-    dtoptions={
-        'scrollCollapse': True,
-        'scrollX': True,
-        'scrollXInner': "100%",
-        'scrollY': True,
+        'childelementargs': motions_childelementargs.get_childelementargs({
+            'motionvotes': motionvotes,
+        }),
     },
 )
 motions.register()

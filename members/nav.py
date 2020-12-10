@@ -60,11 +60,20 @@ def nav_menu():
             self.basehelp = basehelp
 
         def __call__(self, navmenu, text, endpoint, **kwargs):
+            prelink = kwargs.pop('prelink', None)
             navmenu.items.append(View(text, endpoint, **kwargs))
             contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
+            if not prelink:
+                contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
+            else:
+                contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(prelink + ' ' + text + ' view')
 
         def nomenu_help(self, text, endpoint, **kwargs):
-            contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
+            prelink = kwargs.pop('prelink', None)
+            if not prelink:
+                contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(text + ' view')
+            else:
+                contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(prelink + ' ' + text + ' view')
 
 
     org_admin_view = add_view('https://members.readthedocs.io/en/latest/organization-admin-reference.html#')
@@ -120,7 +129,10 @@ def nav_menu():
 
                 # meetings member, not admin
                 else:
-                    meetings_member_view(meetingsviews, 'Action Items', 'admin.memberactionitems', interest=g.interest)
+                    meetings_member_view(meetingsviews, 'Action Items', 'admin.memberactionitems', interest=g.interest,
+                                         prelink='member')
+                    meetings_member_view(meetingsviews, 'Motions', 'admin.membermotions', interest=g.interest,
+                                         prelink='member')
 
             # leadership admin stuff
             if current_user.has_role(ROLE_LEADERSHIP_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
