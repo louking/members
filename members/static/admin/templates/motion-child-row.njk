@@ -1,5 +1,9 @@
 {% extends "child-row-base.njk" %}
 {% block displayfields %}
+    {% if comments %}
+        <div class="DTE_Label">Comments</div>
+        <div class="DTE_Field_Input"><p>{{ comments | safe }}</p></div>
+    {% endif %}
     <div class="DTE_Label">Mover</div>
     <div class="DTE_Field_Input"><p>{{ mover.name | safe }}</p></div>
     <div class="DTE_Label">Seconder</div>

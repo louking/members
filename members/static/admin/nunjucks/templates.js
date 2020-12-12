@@ -311,6 +311,13 @@ var colno = 3;
 var output = "";
 try {
 var frame = frame.push(true);
+output += "\r\n    ";
+if(runtime.contextOrFrameLookup(context, frame, "comments")) {
+output += "\r\n        <div class=\"DTE_Label\">Comments</div>\r\n        <div class=\"DTE_Field_Input\"><p>";
+output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "comments")), env.opts.autoescape);
+output += "</p></div>\r\n    ";
+;
+}
 output += "\r\n    <div class=\"DTE_Label\">Mover</div>\r\n    <div class=\"DTE_Field_Input\"><p>";
 output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.memberLookup((runtime.contextOrFrameLookup(context, frame, "mover")),"name")), env.opts.autoescape);
 output += "</p></div>\r\n    <div class=\"DTE_Label\">Seconder</div>\r\n    <div class=\"DTE_Field_Input\"><p>";

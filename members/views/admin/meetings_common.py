@@ -975,10 +975,11 @@ class MotionsBase(DbCrudApiInterestsRolePermissions):
                      {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
                  },
                 {'data': 'motion', 'name': 'motion', 'label': 'Motion',
-                 'type': 'ckeditorClassic',
+                 'type': 'textarea',
                  },
                 {'data': 'comments', 'name': 'comments', 'label': 'Comments',
                  'type': 'ckeditorClassic',
+                 'visible': False,
                  },
                 {'data': 'status', 'name': 'status', 'label': 'Status',
                  'type': 'select2',
