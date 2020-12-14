@@ -216,7 +216,7 @@ My Action Items view
 **Navigation:** Meetings > My Action Items (or via the link in the emailed :term:`invitation <invite>`)
 
 To see what :term:`action items <action item>` you have outstanding, or update the status or progress for any of these,
-you can use the My Action Items view. (Hopefully your action items are written more clearly than what you see here,
+you can use the My Action Items view. (Normally, action items are written more clearly than what you see here,
 but of course these are what was being used for system testing.)
 
 .. image:: images/my-action-items-view.*
@@ -248,9 +248,63 @@ field.
     each update, with the latest update being at the top.
 
 
-..
-    .. _My Discussion Items view:
+.. _member Action Items view:
 
-    My Discussion Items view
-    =============================
-    **Navigation:** Meetings > My Discussion Items
+Action Items view
+======================
+
+This view can be used to see all of the :term:`Action Items <action item>` in the system. (Normally action items are
+written more clearly than what you see here, but of course these are what was being used for system testing.)
+
+    :Action:
+        text of the action item describing the action to be done
+
+    :Assignee:
+        who is responsible for taking care of the action item
+
+    :Status:
+        current action item status: *open*, *inprogress*, *closed*
+
+    :Comments:
+        updates on progress or how the action item was completed
+
+.. hint::
+    click on |icon-expand| to expand (see more fields), |icon-collapse| to collapse
+
+.. image:: images/member-action-items-view.*
+    :align: center
+
+
+.. _member Motions view:
+
+Motions view
+======================
+
+**Navigation:** Meetings > Motions
+
+The Motions view can be used to view :term:`Motions <motion>` which have been made, and their result. Approved
+motions are formal decisions which have been made. (Normally motions are written more clearly than what you see here,
+but of course these are what was being used for system testing.)
+
+    :Motion:
+        text of the motion
+
+    :Mover:
+        the person who made the motion
+
+    :Seconder:
+        the person who seconded the motion
+
+    :Status:
+        the result of the motion vote, one of *open*, *tabled*, *approved*, *rejected*. The **Status** should
+        not be left *open* after the :term:`meeting`
+
+    :Vote:
+        vote talley for each :term:`voting member`, one of *approved*, *rejected*, *abstained*, *novote*.
+
+.. hint::
+    click on |icon-expand| to expand (see more fields), |icon-collapse| to collapse
+
+.. image:: images/member-motions-view.*
+    :align: center
+
