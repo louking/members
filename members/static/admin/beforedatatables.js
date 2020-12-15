@@ -69,6 +69,27 @@ function submit_button() {
     this.submit();
 }
 
+/**
+ * show error message modal
+ *
+ * @param message - message to display
+ */
+function showerrorpopup(message) {
+    var error = $('<div>');
+    error.append(message);
+    error.dialog({
+        title: 'Error',
+        modal: false,
+        minWidth: 600,
+        height: 'auto',
+        buttons: {
+            OK: function() {
+                $(this).dialog('close');
+            }
+        }
+    });
+}
+
 var meeting_invites_editor;
 
 function meeting_sendinvites(url) {
@@ -80,7 +101,7 @@ function meeting_sendinvites(url) {
         editorajax.url = url + '?' + setParams(allUrlParams());
         meeting_invites_editor.ajax(editorajax);
 
-        // Ajax request to refresh the data
+        // refresh invites and send mail if successful
         $.ajax( {
             // application specific: my application has different urls for different methods
             url: url + '?' + setParams(allUrlParams()),
@@ -91,7 +112,8 @@ function meeting_sendinvites(url) {
                 if (json.error) {
                     // this is application specific
                     // not sure if there's a generic way to find the current editor instance
-                    meeting_invites_editor.error('ERROR retrieving row from server:<br>' + json.error);
+                    meeting_invites_editor.error(json.error);
+                    showerrorpopup(json.error);
 
                 } else {
                     // create table from json response. for some reason need dummy div element
@@ -121,6 +143,9 @@ function meeting_sendinvites(url) {
                         .set('options', json.options)
                         .open();
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                showerrorpopup(textStatus + ' ' + jqXHR.status +' ' + errorThrown);
             }
         } );
     }
@@ -155,6 +180,7 @@ function meeting_sendreminders(url) {
         editorajax.url = url + '?' + setParams(urlparams);
         meeting_reminders_editor.ajax(editorajax);
 
+        // refresh invites and send mail if successful
         $.ajax({
             // application specific: my application has different urls for different methods
             url: url + '?' + setParams(urlparams),
@@ -165,7 +191,8 @@ function meeting_sendreminders(url) {
                 if (json.error) {
                     // this is application specific
                     // not sure if there's a generic way to find the current editor instance
-                    meeting_reminders_editor.error('ERROR retrieving row from server:<br>' + json.error);
+                    meeting_reminders_editor.error(json.error);
+                    showerrorpopup(json.error);
 
                 } else {
                     // create table from json response. for some reason need dummy div element
@@ -199,6 +226,9 @@ function meeting_sendreminders(url) {
                         .set('options', json.options)
                         .open();
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                showerrorpopup(textStatus + ' ' + jqXHR.status +' ' + errorThrown);
             }
         });
     }
@@ -300,6 +330,7 @@ function meeting_send_email(url) {
         editorajax.url = url + '?' + setParams(urlparams);
         meeting_email_editor.ajax(editorajax);
 
+        // refresh invites and send mail if successful
         $.ajax({
             // application specific: my application has different urls for different methods
             url: url + '?' + setParams(urlparams),
@@ -310,7 +341,8 @@ function meeting_send_email(url) {
                 if (json.error) {
                     // this is application specific
                     // not sure if there's a generic way to find the current editor instance
-                    meeting_email_editor.error('ERROR retrieving row from server:<br>' + json.error);
+                    meeting_email_editor.error(json.error);
+                    showerrorpopup(json.error);
 
                 } else {
                     // create table from json response. for some reason need dummy div element
@@ -333,6 +365,9 @@ function meeting_send_email(url) {
                         .set('subject', json.subject)
                         .open();
                 }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                showerrorpopup(textStatus + ' ' + jqXHR.status +' ' + errorThrown);
             }
         });
     }

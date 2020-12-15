@@ -1028,7 +1028,7 @@ class MeetingGenDocsApi(MethodView):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1101,7 +1101,7 @@ class MeetingEmailApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status': 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1139,7 +1139,7 @@ class MeetingEmailApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1187,7 +1187,7 @@ class MeetingInviteApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status': 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1232,7 +1232,7 @@ class MeetingInviteApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1496,7 +1496,7 @@ class MeetingStatusReminderApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status': 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status': 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
@@ -1554,7 +1554,7 @@ class MeetingStatusReminderApi(MeetingApiBase):
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
-            output_result = {'status' : 'fail', 'error': 'exception occurred:\n{}'.format(exc)}
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
             # roll back database updates and close transaction
             db.session.rollback()
             current_app.logger.error(format_exc())
