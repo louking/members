@@ -1,2 +1,2 @@
 # See https://packaging.python.org/guides/distributing-packages-using-setuptools/#semantic-versioning-preferred
-__version__ = '1.2.1.1'
+__version__ = '1.2.2.0.dev1'
