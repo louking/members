@@ -63,11 +63,6 @@ usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
                        )
 
-userposition_table = Table('user_position', Base.metadata,
-                       Column('user_id', Integer, ForeignKey('localuser.id')),
-                       Column('position_id', Integer, ForeignKey('position.id')),
-                       )
-
 positiontaskgroup_table = Table('position_taskgroup', Base.metadata,
                        Column('position_id', Integer, ForeignKey('position.id')),
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
@@ -88,7 +83,7 @@ tasktaskgroup_table = Table('task_taskgroup', Base.metadata,
 #                        Column('taskfield_id', Integer, ForeignKey('taskfield.id')),
 #                        )
 
-# associate task / taskfield tables adding necessity attribute
+# associate task / taskfield tables adding need attribute
 NEED_REQUIRED = 'required'
 NEED_ONE_OF   = 'oneof'
 NEED_OPTIONAL = 'optional'
@@ -107,6 +102,7 @@ class LocalUser(LocalUserMixin, Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('users'))
+    positions           = relationship('UserPosition', back_populates='user')
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -239,6 +235,28 @@ class TaskGroup(Base):
         'version_id_col': version_id
     }
 
+# obsolete
+userposition_table = Table('user_position', Base.metadata,
+                       Column('user_id', Integer, ForeignKey('localuser.id')),
+                       Column('position_id', Integer, ForeignKey('position.id')),
+                       )
+# associate user / position tables adding startdate, finishdate attributes
+class UserPosition(Base):
+    __tablename__ = 'user_position_dates'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('userpositions'))
+    user_id             = Column(Integer, ForeignKey('localuser.id'))
+    user                = relationship('LocalUser', back_populates='positions')
+    position_id         = Column(Integer, ForeignKey('position.id'))
+    position            = relationship('Position', back_populates='users')
+    startdate           = Column(Date)
+    finishdate          = Column(Date)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
 class Position(Base):
     __tablename__ = 'position'
     id                  = Column(Integer(), primary_key=True)
@@ -249,9 +267,10 @@ class Position(Base):
     has_status_report   = Column(Boolean, default=True)
     agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
     agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
-    users               = relationship('LocalUser',
-                                       secondary=userposition_table,
-                                       backref=backref('positions'))
+    users               = relationship('UserPosition', back_populates='position')
+    # users               = relationship('LocalUser',
+    #                                    secondary=userposition_table,
+    #                                    backref=backref('positions'))
     taskgroups          = relationship('TaskGroup',
                                        secondary=positiontaskgroup_table,
                                        backref=backref('positions'))

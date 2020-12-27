@@ -340,7 +340,7 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
-    // special processing for meeting
+    // special processing for meetingstatus
     } else if (location.pathname.includes('/meetingstatus')) {
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
         meeting_reminders_editor = new $.fn.dataTable.Editor({
@@ -417,5 +417,53 @@ function afterdatatables() {
     // special processing for mymeetings
     } else if (location.pathname.includes('/mymeetings')) {
         onclick_trigger(_dt_table, 'td.view-control', 'view-status');
+
+    // special processing for meetingstatus
+    } else if (location.pathname.includes('/assignpositions')) {
+        // set initial filter to today
+        var today = new Date();
+        today = today.toISOString().substr(0,10);
+        var startdate = _dt_table.column('startdate:name').index();
+        yadcf.exFilterColumn(_dt_table,[[startdate, today]]);
+
+        // var effectivedate = $('#effective-date');
+        // var cleardate = $('#clear-date');
+        // var startdate = _dt_table.column('startdate:name').index();
+        // var finishdate = _dt_table.column('finishdate:name').index();
+        //
+        // // effective date is datepicker
+        // effectivedate.datepicker({dateFormat: 'yy-mm-dd'});
+        //
+        // // handle change of effective date by setting column filters appropriately
+        // effectivedate.change(function(e) {
+        //    var val = effectivedate.val();
+        //    if (val !== '') {
+        //    //     yadcf.exFilterColumn(_dt_table,[[startdate, {from: '', to: val}], [finishdate, {from: val, to: ''}]]);
+        //        yadcf.exFilterColumn(_dt_table,[[startdate, val]]);
+        //    } else {
+        //        // yadcf.exResetFilters(_dt_table,[startdate, finishdate]);
+        //        yadcf.exResetFilters(_dt_table,[startdate]);
+        //    }
+        // });
+        //
+        // // clear the effective date
+        // cleardate.click(function(e) {
+        //     effectivedate.val('');
+        //     effectivedate.change();
+        // })
+        //
+        // // trigger effective date change event when page first loads (is this necessary?)
+        // effectivedate.change();
+
+        // disable user and position fields before edit
+        editor.on('initEdit', function(e, node, data, items, type) {
+            editor.field('user.id').disable();
+            editor.field('position.id').disable();
+        });
+        // enable user and position fields before create
+        editor.on('initCreate', function(e, json, data, id) {
+            editor.field('user.id').enable();
+            editor.field('position.id').enable();
+        })
     }
 }
