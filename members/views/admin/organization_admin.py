@@ -118,8 +118,8 @@ position.register()
 # assignpositions endpoint
 ###########################################################################################
 
-assignposition_dbattrs = 'id,user,position,user.taskgroups,user.tags,startdate,finishdate'.split(',')
-assignposition_formfields = 'rowid,user,position,taskgroups,tags,startdate,finishdate'.split(',')
+assignposition_dbattrs = 'id,interest_id,user,position,user.taskgroups,user.tags,startdate,finishdate'.split(',')
+assignposition_formfields = 'rowid,interest_id,user,position,taskgroups,tags,startdate,finishdate'.split(',')
 assignposition_dbmapping = dict(zip(assignposition_dbattrs, assignposition_formfields))
 assignposition_formmapping = dict(zip(assignposition_formfields, assignposition_dbattrs))
 # see https://github.com/DataTables/Plugins/commit/eb06604fdc9d5
@@ -184,7 +184,6 @@ assignposition = AssignPositionView(
     db=db,
     model=UserPosition,
     version_id_col='version_id',  # optimistic concurrency control
-    # queryparams={'active': True},
     template='datatables.jinja2',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
     pagename='Assign Positions',
@@ -213,6 +212,7 @@ assignposition = AssignPositionView(
          '_treatment': {
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'position',
                               'dbfield': 'position', 'uselist': False,
+                              'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
          },

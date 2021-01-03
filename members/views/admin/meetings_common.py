@@ -26,6 +26,7 @@ from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...model import localinterest_query_params
 from ...model import MemberStatusReport, StatusReport
 from ...model import INVITE_RESPONSE_NO_RESPONSE
+from ...helpers import positions_active
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
@@ -444,10 +445,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
             order = 1
 
         # check member's current positions
-        # see https://stackoverflow.com/questions/36916072/flask-sqlalchemy-filter-on-many-to-many-relationship-with-parent-model
-        # see https://stackoverflow.com/questions/34804756/sqlalchemy-filter-many-to-one-relationship-where-the-one-object-has-a-list-cont
-        positions = Position.query.filter_by(has_status_report=True)\
-            .filter(Position.users.any(LocalUser.id == user2localuser(self.theuser).id)).all()
+        positions = [p for p in positions_active(user2localuser(self.theuser), invite.meeting.date) if p.has_status_report]
         for position in positions:
             filters = [StatusReport.position == position] + self.queryfilters
             # has the member status report already been created? if not, create one
@@ -899,7 +897,7 @@ def voting_members():
     meeting = Meeting.query.filter_by(id=meeting_id).one()
     votetags = meeting.votetags
     localusers = set()
-    get_tags_users(votetags, localusers)
+    get_tags_users(votetags, localusers, meeting.date)
     return [LocalUser.id.in_([lu.id for lu in localusers])]
 
 # need aliased because LocalUser referenced twice within motions

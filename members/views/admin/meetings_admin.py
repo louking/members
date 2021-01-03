@@ -24,6 +24,7 @@ from ...model import Email
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...model import invite_response_all
 from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
+from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
@@ -461,7 +462,7 @@ class MotionsView(MotionsBase):
         ## first figure out who is allowed to vote for this meeting
         meeting = Meeting.query.filter_by(id=meeting_id).one()
         users = set()
-        get_tags_users(meeting.votetags, users)
+        get_tags_users(meeting.votetags, users, meeting.date)
 
         ## retrieve the motion we've just created
         motion = Motion.query.filter_by(id=self.created_id).one()
@@ -1254,6 +1255,8 @@ class MeetingStatusView(DbCrudApiInterestsRolePermissions):
     def put(self, thisid):
         # allow multirow editing, i.e., to send emails for multiple selected positions
         theseids = thisid.split(',')
+        meeting_id = request.args['meeting_id']
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
         positions = []
         self._responsedata = []
         users = set()
@@ -1266,13 +1269,13 @@ class MeetingStatusView(DbCrudApiInterestsRolePermissions):
 
             # collect users which hold this position, and positions which have been selected
             position = Position.query.filter_by(id=id).one()
-            users |= set(position.users)
+            users |= set(members_active(position, meeting.date))
             positions.append(position)
 
         # send reminder email to each user
         self.responsekeys = {'reminded': [], 'newinvites': []}
         for user in users:
-            reminder = generatereminder(request.args['meeting_id'], user, positions)
+            reminder = generatereminder(meeting_id, user, positions)
             if reminder:
                 self.responsekeys['reminded'].append('{}'.format(user.name))
             else:
@@ -1295,17 +1298,18 @@ def meetingstatus_getstatus(row):
     else:
         return 'entered'
 
-def meetingstatus_getusers(row):
+def meetingstatus_getusers(position):
     meeting_id = request.args['meeting_id']
-    users = []
-    for user in row.users:
-        invite = Invite.query.filter_by(meeting_id=meeting_id, user=user).one_or_none()
+    meeting = Meeting.query.filter_by(id=meeting_id).one()
+    members = []
+    for member in members_active(position, meeting.date):
+        invite = Invite.query.filter_by(meeting_id=meeting_id, user=member).one_or_none()
         # lastreminder should always be present, but maybe not for testing
         if invite and invite.lastreminder:
-            users.append('{} ({})'.format(user.name, isodate.dt2asc(invite.lastreminder)))
+            members.append('{} ({})'.format(member.name, isodate.dt2asc(invite.lastreminder)))
         else:
-            users.append(user.name)
-    return ', '.join(users)
+            members.append(member.name)
+    return ', '.join(members)
 
 def meetingstatus_pretablehtml():
     meetingid = request.args['meeting_id']
@@ -1414,14 +1418,15 @@ class MeetingStatusReminderApi(MeetingApiBase):
 
     def get_reminders(self, meeting_id, theseposids):
         '''
-        get users who need to be reminded, and their positions
+        get members who need to be reminded, and their positions
 
         :param meeting_id: id of meeting to check for invites
         :param theseposids: position ids to check
-        :return: {user:invitestate, user:invitestate, ...}, [position, position, ...]
+        :return: {member:invitestate, member:invitestate, ...}, [position, position, ...]
         '''
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
         positions = []
-        users = set()
+        members = set()
         for id in theseposids:
             # try to coerce to int, but ok if not
             try:
@@ -1429,20 +1434,20 @@ class MeetingStatusReminderApi(MeetingApiBase):
             except ValueError:
                 pass
 
-            # collect users which hold this position, and positions which have been selected
+            # collect members which hold this position, and positions which have been selected
             position = Position.query.filter_by(id=id).one()
-            users |= set(position.users)
+            members |= set(members_active(position, meeting.date))
             positions.append(position)
 
-        userinvitestates = {}
-        for user in users:
-            invite = Invite.query.filter_by(meeting_id=meeting_id, user=user).one_or_none()
+        memberinvitestates = {}
+        for member in members:
+            invite = Invite.query.filter_by(meeting_id=meeting_id, user=member).one_or_none()
             if invite:
-                userinvitestates[user] = True
+                memberinvitestates[member] = True
             else:
-                userinvitestates[user] = False
+                memberinvitestates[member] = False
 
-        return userinvitestates, positions
+        return memberinvitestates, positions
 
     def get(self):
         try:
@@ -1542,8 +1547,9 @@ class MeetingStatusReminderApi(MeetingApiBase):
 
             # do this at the end to pick up invite.lastreminded (updated in generatereminder())
             self._responsedata = []
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
             for user in userstates:
-                for position in user.positions:
+                for position in positions_active(user, meeting.date):
                     # todo: needs update after #272 fixed
                     if position.has_status_report:
                         thisrow = meetingstatus.dte.get_response_data(position)

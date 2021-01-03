@@ -15,6 +15,7 @@ from .model import db
 from .model import Meeting, Invite, AgendaItem, ActionItem, Email
 from .model import INVITE_RESPONSE_ATTENDING, ACTION_STATUS_CLOSED
 from .views.admin.viewhelpers import localuser2user, localinterest
+from .helpers import members_active, positions_active
 from loutilities.flask_helpers.mailer import sendmail
 from loutilities.tables import page_url_for
 
@@ -63,8 +64,8 @@ def get_invites(meetingid):
             invitestates[email] = invitestate
             invites[email] = invite
         for position in tag.positions:
-            for user in position.users:
-                email, invitestate, invite = get_invite(meeting, user)
+            for member in members_active(position, meeting.date):
+                email, invitestate, invite = get_invite(meeting, member)
                 # may be overwriting but that's ok
                 invitestates[email] = invitestate
                 invites[email] = invite
@@ -159,8 +160,8 @@ def generateinvites(meetingid):
             thisinvite = check_add_invite(meeting, user, agendaitem)
             currinvites |= {thisinvite.id}
         for position in tag.positions:
-            for user in position.users:
-                thisinvite = check_add_invite(meeting, user, agendaitem)
+            for member in members_active(position, meeting.date):
+                thisinvite = check_add_invite(meeting, member, agendaitem)
                 currinvites |= {thisinvite.id}
 
     # make invite inactive for anyone who was previously invited, but should not currently be invited
@@ -209,7 +210,8 @@ def generatereminder(meetingid, member, positions):
         actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
 
         # filter positions to those which affect this member
-        memberpositions = [p for p in positions if p in member.positions]
+        active_positions = positions_active(member, meeting.date)
+        memberpositions = [p for p in positions if p in active_positions]
 
         # create and send email
         context = {

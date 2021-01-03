@@ -14,6 +14,7 @@ from dominate.tags import a
 # homegrown
 from members.model import TaskCompletion, LocalUser, LocalInterest
 from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD
+from ...helpers import positions_active, members_active
 from loutilities.user.model import User, Interest
 from loutilities.tables import SEPARATOR
 
@@ -313,16 +314,18 @@ def get_taskfields(tc, task):
 
     return taskfields
 
-def get_member_tasks(member):
+def get_member_tasks(member, ondate):
     '''
     get all tasks for a member
+
     :param member: LocalUser record for member
+    :param ondate: date for which positions are effective for this member
     :return: set of tasks
     '''
     tasks = set()
 
     # collect all the tasks which are referenced by positions and taskgroups for this member
-    for position in member.positions:
+    for position in positions_active(member, ondate):
         for taskgroup in position.taskgroups:
             get_taskgroup_tasks(taskgroup, tasks)
     for taskgroup in member.taskgroups:
@@ -364,19 +367,21 @@ def get_position_taskgroups(position, taskgroups):
     for taskgroup in position.taskgroups:
         get_taskgroup_taskgroups(taskgroup, taskgroups)
 
-def get_tags_users(tags, users):
+def get_tags_users(tags, users, ondate):
     '''
     get users which have specified tag
 
     :param tags: list of tags to search for
     :param users: input and output set of localusers
+    :param ondate: date for which positions are effective for this member
     :return: None
     '''
 
     # collect all the users which have the indicated tags
     for tag in tags:
         for position in tag.positions:
-            for user in position.users:
-                users |= {user}
+            # todo: #322 use effective date to retrieve positions for member
+            for member in members_active(position, ondate):
+                users.add(member)
         for user in tag.users:
-            users |= {user}
+            users.add(user)

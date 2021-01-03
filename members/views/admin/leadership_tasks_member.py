@@ -209,7 +209,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         member = self._get_localuser()
 
         # collect all the tasks which are referenced by positions and taskgroups for this member
-        tasks = get_member_tasks(member)
+        tasks = get_member_tasks(member, date.today())
 
         for task in iter(tasks):
             theserows.append(task)

@@ -19,6 +19,7 @@ from dominate.tags import p
 from .model import Meeting, ActionItem, AgendaItem, StatusReport, Position, DiscussionItem, MemberStatusReport
 from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite
 from .views.admin.viewhelpers import localinterest
+from .helpers import positions_active, members_active
 from loutilities.googleauth import GoogleAuthService
 from loutilities.nesteddict import obj2dict
 
@@ -98,13 +99,17 @@ def meeting_gen_reports(meeting_id, reports):
             # default status report if none found or none within status report record
             status = p('No status report submitted').render()
 
+            # who is responsible for this position?
+            names = [m.name for m in members_active(position, themeeting.date)]
+
             # status report record for position found
             if sr:
                 # normally there was a status report in the status report record, else we'll use the default
                 if sr.statusreport:
                     status = sr.statusreport
+
                 report = {
-                    'title': '{} - {}'.format(heading, ', '.join([u.name for u in position.users])),
+                    'title': '{} - {}'.format(heading, ', '.join(names)),
                     'statusreport': status,
                     'discussions': [obj2dict(d) for d in discussions if d.statusreport_id == sr.id]
                 }
@@ -112,7 +117,7 @@ def meeting_gen_reports(meeting_id, reports):
             # status report for position not found
             else:
                 report = {
-                    'title': '{} - {}'.format(heading, ', '.join([u.name for u in position.users])),
+                    'title': '{} - {}'.format(heading, ', '.join(names)),
                     'statusreport': status,
                 }
 
@@ -235,14 +240,15 @@ def meeting_gen_reports(meeting_id, reports):
         for dbattendee in dbattendees:
             # can this attendee vote?
             voting = False
+            positions = positions_active(dbattendee.user, themeeting.date)
             for vt in themeeting.votetags:
                 # if any of the user positions are a votetag position
-                if set(dbattendee.user.positions) & set(vt.positions):
+                if set(positions) & set(vt.positions):
                     voting = True
                     break
             attendee = {
                 'member': dbattendee.user.name,
-                'positions': [p.position for p in dbattendee.user.positions],
+                'positions': [p.position for p in positions],
                 'voting': voting
             }
             attendees.append(attendee)

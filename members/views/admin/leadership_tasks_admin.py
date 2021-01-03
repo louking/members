@@ -3,7 +3,7 @@ leadership_tasks_admin - leadership task administrative handling
 ===========================================
 '''
 # standard
-from datetime import timedelta, date
+from datetime import date
 from re import match
 
 # pypi
@@ -15,10 +15,11 @@ from slugify import slugify
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
-from ...model import Position, InputFieldData, Files
+from ...model import Position
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
+from ...helpers import positions_active
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from .viewhelpers import create_taskcompletion, get_task_completion, user2localuser, localuser2user
@@ -538,21 +539,24 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         tasksmembers = []
         for member in members:
             # collect all the tasks which are referenced by positions and taskgroups for this member
-            tasks = get_member_tasks(member['localuser'])
+            # todo: #322 use effective date to retrieve positions for member
+            tasks = get_member_tasks(member['localuser'], date.today())
 
             # create/add taskmember to list for all tasks
+            # todo: #322 use effective date to retrieve positions for member
+            active_positions = positions_active(member['localuser'], date.today())
             for task in iter(tasks):
                 membertaskid = self.setid(member['localuser'].id, task.id)
                 taskmember = TaskMember(
                     id=membertaskid,
                     task=task, task_taskgroups=task.taskgroups,
-                    member = member['member'],
-                    member_positions = member['localuser'].positions,
+                    member=member['member'],
+                    member_positions=active_positions,
                 )
 
                 # drill down to get all the taskgroups
                 member_taskgroups = set()
-                for position in member['localuser'].positions:
+                for position in active_positions:
                     get_position_taskgroups(position, member_taskgroups)
                 for taskgroup in member['localuser'].taskgroups:
                     get_taskgroup_taskgroups(taskgroup, member_taskgroups)
@@ -585,12 +589,14 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
             id=thisid,
             task=task, task_taskgroups=task.taskgroups,
             member=member['member'],
-            member_positions = member['localuser'].positions,
+            # todo: #322 use effective date to retrieve positions for member
+            member_positions=positions_active(member['localuser'], date.today()),
         )
 
         # drill down to get all the taskgroups
         member_taskgroups = set()
-        for position in member['localuser'].positions:
+        # todo: #322 use effective date to retrieve positions for member
+        for position in positions_active(member['localuser'], date.today()):
             get_position_taskgroups(position, member_taskgroups)
         for taskgroup in member['localuser'].taskgroups:
             get_taskgroup_taskgroups(taskgroup, member_taskgroups)
@@ -619,7 +625,8 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
                 id=thisid,
                 task=task, task_taskgroups=task.taskgroups,
                 member=member['member'],
-                member_positions=member['localuser'].positions,
+                # todo: #322 use effective date to retrieve positions for member
+                member_positions=positions_active(member['localuser'], date.today()),
                 member_taskgroups=member['localuser'].taskgroups,
             )
 

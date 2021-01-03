@@ -102,7 +102,7 @@ class LocalUser(LocalUserMixin, Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('users'))
-    positions           = relationship('UserPosition', back_populates='user')
+    userpositions       = relationship('UserPosition', back_populates='user')
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id
@@ -247,9 +247,9 @@ class UserPosition(Base):
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('userpositions'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
-    user                = relationship('LocalUser', back_populates='positions')
+    user                = relationship('LocalUser', back_populates='userpositions')
     position_id         = Column(Integer, ForeignKey('position.id'))
-    position            = relationship('Position', back_populates='users')
+    position            = relationship('Position', back_populates='userpositions')
     startdate           = Column(Date)
     finishdate          = Column(Date)
     version_id = Column(Integer, nullable=False, default=1)
@@ -267,7 +267,7 @@ class Position(Base):
     has_status_report   = Column(Boolean, default=True)
     agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
     agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
-    users               = relationship('UserPosition', back_populates='position')
+    userpositions       = relationship('UserPosition', back_populates='position')
     # users               = relationship('LocalUser',
     #                                    secondary=userposition_table,
     #                                    backref=backref('positions'))

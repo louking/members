@@ -6,6 +6,7 @@ run from 3 levels up, like python -m members.scripts.leadership_emails
 # standard
 from os.path import join, dirname
 from argparse import ArgumentParser
+from datetime import date
 
 #pypi
 from flask import g, url_for
@@ -22,6 +23,7 @@ from members.model import db, LocalUser, LocalInterest, Task, EmailTemplate, Pos
 from members.views.admin.viewhelpers import localuser2user, localinterest, get_taskgroup_tasks
 from members.views.admin.viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
 from members.views.admin.viewhelpers import STATUS_EXPIRES_SOON, STATUS_OVERDUE
+from members.helpers import positions_active, members_active
 from loutilities.flask_helpers.mailer import sendmail
 
 class ParameterError(Exception): pass
@@ -137,7 +139,7 @@ def main():
                 memberglobal = localuser2user(memberlocal)
                 member2groups[memberglobal.email] = {'worker': memberlocal, 'taskgroups': set()}
                 # drill down to get all taskgroups the member is responsible for
-                for position in memberlocal.positions:
+                for position in positions_active(memberlocal, date.today()):
                     get_position_taskgroups(position, member2groups[memberglobal.email]['taskgroups'])
                 for taskgroup in memberlocal.taskgroups:
                     get_taskgroup_taskgroups(taskgroup, member2groups[memberglobal.email]['taskgroups'])
@@ -157,7 +159,7 @@ def main():
                     get_taskgroup_tasks(emailgroup, positiontasks)
                 # only set responsibility if this position has management for some groups
                 if position.emailgroups:
-                    for manager in position.users:
+                    for manager in members_active(position, date.today()):
                         manageruser = localuser2user(manager)
                         responsibility.setdefault(manageruser.email, {'tasks':set(), 'workers':set()})
                         responsibility[manageruser.email]['tasks'] |= positiontasks
