@@ -39,7 +39,7 @@ s2_ver = '4.0.12'
 sm_ver = '1.1.0'
 
 # yadcf
-yadcf_ver = '0.9.4.beta.40'
+yadcf_ver = '0.9.4.beta.45+lk-date_custom_func'
 
 moment_ver = '2.24.0'       # moment.js (see https://momentjs.com/)
 lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)

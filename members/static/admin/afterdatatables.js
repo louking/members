@@ -426,35 +426,6 @@ function afterdatatables() {
         var startdate = _dt_table.column('startdate:name').index();
         yadcf.exFilterColumn(_dt_table,[[startdate, today]]);
 
-        // var effectivedate = $('#effective-date');
-        // var cleardate = $('#clear-date');
-        // var startdate = _dt_table.column('startdate:name').index();
-        // var finishdate = _dt_table.column('finishdate:name').index();
-        //
-        // // effective date is datepicker
-        // effectivedate.datepicker({dateFormat: 'yy-mm-dd'});
-        //
-        // // handle change of effective date by setting column filters appropriately
-        // effectivedate.change(function(e) {
-        //    var val = effectivedate.val();
-        //    if (val !== '') {
-        //    //     yadcf.exFilterColumn(_dt_table,[[startdate, {from: '', to: val}], [finishdate, {from: val, to: ''}]]);
-        //        yadcf.exFilterColumn(_dt_table,[[startdate, val]]);
-        //    } else {
-        //        // yadcf.exResetFilters(_dt_table,[startdate, finishdate]);
-        //        yadcf.exResetFilters(_dt_table,[startdate]);
-        //    }
-        // });
-        //
-        // // clear the effective date
-        // cleardate.click(function(e) {
-        //     effectivedate.val('');
-        //     effectivedate.change();
-        // })
-        //
-        // // trigger effective date change event when page first loads (is this necessary?)
-        // effectivedate.change();
-
         // disable user and position fields before edit
         editor.on('initEdit', function(e, node, data, items, type) {
             editor.field('user.id').disable();
