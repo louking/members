@@ -115,22 +115,22 @@ position.register()
 
 
 ##########################################################################################
-# assignpositions endpoint
+# positiondates endpoint
 ###########################################################################################
 
-assignposition_dbattrs = 'id,interest_id,user,position,user.taskgroups,user.tags,startdate,finishdate'.split(',')
-assignposition_formfields = 'rowid,interest_id,user,position,taskgroups,tags,startdate,finishdate'.split(',')
-assignposition_dbmapping = dict(zip(assignposition_dbattrs, assignposition_formfields))
-assignposition_formmapping = dict(zip(assignposition_formfields, assignposition_dbattrs))
+positiondate_dbattrs = 'id,interest_id,user,position,user.taskgroups,user.tags,startdate,finishdate'.split(',')
+positiondate_formfields = 'rowid,interest_id,user,position,taskgroups,tags,startdate,finishdate'.split(',')
+positiondate_dbmapping = dict(zip(positiondate_dbattrs, positiondate_formfields))
+positiondate_formmapping = dict(zip(positiondate_formfields, positiondate_dbattrs))
 # see https://github.com/DataTables/Plugins/commit/eb06604fdc9d5
 # see https://datatables.net/forums/discussion/25433
-assignposition_dbmapping['startdate'] = lambda formrow: dtrender.asc2dt(formrow['startdate'])
-assignposition_formmapping['startdate'] = lambda dbrow: dtrender.dt2asc(dbrow.startdate)
-assignposition_dbmapping['finishdate'] = lambda formrow: dtrender.asc2dt(formrow['finishdate']) if formrow['finishdate'] else None
-# assignposition_formmapping['finishdate'] = lambda dbrow: dtrender.dt2asc(dbrow.finishdate) if dbrow.finishdate else None
-assignposition_formmapping['finishdate'] = lambda dbrow: dtrender.dt2asc(dbrow.finishdate) if dbrow.finishdate else ''
+positiondate_dbmapping['startdate'] = lambda formrow: dtrender.asc2dt(formrow['startdate'])
+positiondate_formmapping['startdate'] = lambda dbrow: dtrender.dt2asc(dbrow.startdate)
+positiondate_dbmapping['finishdate'] = lambda formrow: dtrender.asc2dt(formrow['finishdate']) if formrow['finishdate'] else None
+# positiondate_formmapping['finishdate'] = lambda dbrow: dtrender.dt2asc(dbrow.finishdate) if dbrow.finishdate else None
+positiondate_formmapping['finishdate'] = lambda dbrow: dtrender.dt2asc(dbrow.finishdate) if dbrow.finishdate else ''
 
-class AssignPositionView(DbCrudApiInterestsRolePermissions):
+class PositionDateView(DbCrudApiInterestsRolePermissions):
     def editor_method_postcommit(self, formdata):
         '''
         updates to taskgroups and tags affect multiple rows related to the user(s) impacted, so need to update
@@ -152,12 +152,12 @@ class AssignPositionView(DbCrudApiInterestsRolePermissions):
                 otherrows += [self.dte.get_response_data(up) for up in ups if up.id not in upids]
             self._responsedata += otherrows
 
-def assignposition_pretablehtml():
+def positiondate_pretablehtml():
     pretablehtml = div()
     with pretablehtml:
         # hide / show hidden rows
         with filtercontainerdiv(style='margin-bottom: 4px;'):
-            filterdiv('assignposition-external-filter-startdate', 'In Position On')
+            filterdiv('positiondate-external-filter-startdate', 'In Position On')
 
         # with datefilter:
         #     label('In Position On', _for='effective-date')
@@ -166,18 +166,18 @@ def assignposition_pretablehtml():
         # filters = div(style='display: none;')
     return pretablehtml.render()
 
-assignposition_yadcf_options = {
+positiondate_yadcf_options = {
     # 'general': {'cumulative_filtering': True},
     'columns': [
-        yadcfoption('startdate:name', 'assignposition-external-filter-startdate', 'date_custom_func',
+        yadcfoption('startdate:name', 'positiondate-external-filter-startdate', 'date_custom_func',
                     custom_func={'eval': 'yadcf_between_dates("startdate", "finishdate")'},
                     filter_reset_button_text='Clear Date',
                     ),
-        # yadcfoption('finishdate:name', 'assignposition-external-filter-finishdate', 'range_date'),
+        # yadcfoption('finishdate:name', 'positiondate-external-filter-finishdate', 'range_date'),
     ]
 }
 
-assignposition = AssignPositionView(
+positiondate = PositionDateView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -186,15 +186,15 @@ assignposition = AssignPositionView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
-    pagename='Assign Positions',
-    endpoint='admin.assignpositions',
+    pagename='Position Dates',
+    endpoint='admin.positiondates',
     endpointvalues={'interest': '<interest>'},
-    rule='/<interest>/assignpositions',
-    dbmapping=assignposition_dbmapping,
-    formmapping=assignposition_formmapping,
+    rule='/<interest>/positiondates',
+    dbmapping=positiondate_dbmapping,
+    formmapping=positiondate_formmapping,
     checkrequired=True,
-    pretablehtml=assignposition_pretablehtml,
-    yadcfoptions=assignposition_yadcf_options,
+    pretablehtml=positiondate_pretablehtml,
+    yadcfoptions=positiondate_yadcf_options,
     clientcolumns=[
         {'data': 'user', 'name': 'user', 'label': 'Member',
          'className': 'field_req',
@@ -256,5 +256,5 @@ assignposition = AssignPositionView(
         'scrollY': True,
     },
 )
-assignposition.register()
+positiondate.register()
 

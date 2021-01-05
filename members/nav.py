@@ -105,7 +105,7 @@ def nav_menu():
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
-                org_admin_view(orgadmin, 'Assign Positions', 'admin.assignpositions', interest=g.interest)
+                org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
 
             # meetings member stuff
             if (current_user.has_role(ROLE_MEETINGS_MEMBER) or current_user.has_role(ROLE_MEETINGS_ADMIN)

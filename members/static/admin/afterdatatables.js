@@ -419,7 +419,7 @@ function afterdatatables() {
         onclick_trigger(_dt_table, 'td.view-control', 'view-status');
 
     // special processing for meetingstatus
-    } else if (location.pathname.includes('/assignpositions')) {
+    } else if (location.pathname.includes('/positiondates')) {
         // set initial filter to today
         var today = new Date();
         today = today.toISOString().substr(0,10);
