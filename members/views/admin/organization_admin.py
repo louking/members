@@ -6,7 +6,8 @@ organization_admin - organization administrative handling
 from datetime import date
 
 # pypi
-from dominate.tags import div, label, input, a, span
+from dominate.tags import div, input, button
+from flask import request
 
 # homegrown
 from . import bp
@@ -14,6 +15,7 @@ from ...model import db
 from ...model import LocalInterest, LocalUser, TaskGroup, Tag, AgendaHeading, UserPosition
 from ...model import Position
 from ...model import localinterest_query_params
+from ...helpers import members_active
 from .viewhelpers import dtrender
 
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -29,10 +31,32 @@ debug = False
 # positions endpoint
 ###########################################################################################
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading'.split(',')
+def position_members(position):
+    ondate = request.args.get('ondate', None)
+    if not ondate:
+        ondate = date.today()
+    names = [m.name for m in members_active(position, ondate)]
+    names.sort()
+    return ', '.join(names)
+
+def position_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
+
+            with datefilter:
+                input(type='text', id='effective-date', name='effective-date' )
+                button('Today', id='todays-date-button')
+
+    return pretablehtml.render()
+
+position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading,__readonly__'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading,users'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
+position_formmapping['users'] = position_members
 
 position = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
@@ -49,6 +73,7 @@ position = DbCrudApiInterestsRolePermissions(
                     rule = '/<interest>/positions',
                     dbmapping = position_dbmapping,
                     formmapping = position_formmapping,
+                    pretablehtml = position_pretablehtml,
                     checkrequired = True,
                     clientcolumns = [
                         {'data': 'position', 'name': 'position', 'label': 'Position',
@@ -58,18 +83,9 @@ position = DbCrudApiInterestsRolePermissions(
                         {'data': 'description', 'name': 'description', 'label': 'Description',
                          'type': 'textarea',
                          },
-                        # {'data': 'users', 'name': 'users', 'label': 'Members',
-                        #  'fieldInfo': 'members who hold this position',
-                        #  '_treatment': {
-                        #      # viadbattr stores the LocalUser id which has user_id=user.id for each of these
-                        #      # and pulls the correct users out of User based on LocalUser table
-                        #      'relationship': {'fieldmodel': User, 'labelfield': 'name',
-                        #                       'formfield': 'users', 'dbfield': 'users',
-                        #                       'viadbattr': LocalUser.user_id,
-                        #                       'viafilter': localinterest_viafilter,
-                        #                       'queryparams': {'active': True},
-                        #                       'uselist': True}}
-                        #  },
+                        {'data': 'users', 'name': 'users', 'label': 'Members',
+                         'fieldInfo': 'members who hold this position on selected position date', 'type': 'readonly'
+                         },
                         {'data': 'has_status_report', 'name': 'has_status_report', 'label': 'Has Status Report',
                          'className': 'TextCenter',
                          '_treatment': {'boolean': {'formfield': 'has_status_report', 'dbfield': 'has_status_report'}},
@@ -202,8 +218,7 @@ positiondate = PositionDateView(
              'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name', 'formfield': 'user',
                               'dbfield': 'user', 'uselist': False,
                               'searchbox': True,
-                              'queryparams': {'active': True},
-                              'queryparams': localinterest_query_params,
+                              'queryparams': lambda: dict(**{'active': True}, **localinterest_query_params()),
                               }}
          },
         {'data': 'position', 'name': 'position', 'label': 'Position',

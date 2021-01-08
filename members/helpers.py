@@ -38,8 +38,8 @@ def is_userposition_active(userposition, thisdate):
     '''
     if isinstance(thisdate, str):
         if not is_valid_date(thisdate):
-            raise ParameterError('not a valid ISO thisdate: {}'.format(thisdate))
-        thisdate = dtrender.asc2dt(thisdate)
+            raise ParameterError('not a valid ISO date: {}'.format(thisdate))
+        thisdate = dtrender.asc2dt(thisdate).date()
 
     elif not isinstance(thisdate, date):
         raise ParameterError('date needs to be datetime.date or ISO date string: {}'.format(thisdate))

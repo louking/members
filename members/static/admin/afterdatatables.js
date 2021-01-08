@@ -418,7 +418,7 @@ function afterdatatables() {
     } else if (location.pathname.includes('/mymeetings')) {
         onclick_trigger(_dt_table, 'td.view-control', 'view-status');
 
-    // special processing for meetingstatus
+    // special processing for positiondates
     } else if (location.pathname.includes('/positiondates')) {
         // set initial filter to today
         var today = new Date();
@@ -436,5 +436,35 @@ function afterdatatables() {
             editor.field('user.id').enable();
             editor.field('position.id').enable();
         })
+
+        // special processing for positions
+    } else if (location.pathname.includes('/positions')) {
+        var effectivedate = $('#effective-date');
+        var todaysdate = $('#todays-date-button');
+
+        // set initial filter to today
+        var today = new Date();
+        today = today.toISOString().substr(0,10);
+
+        // effective date is datepicker; todays date is button
+        effectivedate.datepicker({dateFormat: 'yy-mm-dd'});
+        effectivedate.val(today);
+        todaysdate.button();
+
+        // handle change of effective date by setting column filters appropriately
+        effectivedate.change(function(e) {
+           var ondate = effectivedate.val();
+           var urlparams = allUrlParams();
+           urlparams.ondate = ondate;
+           resturl = window.location.pathname + '/rest?' + setParams(urlparams);
+           refresh_table_data(_dt_table, resturl);
+        });
+
+        // clear the effective date
+        todaysdate.click(function(e) {
+            effectivedate.val(today);
+            effectivedate.change();
+        })
+
     }
 }
