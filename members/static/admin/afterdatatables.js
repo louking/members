@@ -462,9 +462,67 @@ function afterdatatables() {
 
         // clear the effective date
         todaysdate.click(function(e) {
+            // reset today because window may have been up for a while
+            today = new Date();
+            today = today.toISOString().substr(0,10);
             effectivedate.val(today);
             effectivedate.change();
         })
 
+        // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
+        position_wizard_editor = new $.fn.dataTable.Editor({
+            fields: [
+                {name: 'position', data:'position', label: 'Position', type: 'display'},
+                {name: 'position_id', data: 'position_id', label: 'Position ID', type: 'hidden'},
+                {name: 'effective', data: 'effective', label: 'Effective Date', type: 'datetime',
+                 fieldInfo: 'select the date you want to view / have changes be effective'
+                },
+                {name: 'members', data: 'members', label: 'Members', type: 'select2',
+                 fieldInfo: 'pick the members you want in this position on the Effective Date',
+                 onFocus: 'focus',
+                 // separator must match organization_admin.PositionWizardApi.post()
+                 separator: ', ',
+                 opts: {
+                     multiple: true,
+                     minimumResultsForSearch: 0,
+                 },
+                },
+            ],
+        });
+        _dt_table.button('position-wizard:name').disable();
+
+        // buttons needs to be set up outside of ajax call (beforedatatables.js meeting_sendinvites()
+        // else the button action doesn't fire (see https://stackoverflow.com/a/19237302/799921 for ajax hint)
+        position_wizard_editor
+            .buttons([
+                {
+                    'text': 'Update',
+                    'action': function () {
+                        this.submit( null, null, function(data){
+                            var that = this;
+                        });
+                    }
+                },
+                {
+                    'text': 'Cancel',
+                    'action': function() {
+                        this.close();
+                    }
+                }
+            ])
+        
+        _dt_table.on('select deselect', function(e, dt, type, indexes) {
+            var ids = _dt_table.rows({selected:true}).ids();
+            if (ids.length == 0) {
+                _dt_table.button('position-wizard:name').disable();
+            } else {
+                _dt_table.button('position-wizard:name').enable();
+            }
+        });
+
+        // need to refresh and redraw after wizard in case position changes should be visible
+        position_wizard_editor.on('submitComplete closed', function(e) {
+            effectivedate.change();
+        });
     }
 }

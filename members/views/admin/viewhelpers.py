@@ -14,7 +14,7 @@ from dominate.tags import a
 # homegrown
 from members.model import TaskCompletion, LocalUser, LocalInterest
 from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD
-from ...helpers import positions_active, members_active
+from ...helpers import positions_active, members_active, localinterest
 from loutilities.user.model import User, Interest
 from loutilities.tables import SEPARATOR
 
@@ -52,10 +52,6 @@ def user2localuser(user):
     if type(user) == int:
         user = User.query.filter_by(id=user, active=True).one()
     return LocalUser.query.filter_by(user_id=user.id, active=True, interest=localinterest).one()
-
-def localinterest():
-    interest = Interest.query.filter_by(interest=g.interest).one()
-    return LocalInterest.query.filter_by(interest_id=interest.id).one()
 
 def lastcompleted(task, user):
     taskcompletion = get_task_completion(task, user)

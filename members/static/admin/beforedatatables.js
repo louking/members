@@ -235,6 +235,36 @@ function meeting_sendreminders(url) {
     return fn;
 }
 
+var position_wizard_editor;
+
+function position_wizard(url) {
+    fn = function (e, dt, node, config) {
+        var that = this;
+
+        // update the url parameter for the create view
+        var editorajax = position_wizard_editor.ajax() || {};
+        editorajax.url = url + '?' + setParams(allUrlParams());
+        position_wizard_editor.ajax(editorajax);
+        // clear and reset dependency
+        position_wizard_editor.undependent('effective');
+        position_wizard_editor.dependent('effective', {
+            url: url + '?' + setParams(allUrlParams()),
+            type: 'get',
+            dataType: 'json',
+        });
+        // use the currently selected position id (note only one row can be selected)
+        var postion_id = _dt_table.rows({selected:true}).ids()[0];
+        var position = _dt_table.rows({selected:true}).data()[0].position;
+        position_wizard_editor
+            .title('Position Wizard')
+            .edit(null, false)
+            .set('position', position)
+            .set('position_id', postion_id)
+            .open();
+    }
+    return fn;
+}
+
 /**
  * handles Generate Docs button from Meeting view
  *

@@ -6,7 +6,13 @@ helpers - commonly needed utilities
 from re import compile
 from datetime import date
 
+# pypi
+from flask import g
+
 # homegrown
+from .model import LocalUser, LocalInterest
+from loutilities.user.model import Interest
+
 from loutilities.timeu import asctime
 dtrender = asctime('%Y-%m-%d')
 
@@ -14,6 +20,10 @@ class ParameterError(Exception):
     '''
     raised for invalid parameters, etc
     '''
+
+def localinterest():
+    interest = Interest.query.filter_by(interest=g.interest).one()
+    return LocalInterest.query.filter_by(interest_id=interest.id).one()
 
 def is_valid_date(thisdate):
     '''
@@ -28,13 +38,12 @@ def is_valid_date(thisdate):
     else:
         return False
 
-def is_userposition_active(userposition, thisdate):
+def to_date(thisdate):
     '''
-    check if user was in position on a specific date
+    convert ISO date to datetime.date
 
-    :param userposition: UserPosition record
-    :param thisdate: date to check if user was actively in position (datetime.date or ISO date string)
-    :return: True if active on that date, otherwise false
+    :param thisdate: date in ISO string or datetime.date format
+    :return: date in datetime.date format
     '''
     if isinstance(thisdate, str):
         if not is_valid_date(thisdate):
@@ -43,6 +52,18 @@ def is_userposition_active(userposition, thisdate):
 
     elif not isinstance(thisdate, date):
         raise ParameterError('date needs to be datetime.date or ISO date string: {}'.format(thisdate))
+
+    return thisdate
+
+def is_userposition_active(userposition, thisdate):
+    '''
+    check if user was in position on a specific date
+
+    :param userposition: UserPosition record
+    :param thisdate: date to check if user was actively in position (datetime.date or ISO date string)
+    :return: True if active on that date, otherwise false
+    '''
+    thisdate = to_date(thisdate)
 
     is_active = False
     if ((userposition.startdate == None or thisdate >= userposition.startdate)
@@ -65,6 +86,51 @@ def positions_active(member, thisdate):
             positions.add(userposition.position)
     return list(positions)
 
+def member_position_active(member, position, thisdate):
+    '''
+    return list of active userposition records for this member/position
+
+    ..note::
+        should have single record, but allowing for more in case of data error
+
+    :param member: LocalUser record
+    :param position: Position record
+    :param thisdate: date to check (ISO date or datetime.date)
+    :return: [userposition], but if error [userposition, userposition, ...]
+    '''
+    # get all userposition records for this member for this position, sorted by start date
+    ups = [up for up in member.userpositions if up.position == position and is_userposition_active(up, thisdate)]
+    ups.sort(key=lambda i: i.startdate)
+    return ups
+
+def member_positions(member, position, onorafter='1970-01-01'):
+    '''
+    return list of userposition records for this member/position, optionally on or after a date
+
+    ..note::
+        should have single record, but allowing for more in case of data error
+
+    :param member: LocalUser record
+    :param position: Position record
+    :param onorafter: (optional) date to check for positions on or after (ISO date string or datetime.date) (default all)
+    :return: [userposition, userposition, ...], sorted by startdate
+    '''
+    onorafter = to_date(onorafter)
+
+    # get all userposition records for member / position
+    allups = [up for up in member.userpositions if up.position == position]
+
+    # filter out any from before onorafter
+    ups = []
+    for up in allups:
+        if ((up.startdate == None or onorafter <= up.startdate)
+                and (up.finishdate == None or onorafter <= up.finishdate)):
+            ups.append(up)
+
+    # sort by startdate, empty start date is equivalent to 1 Jan 1970
+    ups.sort(key=lambda i: i.startdate if i.startdate else dtrender.asc2dt('1970-01-01').date())
+    return ups
+
 def members_active(position, thisdate):
     '''
     return the list of currently active members for a given position on a specified date
@@ -78,3 +144,11 @@ def members_active(position, thisdate):
         if is_userposition_active(userposition, thisdate):
             members.add(userposition.user)
     return list(members)
+
+def all_active_members():
+    '''
+    return the list of all active members for the 'members' application
+
+    :return: [member, member, ...]
+    '''
+    return LocalUser.query.filter_by(active=True, interest=localinterest()).all()
