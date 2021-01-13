@@ -27,7 +27,7 @@ from slugify import slugify
 
 # homegrown
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from loutilities.user.roles import ROLE_ORGANIZATION_ADMIN, ROLE_MEMBERSHIP_ADMIN
+from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 
 thisnav = Nav()
@@ -100,8 +100,11 @@ def nav_menu():
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 leadership_member_view(navbar, 'Task Checklist', 'admin.taskchecklist', interest=g.interest)
 
-            # organization admin stuff
-            if current_user.has_role(ROLE_ORGANIZATION_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+            # organization admin stuff visible to all members admins
+            if (current_user.has_role(ROLE_MEETINGS_ADMIN)
+                    or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
+                    or current_user.has_role(ROLE_MEMBERSHIP_ADMIN)
+                    or current_user.has_role(ROLE_SUPER_ADMIN)):
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)
                 org_admin_view(orgadmin, 'Members', 'userrole.members', interest=g.interest)

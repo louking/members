@@ -8,7 +8,8 @@ This is needed to update local database tables when using common database for si
 from members import user_datastore
 from ...model import update_local_tables
 from loutilities.user.views.userrole import UserView, InterestView, RoleView
-from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN
+from loutilities.user.roles import ROLE_LEADERSHIP_ADMIN
 
 class LocalUserView(UserView):
     def editor_method_postcommit(self, form):
@@ -16,7 +17,7 @@ class LocalUserView(UserView):
 user = LocalUserView(
     pagename='members',
     user_datastore=user_datastore,
-    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
     endpoint='userrole.members',
     rule='/members',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},

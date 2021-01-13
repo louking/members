@@ -22,8 +22,9 @@ from ...helpers import members_active, all_active_members, member_position_activ
 from .viewhelpers import dtrender, localinterest
 
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
-from loutilities.tables import get_request_action, get_request_data, rest_url_for, page_url_for
-from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN
+from loutilities.tables import get_request_action, get_request_data, page_url_for
+from loutilities.user.roles import ROLE_SUPER_ADMIN
+from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
 class ParameterError(Exception): pass
@@ -68,7 +69,7 @@ position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
 
 position = DbCrudApiInterestsRolePermissions(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -214,7 +215,7 @@ positiondate_yadcf_options = {
 }
 
 positiondate = PositionDateView(
-    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
     db=db,
@@ -296,7 +297,7 @@ positiondate.register()
 class PositionWizardApi(MethodView):
 
     def __init__(self):
-        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN]
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN]
 
     def permission(self, position_id):
         '''
