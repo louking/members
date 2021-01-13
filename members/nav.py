@@ -104,6 +104,7 @@ def nav_menu():
             if current_user.has_role(ROLE_ORGANIZATION_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)
+                org_admin_view(orgadmin, 'Members', 'userrole.members', interest=g.interest)
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
 

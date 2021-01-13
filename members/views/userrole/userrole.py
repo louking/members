@@ -5,14 +5,18 @@ This is needed to update local database tables when using common database for si
 '''
 
 # homegrown
+from members import user_datastore
 from ...model import update_local_tables
 from loutilities.user.views.userrole import UserView, InterestView, RoleView
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN
 
 class LocalUserView(UserView):
     def editor_method_postcommit(self, form):
         update_local_tables()
 user = LocalUserView(
     pagename='members',
+    user_datastore=user_datastore,
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_ORGANIZATION_ADMIN],
     endpoint='userrole.members',
     rule='/members',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
