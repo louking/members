@@ -110,6 +110,7 @@ def nav_menu():
                 org_admin_view(orgadmin, 'Members', 'userrole.members', interest=g.interest)
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
+                org_admin_view(orgadmin, 'Tags', 'admin.tags', interest=g.interest)
 
             # meetings member stuff
             if (current_user.has_role(ROLE_MEETINGS_MEMBER) or current_user.has_role(ROLE_MEETINGS_ADMIN)
@@ -129,7 +130,6 @@ def nav_menu():
                     meetings_admin_view(meetingsviews, 'Motion Votes', 'admin.motionvotes', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Agenda Headings', 'admin.agendaheadings', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
-                    meetings_admin_view(meetingsviews, 'Tags', 'admin.tags', interest=g.interest)
 
                 # meetings member, not admin
                 else:

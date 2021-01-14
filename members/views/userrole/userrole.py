@@ -20,7 +20,7 @@ user = LocalUserView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
     endpoint='userrole.members',
     rule='/members',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
 )
 user.register()
 

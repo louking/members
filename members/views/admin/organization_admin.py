@@ -15,12 +15,12 @@ from dominate.tags import div, input, button, dd
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition
-from ...model import Position
-from ...model import localinterest_query_params
+from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition, Position, Tag
+from ...model import localinterest_query_params, localinterest_viafilter
 from ...helpers import members_active, all_active_members, member_position_active, member_positions
 from .viewhelpers import dtrender, localinterest
 
+from loutilities.user.model import User
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.tables import get_request_action, get_request_data, page_url_for
 from loutilities.user.roles import ROLE_SUPER_ADMIN
@@ -30,6 +30,8 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 class ParameterError(Exception): pass
 
 debug = False
+
+organization_roles = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN]
 
 ##########################################################################################
 # positions endpoint
@@ -69,7 +71,7 @@ position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
 
 position = DbCrudApiInterestsRolePermissions(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    roles_accepted = organization_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -215,7 +217,7 @@ positiondate_yadcf_options = {
 }
 
 positiondate = PositionDateView(
-    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
+    roles_accepted=organization_roles,
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
     db=db,
@@ -294,10 +296,83 @@ positiondate = PositionDateView(
 )
 positiondate.register()
 
+##########################################################################################
+# tags endpoint
+###########################################################################################
+
+tag_dbattrs = 'id,interest_id,tag,description,positions,users'.split(',')
+tag_formfields = 'rowid,interest_id,tag,description,positions,users'.split(',')
+tag_dbmapping = dict(zip(tag_dbattrs, tag_formfields))
+tag_formmapping = dict(zip(tag_formfields, tag_dbattrs))
+
+tags_view = DbCrudApiInterestsRolePermissions(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=Tag,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+    pagename='Tags',
+    endpoint='admin.tags',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/tags',
+    dbmapping=tag_dbmapping,
+    formmapping=tag_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'tag', 'name': 'tag', 'label': 'Tag',
+         'className': 'field_req',
+         '_unique': True,
+         },
+        {'data': 'description', 'name': 'description', 'label': 'Description',
+         'className': 'field_req',
+         'type': 'textarea',
+         },
+        {'data': 'positions', 'name': 'positions', 'label': 'Positions',
+         'fieldInfo': 'tags are assigned to positions, members, or both',
+         '_treatment': {
+             'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
+                              'dbfield': 'positions', 'uselist': True,
+                              'searchbox': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'users', 'name': 'users', 'label': 'Members',
+         'fieldInfo': 'tags are assigned to positions, members, or both',
+         '_treatment': {
+             # viadbattr stores the LocalUser id which has user_id=user.id for each of these
+             # and pulls the correct users out of User based on LocalUser table
+             'relationship': {'fieldmodel': User, 'labelfield': 'name',
+                              'formfield': 'users', 'dbfield': 'users',
+                              'viadbattr': LocalUser.user_id,
+                              'viafilter': localinterest_viafilter,
+                              'searchbox': True,
+                              'queryparams': {'active': True},
+                              'uselist': True}}
+         },
+    ],
+    servercolumns=None,  # not server side
+    idSrc='rowid',
+    buttons=['create', 'editRefresh', 'remove', 'csv'],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+tags_view.register()
+
+##########################################################################################
+# positionwizard endpoint
+###########################################################################################
+
 class PositionWizardApi(MethodView):
 
     def __init__(self):
-        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN]
+        self.roles_accepted = organization_roles
 
     def permission(self, position_id):
         '''
