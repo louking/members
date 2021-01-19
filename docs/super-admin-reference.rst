@@ -1,5 +1,5 @@
 ===========================================
-Leadership Task Superadmin Reference
+Super Admin Reference
 ===========================================
 
 .. _Applications view:
@@ -118,50 +118,6 @@ The Interest Attributes view allows the superadmin to control certain attributes
         email address to be used as the from address for emails sent by the system
 
 .. image:: images/interest-attributes-view.*
-    :align: center
-
-
-.. _Members view:
-
-Members view
-===============
-**Navigation:** Super > Members
-
-The Members view is used to add new user/:term:`members <member>` to the system, and to assign their
-:term:`security roles <security role>` and :term:`interests <interest>`.
-
-When a new user/:term:`member` is entered via this view, an email is sent to the configured email
-address. This email contains a link the user/:term:`member` can use to reset their password.
-
-A reset password email can also be sent to the :term:`member` by clicking **Reset Password** from the edit modal.
-
-.. note::
-    This data is in the common database. See :ref:`Single Sign-On` for details about how the common database is used.
-..
-
-    :Email:
-        email address for the :term:`member`
-
-    :First Name:
-        the :term:`member's <member>` first name
-
-    :Full Name:
-        the :term:`member's <member>` full name
-
-    :Roles:
-        the :term:`security role(s) <security role>` which will be used by the application when this
-        :term:`member` is accessing the system
-
-    :Interests:
-        the :term:`interests <interest>` which will be available to the :term:`member`
-
-    :Active:
-        if *yes*, the :term:`member` may log in and access the system
-
-.. image:: images/members-view.*
-    :align: center
-
-.. image:: images/members-edit.*
     :align: center
 
 

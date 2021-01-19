@@ -1,11 +1,11 @@
 ===========================================
-Leadership Task Admin Guide
+Task Admin Guide
 ===========================================
 
 :term:`Members <member>` of a club’s leadership team are required to complete various :term:`tasks <task>` in
 support of the on-boarding process. E.g., the member needs to gain access to the club's documents, read certain
 policies, complete training courses, etc. Some of these :term:`tasks <task>` need to be renewed periodically. The
-"leadership task module" of the **membertility** system is designed to define these :term:`tasks <task>` and
+:ref:`Task Module` of the **membertility** system is designed to define these :term:`tasks <task>` and
 track the :term:`members' <member>` completion records.
 
 This guide describes the concepts of the membertility Leadership Task Module, as well as gives guidance for
@@ -19,9 +19,10 @@ To facilitate :term:`task` assignment to :term:`members <member>`, a task hierar
 :term:`leadership admin` creates :term:`positions <position>` and :term:`task groups <task group>` to facilitate
 management of sets of :term:`tasks <task>`.
 
-* each :term:`task` may be assigned to one or more :term:`task groups <task group>`
-* each :term:`task group` may be assigned to one or more :term:`positions <position>`
-* each :term:`position` maybe be assigned to one or more :term:`members <member>`
+* each :term:`task` may be assigned to one or more :term:`task groups <task group>` (:ref:`Task Groups view`)
+* each :term:`task group` may be assigned to one or more :term:`positions <position>` (:ref:`Task Groups view`,
+  :ref:`Positions view`)
+* each :term:`position` may be be assigned to one or more :term:`members <member>` (:ref:`Position Wizard`)
 * :term:`tasks <task>` which follow the :term:`member` -> :term:`position` -> :term:`task group` -> :term:`task`
   tree are displayed on that :term:`member's <member>` :ref:`Task Checklist view`
 
@@ -122,13 +123,12 @@ To configure a :term:`task` to be optional, set
 Task Groups
 =================
 To facilitate assignment of sets of :term:`tasks <task>` to individual :term:`members <member>`, :term:`tasks <task>` are assigned into one or more
-:term:`task groups <task group>`.
+:term:`task groups <task group>` using the :ref:`Task Groups view`.
 
-.. note::
-
-    Preference is to assign :term:`member` to :term:`position`, and let the :term:`task groups <task group>` follow
-    from the :term:`position`. However the system does allow direct association between :term:`member` and
-    :term:`task group`.
+Positions / Task Groups / Members
+====================================
+See :ref:`Position Management` for details on how to assign :term:`task groups <task group>` to
+:term:`positions <position>` and :term:`members <member>` to :term:`positions <position>`.
 
 Admin Tracking
 ===========================

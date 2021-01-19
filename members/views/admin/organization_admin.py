@@ -64,8 +64,8 @@ def position_pretablehtml():
 
     return pretablehtml.render()
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading,__readonly__'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,has_status_report,agendaheading,users'.split(',')
+position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,has_status_report,tags,agendaheading,__readonly__'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,has_status_report,tags,agendaheading,users'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
@@ -102,6 +102,15 @@ position = DbCrudApiInterestsRolePermissions(
                          'className': 'TextCenter',
                          '_treatment': {'boolean': {'formfield': 'has_status_report', 'dbfield': 'has_status_report'}},
                          'ed': {'def': 'yes'},
+                         },
+                        {'data': 'tags', 'name': 'tags', 'label': 'Tags',
+                         'fieldInfo': 'tags for this position',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'tags',
+                                              'dbfield': 'tags', 'uselist': True,
+                                              'searchbox': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                         {'data': 'agendaheading', 'name': 'agendaheading', 'label': 'Agenda Heading',
                          'fieldInfo': 'heading under which this position is shown in agenda',

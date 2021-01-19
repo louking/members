@@ -1,32 +1,9 @@
 ===========================================
-Leadership Task Admin Reference
+Task Admin Reference
 ===========================================
 
 This page gives a reference to all **membertility** views which are available to
 :term:`members <member>` who have the :term:`leadership admin` :term:`security role`.
-
-.. _Assign Tasks view:
-
-Assign Tasks view
-=================
-**Navigation:** Tasks > Assign Tasks
-
-:term:`Tasks <task>` are assigned to :term:`members <member>` indirectly by associating the :term:`member` with
-a :term:`position` or :term:`task group`.
-
-Select the :term:`member` and click **Edit** to update the :term:`member's <member>` :term:`position`
-or :term:`task group` associations.
-
-.. Note::
-    While it is possible to associate the :term:`member` directly with a :term:`task group`, it is recommended that
-    this be done only indirectly by :term:`position`
-
-.. image:: images/assign-tasks-view.*
-    :align: center
-
-.. image:: images/assign-tasks-edit.*
-    :align: center
-
 
 .. _History view:
 
@@ -93,47 +70,6 @@ The view has the following filters:
 .. image:: images/member-summary-view.*
     :align: center
 
-
-
-.. _Positions view:
-
-Positions view
-==============
-**Navigation:** Tasks > Positions
-
-The Positions view is used to define all the :term:`positions <position>` within the organization. The
-:term:`leadership admin` can assign :term:`members <member>` to a position from this view, or from the
-:ref:`Assign Tasks view`.
-
-This view is where :term:`task groups <task group>` are associated with the :term:`position` to
-follow the :ref:`Task Hierarchy`.
-
-In addition, certain :term:`positions <position>` may be configured to receive :term:`summary emails <summary email>`
-for any *overdue* tasks within specific :term:`task groups <task group>`.
-
-    :Position:
-        name of the position
-
-    :Description:
-        describes the position, possibly giving more information than just the name
-
-    :Members:
-        list of :term:`members <member>` holding this position. This can be configured here or in the
-        :ref:`Assign Tasks view`
-
-    :Task Groups:
-        list of :term:`task groups <task group>` that are associated with the :term:`position` to follow
-        the :ref:`Task Hierarchy`
-
-    :Email Groups:
-        list of :term:`task groups <task group>` for which :term:`summary emails <summary email>`
-        for any *overdue* tasks are sent to :term:`members <member>` holding this :term:`position`
-
-.. image:: images/positions-view.*
-    :align: center
-
-.. image:: images/positions-edit.*
-    :align: center
 
 
 .. _Tasks view:
@@ -364,7 +300,7 @@ follow the :ref:`Task Hierarchy`.
 
     :Members:
         list of :term:`members <member>` associated directly with this :term:`task group`. This can be configured
-        here or in the :ref:`Assign Tasks view`
+        here or in the :ref:`Positions view`
 
         .. Note::
             While it is possible to associate the :term:`member` directly with a :term:`task group`, it is recommended

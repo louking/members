@@ -1,7 +1,5 @@
-.. _Meetings Module:
-
 ===========================================
-Meetings Module
+Super Admin Module
 ===========================================
 
 
@@ -11,8 +9,7 @@ Guides
 .. toctree::
    :maxdepth: 3
 
-   meetings-admin-guide
-   meetings-member-guide
+   super-admin-guide
 
 Reference
 ==========
@@ -20,4 +17,4 @@ Reference
 .. toctree::
    :maxdepth: 3
 
-   meetings-admin-reference
+   super-admin-reference

@@ -17,6 +17,7 @@ will be added over time.
    meetings-module
    leadership-task-module
    membership-module
+   super-admin-module
    membertility-definitions
    typographical-conventions
 

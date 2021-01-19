@@ -30,7 +30,7 @@ Glossary
         data entered is associated with the :term:`task` completion
 
     interest
-        :term:`tasks <task>`, :term:`task groups <task group>`, are grouped by "interest". When logged into the
+        most of the data held within the system are grouped by "interest". When logged into the
         system, the :term:`member` selects the interest near the top of the view. The interest can be a running club,
         etc.
 
@@ -40,7 +40,8 @@ Glossary
         to create :term:`discussion items <discussion item>` for the meeting
 
     leadership admin
-        a club member who serves in a supervisory position, can create :term:`tasks <task>`,
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can create :term:`tasks <task>`,
         :term:`task groups <task group>`, and :term:`positions <position>`, as well as assign
         :term:`members <member>` to :term:`positions <position>`
 
@@ -49,11 +50,16 @@ Glossary
         for which minutes are required, action items may be generated, and/or decisions made (by motion / vote)
 
     meeting admin
-        a :term:`member` who serves in a supervisory position and can create and manage :term:`meetings <meeting>`
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can create and manage :term:`meetings <meeting>`
 
     member
         a club member that serves in a volunteer position that requires specific and trackable training
         and orientation
+
+    membership admin
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can manage membership information
 
     minutes
         record of :term:`meeting` :term:`agenda`, discussions, :term:`votes <vote>`, etc.
@@ -63,7 +69,9 @@ Glossary
         a formal decision made
 
     organization admin
-        a :term:`member` who serves in a supervisory position and can manage the organization
+        :term:`members <member>` who serve in a supervisory position and
+        can manage the organization by creating :term:`members <member>`, :term:`positions <position>`, and
+        assigning :term:`members <member>` to :term:`positions <position>`.
 
     position
         the volunteer position that a member is assigned. Examples: President, Training Coach, Race Director
@@ -95,7 +103,8 @@ Glossary
         :term:`members <member>` and their *overdue* :term:`tasks <task>`
 
     super admin
-        a super admin can create :term:`members <member>`, create :term:`interests <interest>`, assign security roles,
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can create :term:`interests <interest>`, assign :term:`security roles <security role>`,
         :term:`interests <interest>`, etc.
 
     tag
@@ -108,6 +117,10 @@ Glossary
 
     task group
         a collection of tasks that are assigned, in aggregate, to a position. Examples: Training, Executive Officer
+
+    term
+        the period during which a :term:`member` holds a :term:`position`. If the :term:`member` holds
+        the :term:`position` multiple times with gaps, these are multiple terms
 
     vote
         formal indication of approval or rejection of a :term:`motion`, or the desire for recusal by abstaining

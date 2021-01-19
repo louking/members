@@ -501,38 +501,6 @@ The view has the following filters:
     :align: center
 
 
-.. _Tags view:
-
-Tags view
-======================
-**Navigation:** Meetings > Tags
-
-Tags are used for grouping together :term:`positions <position>` and :term:`members <member>` for various purposes,
-e.g., for invitations to be sent for a :term:`meeting`, or to indicate who may :term:`vote` at a :term:`meeting`.
-
-    :Tag:
-        name of tag
-
-    :Description:
-        description of how the tag is used
-
-    :Positions:
-        this tag resolves to these :term:`positions <position>`
-
-    :Members:
-        this tag resolves to these :term:`members <member>`
-
-        .. note::
-            it is recommended to only use the **Positions** field because as :term:`positions <position>` change
-            use of **Members** may become out of date
-
-.. image:: images/tags-view.*
-    :align: center
-
-.. image:: images/tags-edit.*
-    :align: center
-
-
 .. _Their Status Report view:
 
 Their Status Report view
