@@ -43,15 +43,15 @@ def get_task_completion(task, user):
 
 def localuser2user(localuser):
     if type(localuser) == int:
-        localuser = LocalUser.query.filter_by(id=localuser, active=True).one()
-    return User.query.filter_by(id=localuser.user_id, active=True).one()
+        localuser = LocalUser.query.filter_by(id=localuser).one()
+    return User.query.filter_by(id=localuser.user_id).one()
 
 def user2localuser(user):
     interest = Interest.query.filter_by(interest=g.interest).one()
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
     if type(user) == int:
-        user = User.query.filter_by(id=user, active=True).one()
-    return LocalUser.query.filter_by(user_id=user.id, active=True, interest=localinterest).one()
+        user = User.query.filter_by(id=user).one()
+    return LocalUser.query.filter_by(user_id=user.id, interest=localinterest).one()
 
 def lastcompleted(task, user):
     taskcompletion = get_task_completion(task, user)
