@@ -276,6 +276,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         return results
 
 
-taskchecklist = TaskChecklist()
-taskchecklist.register()
+taskchecklist_view = TaskChecklist()
+taskchecklist_view.register()
 

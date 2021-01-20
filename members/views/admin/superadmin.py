@@ -40,7 +40,7 @@ def emailtemplate_validate(action, formdata):
 
     return results
 
-emailtemplate = DbCrudApiInterestsRolePermissions(
+emailtemplate_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=[ROLE_SUPER_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -85,7 +85,7 @@ emailtemplate = DbCrudApiInterestsRolePermissions(
         'scrollY': True,
     },
 )
-emailtemplate.register()
+emailtemplate_view.register()
 
 ##########################################################################################
 # doctemplates endpoint
@@ -96,7 +96,7 @@ doctemplate_formfields = 'rowid,interest_id,templatename,template'.split(',')
 doctemplate_dbmapping = dict(zip(doctemplate_dbattrs, doctemplate_formfields))
 doctemplate_formmapping = dict(zip(doctemplate_formfields, doctemplate_dbattrs))
 
-doctemplate = DbCrudApiInterestsRolePermissions(
+doctemplate_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=[ROLE_SUPER_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -134,5 +134,5 @@ doctemplate = DbCrudApiInterestsRolePermissions(
         'scrollY': True,
     },
 )
-doctemplate.register()
+doctemplate_view.register()
 

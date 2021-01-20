@@ -114,7 +114,7 @@ task_formmapping = dict(zip(task_formfields, task_dbattrs))
 # task_dbmapping['dateofyear'] = lambda formrow: formrow['dateofyear'][-5:] if formrow['dateofyear'] else None
 # task_formmapping['dateofyear'] = lambda dbrow: '{}-{}'.format(date.today().year, dbrow.dateofyear) if dbrow.dateofyear else None
 
-task = TaskView(
+task_view = TaskView(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -238,7 +238,7 @@ task = TaskView(
                         'template': '#customForm',
                     }
                     )
-task.register()
+task_view.register()
 
 ##########################################################################################
 # taskfields endpoint
@@ -264,7 +264,7 @@ class TaskFieldCrud(DbCrudApiInterestsRolePermissions):
                                           + '?{}={}'.format(FIELDNAME_ARG, taskfield.fieldname))
         return self.dte.get_response_data(taskfield)
 
-taskfield = TaskFieldCrud(
+taskfield_view = TaskFieldCrud(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -336,7 +336,7 @@ taskfield = TaskFieldCrud(
                                         'scrollY': True,
                                   },
                     )
-taskfield.register()
+taskfield_view.register()
 
 ##########################################################################################
 # taskgroups endpoint
@@ -393,7 +393,7 @@ taskgroup_formfields = 'rowid,interest_id,taskgroup,description,tasks,positions,
 taskgroup_dbmapping = dict(zip(taskgroup_dbattrs, taskgroup_formfields))
 taskgroup_formmapping = dict(zip(taskgroup_formfields, taskgroup_dbattrs))
 
-taskgroup = DbCrudApiInterestsRolePermissions(
+taskgroup_view = DbCrudApiInterestsRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -433,7 +433,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                              'relationship': {'fieldmodel': Task, 'labelfield': 'task', 'formfield': 'tasks',
                                               'dbfield': 'tasks', 'uselist': True,
                                               'queryparams': localinterest_query_params,
-                                              'editable' : { 'api' : task },
+                                              'editable' : { 'api' : task_view },
                                               }}
                          },
                         {'data': 'positions', 'name': 'positions', 'label': 'Positions',
@@ -465,7 +465,7 @@ taskgroup = DbCrudApiInterestsRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-taskgroup.register()
+taskgroup_view.register()
 
 ##########################################################################################
 # taskdetails endpoint
@@ -654,7 +654,7 @@ def taskdetails_validate(action, formdata):
     thisid = list(get_request_data(request.form).keys())[0]
 
     # id is made up of localuser.id, task.id
-    localuserid, taskid = taskdetails.getids(thisid)
+    localuserid, taskid = taskdetails_view.getids(thisid)
     task = Task.query.filter_by(id=taskid).one()
 
     # build list of fields which could override completion date (should only be one)
@@ -699,7 +699,7 @@ taskdetails_yadcf_options = [
     yadcfoption('expires:name', 'members-external-filter-expires', 'range_date'),
 ]
 
-taskdetails = TaskDetails(
+taskdetails_view = TaskDetails(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -817,7 +817,7 @@ taskdetails = TaskDetails(
                             }
                     },
                 )
-taskdetails.register()
+taskdetails_view.register()
 
 ##########################################################################################
 # membersummary endpoint

@@ -84,7 +84,7 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
         db.session.add(agendaitem)
         return output
 
-meetings = MeetingsView(
+meetings_view = MeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -191,7 +191,7 @@ meetings = MeetingsView(
         'order': [['date:name','desc']],
     },
 )
-meetings.register()
+meetings_view.register()
 
 ##########################################################################################
 # invites endpoint
@@ -240,7 +240,7 @@ invites_yadcf_options = [
     yadcfoption('attended:name', 'invites-external-filter-attended', 'select', placeholder='Select', width='100px'),
 ]
 
-invites = InvitesView(
+invites_view = InvitesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -314,7 +314,7 @@ invites = InvitesView(
         'scrollY': True,
     },
 )
-invites.register()
+invites_view.register()
 
 ##########################################################################################
 # actionitems endpoint
@@ -336,7 +336,7 @@ class ActionItemsView(ActionItemsBase):
         self.log_update(formdata)
         return super().updaterow(thisid, formdata)
 
-actionitems = ActionItemsView(
+actionitems_view = ActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Action Items',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
@@ -348,7 +348,7 @@ actionitems = ActionItemsView(
         'csv'
     ],
 )
-actionitems.register()
+actionitems_view.register()
 
 ##########################################################################################
 # motionsvote endpoint
@@ -357,7 +357,7 @@ actionitems.register()
 class MotionVotesView(MotionVotesBase):
     pass
 
-motionvotes = MotionVotesView(
+motionvotes_view = MotionVotesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Motion Votes',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
@@ -369,7 +369,7 @@ motionvotes = MotionVotesView(
         'csv'
     ],
 )
-motionvotes.register()
+motionvotes_view.register()
 
 ##########################################################################################
 # motions endpoint
@@ -416,7 +416,7 @@ class MotionsView(MotionsBase):
 
         return output
 
-motions = MotionsView(
+motions_view = MotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Motions',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
@@ -432,11 +432,11 @@ motions = MotionsView(
         'group': 'interest',
         'groupselector': '#metanav-select-interest',
         'childelementargs': motions_childelementargs.get_childelementargs({
-            'motionvotes': motionvotes,
+            'motionvotes': motionvotes_view,
         }),
     },
 )
-motions.register()
+motions_view.register()
 
 ##########################################################################################
 # meeting endpoint
@@ -628,7 +628,7 @@ def meeting_pretablehtml():
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
 #   http://live.datatables.net/bihawepu/1/edit
-meeting = MeetingView(
+meeting_view = MeetingView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -714,7 +714,7 @@ meeting = MeetingView(
         'group': 'interest',
         'groupselector': '#metanav-select-interest',
         'childelementargs': [
-            {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites,
+            {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites_view,
              'tableidtemplate': 'invites-{{ parentid }}',
              'args':{
                      'buttons': [],
@@ -740,7 +740,7 @@ meeting = MeetingView(
                      }
                  }
              },
-            {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems,
+            {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems_view,
              # rowid is of parent row
              'tableidtemplate': 'actionitems-{{ parentid }}',
              'args': {
@@ -761,7 +761,7 @@ meeting = MeetingView(
                  }
              }
              },
-            {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions,
+            {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions_view,
              'tableidtemplate': 'motions-{{ parentid }}',
              'args': {
                  'buttons': ['create', 'editChildRowRefresh', 'remove'],
@@ -825,7 +825,7 @@ meeting = MeetingView(
 
 },
 )
-meeting.register()
+meeting_view.register()
 
 ##########################################################################################
 # theirstatusreport endpoint
@@ -903,7 +903,7 @@ class TheirStatusReportView(MemberStatusReportBase):
         else:
             self.rows = iter([])
 
-theirstatusreport = TheirStatusReportView(
+theirstatusreport_view = TheirStatusReportView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
     pagename='Their Status Report',
@@ -911,7 +911,7 @@ theirstatusreport = TheirStatusReportView(
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/theirstatusreport',
 )
-theirstatusreport.register()
+theirstatusreport_view.register()
 
 ##########################################################################################
 # meetinggendocs api endpoint
@@ -1156,7 +1156,7 @@ class MeetingInviteApi(MeetingApiBase):
             agendaitem = generateinvites(meeting_id)
 
             # use meeting view's dte to get the response data
-            thisrow = meeting.dte.get_response_data(agendaitem)
+            thisrow = meeting_view.dte.get_response_data(agendaitem)
             self._responsedata = [thisrow]
 
             db.session.commit()
@@ -1275,7 +1275,7 @@ meetingstatus_yadcf_options = [
     yadcfoption('status:name', 'meetingstatus-external-filter-status', 'select', placeholder='Select', width='130px'),
 ]
 
-meetingstatus = MeetingStatusView(
+meetingstatus_view = MeetingStatusView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -1326,7 +1326,7 @@ meetingstatus = MeetingStatusView(
         'select': 'os',
     },
 )
-meetingstatus.register()
+meetingstatus_view.register()
 
 
 #########################################################################################
@@ -1483,7 +1483,7 @@ class MeetingStatusReminderApi(MeetingApiBase):
                 for position in positions_active(user, meeting.date):
                     # todo: needs update after #272 fixed
                     if position.has_status_report:
-                        thisrow = meetingstatus.dte.get_response_data(position)
+                        thisrow = meetingstatus_view.dte.get_response_data(position)
                         self._responsedata += [thisrow]
 
             db.session.commit()
@@ -1510,7 +1510,7 @@ agendaheadings_formfields = 'rowid,interest_id,heading,positions'.split(',')
 agendaheadings_dbmapping = dict(zip(agendaheadings_dbattrs, agendaheadings_formfields))
 agendaheadings_formmapping = dict(zip(agendaheadings_formfields, agendaheadings_dbattrs))
 
-agendaheadings = DbCrudApiInterestsRolePermissions(
+agendaheadings_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -1553,5 +1553,5 @@ agendaheadings = DbCrudApiInterestsRolePermissions(
         'scrollY': True,
     },
 )
-agendaheadings.register()
+agendaheadings_view.register()
 

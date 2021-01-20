@@ -14,7 +14,7 @@ from loutilities.user.roles import ROLE_LEADERSHIP_ADMIN
 class LocalUserView(UserView):
     def editor_method_postcommit(self, form):
         update_local_tables()
-user = LocalUserView(
+user_view = LocalUserView(
     pagename='members',
     user_datastore=user_datastore,
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN],
@@ -22,7 +22,7 @@ user = LocalUserView(
     rule='/members',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
 )
-user.register()
+user_view.register()
 
 class LocalInterestView(InterestView):
     def __init__(self, **kwargs):
@@ -37,8 +37,8 @@ class LocalInterestView(InterestView):
 
     def editor_method_postcommit(self, form):
         update_local_tables()
-interest = LocalInterestView()
-interest.register()
+interest_view = LocalInterestView()
+interest_view.register()
 
 class LocalRoleView(RoleView):
     def __init__(self, **kwargs):
@@ -53,5 +53,5 @@ class LocalRoleView(RoleView):
 
     def editor_method_postcommit(self, form):
         update_local_tables()
-role = LocalRoleView()
-role.register()
+role_view = LocalRoleView()
+role_view.register()

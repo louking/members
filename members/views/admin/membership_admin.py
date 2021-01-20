@@ -67,7 +67,7 @@ clubmembers_yadcf_options = [
     yadcfoption('club_membership_level_name:name', 'members-external-filter-level', 'multi_select', placeholder='Select levels', width='200px'),
 ]
 
-clubmembers = ClubMembers(
+clubmembers_view = ClubMembers(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -130,7 +130,7 @@ clubmembers = ClubMembers(
                                         'scrollY': True,
                                   },
                     )
-clubmembers.register()
+clubmembers_view.register()
 
 
 

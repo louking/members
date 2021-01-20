@@ -198,7 +198,7 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         self.postprocessrows(self.output_result['data'])
 
 
-memberdiscussions = MemberDiscussionsView(
+memberdiscussions_view = MemberDiscussionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -267,7 +267,7 @@ memberdiscussions = MemberDiscussionsView(
         'scrollY': True,
     },
 )
-memberdiscussions.register()
+memberdiscussions_view.register()
 
 
 ##########################################################################################
@@ -368,7 +368,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                 'group': 'interest',
                 'groupselector': '#metanav-select-interest',
                 'childelementargs': [
-                    {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions,
+                    {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions_view,
                      'tableidtemplate': 'discussionitems-{{ parentid }}',
                      'postcreatehook': 'discussionitems_postcreate',
                      'args': {

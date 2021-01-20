@@ -106,14 +106,14 @@ class MemberStatusReportView(MemberStatusReportBase):
         return html.render()
 
 
-memberstatusreport = MemberStatusReportView(
+memberstatusreport_view = MemberStatusReportView(
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
     pagename='My Status Report',
     endpoint='admin.memberstatusreport',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/memberstatusreport',
 )
-memberstatusreport.register()
+memberstatusreport_view.register()
 
 ##########################################################################################
 # mymeetings endpoint
@@ -140,7 +140,7 @@ mymeetings_formmapping['gs_agenda'] = lambda row: row.meeting.gs_agenda if row.m
 mymeetings_formmapping['gs_status'] = lambda row: row.meeting.gs_status if row.meeting.gs_status else ''
 mymeetings_formmapping['gs_minutes'] = lambda row: row.meeting.gs_minutes if row.meeting.gs_minutes else ''
 
-mymeetings = MyMeetingsView(
+mymeetings_view = MyMeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -217,7 +217,7 @@ mymeetings = MyMeetingsView(
         'order': [['date:name', 'desc']],
     },
 )
-mymeetings.register()
+mymeetings_view.register()
 
 ##########################################################################################
 # myactionitems endpoint
@@ -248,7 +248,7 @@ agendaitems_yadcf_options = [
     yadcfoption('status:name', 'agendaitems-external-filter-status', 'multi_select', placeholder='Select statuses', width='200px'),
 ]
 
-myactionitems = MyActionItemsView(
+myactionitems_view = MyActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -310,7 +310,7 @@ myactionitems = MyActionItemsView(
         'order': [['date:name', 'desc']],
     },
 )
-myactionitems.register()
+myactionitems_view.register()
 
 
 ##########################################################################################
@@ -320,7 +320,7 @@ myactionitems.register()
 class MemberActionItemsView(ActionItemsBase):
     pass
 
-memberactionitems = MemberActionItemsView(
+memberactionitems_view = MemberActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Action Items',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
@@ -330,7 +330,7 @@ memberactionitems = MemberActionItemsView(
         'csv'
     ],
 )
-memberactionitems.register()
+memberactionitems_view.register()
 
 ##########################################################################################
 # membermotionsvote endpoint
@@ -339,7 +339,7 @@ memberactionitems.register()
 class MemberMotionVotesView(MotionVotesBase):
     pass
 
-membermotionvotes = MemberMotionVotesView(
+membermotionvotes_view = MemberMotionVotesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Motion Votes',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
@@ -349,7 +349,7 @@ membermotionvotes = MemberMotionVotesView(
         'csv'
     ],
 )
-membermotionvotes.register()
+membermotionvotes_view.register()
 
 ##########################################################################################
 # membermotions endpoint
@@ -358,7 +358,7 @@ membermotionvotes.register()
 class MemberMotionsView(MotionsBase):
     pass
 
-membermotions = MemberMotionsView(
+membermotions_view = MemberMotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Motions',
     templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
@@ -373,11 +373,11 @@ membermotions = MemberMotionsView(
         'group': 'interest',
         'groupselector': '#metanav-select-interest',
         'childelementargs': motions_childelementargs.get_childelementargs({
-            'motionvotes': membermotionvotes,
+            'motionvotes': membermotionvotes_view,
         }),
     },
 )
-membermotions.register()
+membermotions_view.register()
 
 
 ##########################################################################################

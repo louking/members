@@ -41,7 +41,7 @@ interestattr_formmapping['initial_expiration'] = lambda dbrow: dbrow.initial_exp
 
 interestattr_formmapping['interest'] = lambda li: Interest.query.filter_by(id=li.interest_id).one().description
 
-interestattr = DbCrudApiRolePermissions(
+interestattr_view = DbCrudApiRolePermissions(
                     roles_accepted = [ROLE_SUPER_ADMIN],
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -118,5 +118,5 @@ interestattr = DbCrudApiRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-interestattr.register()
+interestattr_view.register()
 

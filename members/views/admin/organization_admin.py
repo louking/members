@@ -70,7 +70,7 @@ position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
 
-position = DbCrudApiInterestsRolePermissions(
+position_view = DbCrudApiInterestsRolePermissions(
                     roles_accepted = organization_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -159,7 +159,7 @@ position = DbCrudApiInterestsRolePermissions(
                                         'scrollY': True,
                                   },
                     )
-position.register()
+position_view.register()
 
 
 ##########################################################################################
@@ -225,7 +225,7 @@ positiondate_yadcf_options = {
     ]
 }
 
-positiondate = PositionDateView(
+positiondate_view = PositionDateView(
     roles_accepted=organization_roles,
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -303,7 +303,7 @@ positiondate = PositionDateView(
         'scrollY': True,
     },
 )
-positiondate.register()
+positiondate_view.register()
 
 ##########################################################################################
 # tags endpoint
