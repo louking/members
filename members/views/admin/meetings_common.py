@@ -413,6 +413,37 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         # this causes self.dte.get_response_data to execute postprocessrow() to transform returned response
         self.dte.set_response_hook(self.postprocessrow)
 
+    def check_date(self, meeting, col):
+        '''
+        check if col should be included in display based on whether meeting is in the future
+
+        :param meeting: meeting instance for current meeting
+        :param col: column to check
+        :return: True if column should be included
+        '''
+        rv = True
+        today = date.today()
+        if meeting.date < today:
+            conditionalcols = ['edit-control']
+            colname = col['name'].split('.')[0]
+            if colname in conditionalcols:
+                rv = False
+        return rv
+
+    def getdtoptions(self):
+        '''limit columns to those this user is allowed to see'''
+        dtoptions = super().getdtoptions()
+        meeting = self.get_meeting()
+        dtoptions['columns'] = [c for c in dtoptions['columns'] if self.check_date(meeting, c)]
+        return dtoptions
+
+    def getedoptions(self):
+        '''limit form fields to those this user is allowed to see'''
+        edoptions = super().getedoptions()
+        meeting = self.get_meeting()
+        edoptions['fields'] = [c for c in edoptions['fields'] if self.check_date(meeting, c)]
+        return edoptions
+
     def get_meeting(self):
         invitekey = request.args.get('invitekey', None)
         if invitekey:
