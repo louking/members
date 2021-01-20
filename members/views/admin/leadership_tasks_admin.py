@@ -534,7 +534,12 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         # retrieve member data from localusers
         members = []
         for localuser in iter(localusers):
-            members.append({'localuser':localuser, 'member': User.query.filter_by(id=localuser.user_id).one()})
+            # None can be returned, but it seems like this should happen only if the User table was manipulated
+            # manually without adjusting the LocalUser table accordingly.
+            # This should only happen in development testing of member management
+            user = User.query.filter_by(id=localuser.user_id).one_or_none()
+            if user:
+                members.append({'localuser':localuser, 'member': user})
 
         tasksmembers = []
         for member in members:
