@@ -107,7 +107,7 @@ def nav_menu():
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)
-                org_admin_view(orgadmin, 'Members', 'userrole.members', interest=g.interest)
+                org_admin_view(orgadmin, 'Members', 'userrole.members')
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
                 org_admin_view(orgadmin, 'Tags', 'admin.tags', interest=g.interest)
@@ -159,7 +159,6 @@ def nav_menu():
         if current_user.has_role(ROLE_SUPER_ADMIN):
             userroles = Subgroup('Super')
             navbar.items.append(userroles)
-            leadership_superadmin_view(userroles, 'Members', 'userrole.members')
             leadership_superadmin_view(userroles, 'Interest Attributes', 'admin.interestattrs')
 
             if g.interest:
