@@ -10,13 +10,14 @@ from datetime import date
 from flask import g, current_app, request, url_for
 from flask_security import current_user
 from markdown import markdown
-from dominate.tags import a
+from dominate.tags import a, div, input, button
 
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
 from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from loutilities.tables import SEPARATOR, get_request_data
+from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.tablefiles import FieldUpload
@@ -92,6 +93,19 @@ def addlfields(task):
         taskfields.append(thistaskfield)
     return taskfields
 
+def taskchecklist_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
+
+            with datefilter:
+                input(type='text', id='effective-date', name='effective-date' )
+                button('Today', id='todays-date-button')
+
+    return pretablehtml.render()
+
 taskchecklist_dbattrs = 'id,task,description,priority,__readonly__,__readonly__,__readonly__,__readonly__,__readonly__'.split(',')
 taskchecklist_formfields = 'rowid,task,description,priority,lastcompleted,addlfields,status,order,expires'.split(',')
 taskchecklist_dbmapping = dict(zip(taskchecklist_dbattrs, taskchecklist_formfields))
@@ -122,6 +136,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             rule='/<interest>/taskchecklist',
             dbmapping=taskchecklist_dbmapping,
             formmapping=taskchecklist_formmapping,
+            pretablehtml=taskchecklist_pretablehtml,
             validate = self._validate,
             clientcolumns=[
                 {'data': '',  # needs to be '' else get exception converting options from meetings render_template
@@ -209,7 +224,8 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         member = self._get_localuser()
 
         # collect all the tasks which are referenced by positions and taskgroups for this member
-        tasks = get_member_tasks(member, date.today())
+        ondate = request.args.get('ondate', date.today())
+        tasks = get_member_tasks(member, ondate)
 
         for task in iter(tasks):
             theserows.append(task)

@@ -31,6 +31,12 @@ tell the system you've completed the task.
 
 .. |icon-view-2779aa| image:: images/icon-view-2779aa.*
 
+The view has the following filters:
+
+    :In Position On:
+        date of interest for when you held the :term:`positions <position>`. Normally this can be left alone
+        as it defaults to 'today'
+
 .. note::
     When you click on a document link, Google may tell you
     **you don’t have permission to access the document, or to verify it’s you and log in again** -- if this happens,

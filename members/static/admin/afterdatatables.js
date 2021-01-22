@@ -105,6 +105,44 @@ function add_fields_and_set_vals(e, node, data, items, type) {
     set_field_vals();
 }
 
+/**
+ * reset datatable data based on effective date
+ *
+ * @param effective_date_id - element for datepicker to hold effective date, e.g., '#effective-date'
+ * @param todays_date_id - button to reset datepicker to today, e.g., '#todays-date-button'
+ */
+function set_effective_date(effective_date_id, todays_date_id) {
+    var effectivedate = $(effective_date_id);
+    var todaysdate = $(todays_date_id);
+
+    // set initial filter to today
+    var today = new Date();
+    today = today.toISOString().substr(0,10);
+
+    // effective date is datepicker; todays date is button
+    effectivedate.datepicker({dateFormat: 'yy-mm-dd'});
+    effectivedate.val(today);
+    todaysdate.button();
+
+    // handle change of effective date by setting column filters appropriately
+    effectivedate.change(function(e) {
+       var ondate = effectivedate.val();
+       var urlparams = allUrlParams();
+       urlparams.ondate = ondate;
+       resturl = window.location.pathname + '/rest?' + setParams(urlparams);
+       refresh_table_data(_dt_table, resturl);
+    });
+
+    // reset the effective date
+    todaysdate.click(function(e) {
+        // reset today because window may have been up for a while
+        today = new Date();
+        today = today.toISOString().substr(0,10);
+        effectivedate.val(today);
+        effectivedate.change();
+    })
+}
+
 function afterdatatables() {
     console.log('afterdatatables()');
 
@@ -120,6 +158,9 @@ function afterdatatables() {
     // special processing for task checklist
     if (location.pathname.includes('/taskchecklist'))
     {
+        // handle effective date update by retrieving data by /rest and refreshing table
+        set_effective_date('#effective-date', '#todays-date-button');
+
         // add and clear additional fields appropriately
         editor.on('initEdit', function(e, node, data, items, type) {
             add_field_vals(data);
@@ -439,35 +480,8 @@ function afterdatatables() {
 
         // special processing for positions
     } else if (location.pathname.includes('/positions')) {
-        var effectivedate = $('#effective-date');
-        var todaysdate = $('#todays-date-button');
-
-        // set initial filter to today
-        var today = new Date();
-        today = today.toISOString().substr(0,10);
-
-        // effective date is datepicker; todays date is button
-        effectivedate.datepicker({dateFormat: 'yy-mm-dd'});
-        effectivedate.val(today);
-        todaysdate.button();
-
-        // handle change of effective date by setting column filters appropriately
-        effectivedate.change(function(e) {
-           var ondate = effectivedate.val();
-           var urlparams = allUrlParams();
-           urlparams.ondate = ondate;
-           resturl = window.location.pathname + '/rest?' + setParams(urlparams);
-           refresh_table_data(_dt_table, resturl);
-        });
-
-        // clear the effective date
-        todaysdate.click(function(e) {
-            // reset today because window may have been up for a while
-            today = new Date();
-            today = today.toISOString().substr(0,10);
-            effectivedate.val(today);
-            effectivedate.change();
-        })
+        // handle effective date update by retrieving data by /rest and refreshing table
+        set_effective_date('#effective-date', '#todays-date-button');
 
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
         position_wizard_editor = new $.fn.dataTable.Editor({
