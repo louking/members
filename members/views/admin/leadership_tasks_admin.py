@@ -10,6 +10,7 @@ from re import match
 from flask import g, url_for, request
 from flask_security import current_user
 from slugify import slugify
+from dominate.tags import input, button
 
 # homegrown
 from . import bp
@@ -544,12 +545,11 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         tasksmembers = []
         for member in members:
             # collect all the tasks which are referenced by positions and taskgroups for this member
-            # todo: #322 use effective date to retrieve positions for member
-            tasks = get_member_tasks(member['localuser'], date.today())
+            ondate = request.args.get('ondate', date.today())
+            tasks = get_member_tasks(member['localuser'], ondate)
 
             # create/add taskmember to list for all tasks
-            # todo: #322 use effective date to retrieve positions for member
-            active_positions = positions_active(member['localuser'], date.today())
+            active_positions = positions_active(member['localuser'], ondate)
             for task in iter(tasks):
                 membertaskid = self.setid(member['localuser'].id, task.id)
                 taskmember = TaskMember(
@@ -590,18 +590,17 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
 
         member = {'localuser': luser, 'member': User.query.filter_by(id=luser.user_id).one()}
 
+        ondate = request.args.get('ondate', date.today())
         taskmember = TaskMember(
             id=thisid,
             task=task, task_taskgroups=task.taskgroups,
             member=member['member'],
-            # todo: #322 use effective date to retrieve positions for member
-            member_positions=positions_active(member['localuser'], date.today()),
+            member_positions=positions_active(member['localuser'], ondate),
         )
 
         # drill down to get all the taskgroups
         member_taskgroups = set()
-        # todo: #322 use effective date to retrieve positions for member
-        for position in positions_active(member['localuser'], date.today()):
+        for position in positions_active(member['localuser'], ondate):
             get_position_taskgroups(position, member_taskgroups)
         for taskgroup in member['localuser'].taskgroups:
             get_taskgroup_taskgroups(taskgroup, member_taskgroups)
@@ -618,6 +617,7 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         '''
         theseids = ids.split(',')
         responsedata = []
+        ondate = request.args.get('ondate', date.today())
         for thisid in theseids:
             # id is made up of localuser.id, task.id
             localuserid, taskid = self.getids(thisid)
@@ -630,8 +630,7 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
                 id=thisid,
                 task=task, task_taskgroups=task.taskgroups,
                 member=member['member'],
-                # todo: #322 use effective date to retrieve positions for member
-                member_positions=positions_active(member['localuser'], date.today()),
+                member_positions=positions_active(member['localuser'], ondate),
                 member_taskgroups=member['localuser'].taskgroups,
             )
 
@@ -679,14 +678,19 @@ def taskdetails_validate(action, formdata):
     return results
 
 taskdetails_filters = filtercontainerdiv()
-taskdetails_filters += filterdiv('members-external-filter-members', 'Member')
-taskdetails_filters += filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
-taskdetails_filters += filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
-taskdetails_filters += filterdiv('members-external-filter-tasks', 'Task')
-taskdetails_filters += filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
-taskdetails_filters += filterdiv('members-external-filter-statuses', 'Status')
-taskdetails_filters += filterdiv('members-external-filter-completed', 'Last Completed')
-taskdetails_filters += filterdiv('members-external-filter-expires', 'Expiration Date')
+with taskdetails_filters:
+    filterdiv('members-external-filter-members', 'Member')
+    filterdiv('members-external-filter-positions-by-member', 'Members in Positions')
+    filterdiv('members-external-filter-taskgroups-by-member', 'Members in Task Groups')
+    filterdiv('members-external-filter-tasks', 'Task')
+    filterdiv('members-external-filter-taskgroups-by-task', 'Tasks in Task Groups')
+    filterdiv('members-external-filter-statuses', 'Status')
+    filterdiv('members-external-filter-completed', 'Last Completed')
+    filterdiv('members-external-filter-expires', 'Expiration Date')
+    datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
+    with datefilter:
+        input(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing')
+        button('Today', id='todays-date-button')
 
 taskdetails_yadcf_options = [
     yadcfoption('member:name', 'members-external-filter-members', 'multi_select', placeholder='Select members', width='200px'),

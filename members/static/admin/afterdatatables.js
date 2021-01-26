@@ -174,6 +174,9 @@ function afterdatatables() {
 
     // special processing for task details
     } else if (location.pathname.includes('/taskdetails')) {
+        // handle effective date update by retrieving data by /rest and refreshing table
+        set_effective_date('#effective-date', '#todays-date-button');
+
         // set up registered filters (id, default for local storage, transient => don't update local storage
         fltr_register('members-external-filter-members', null, true);
         fltr_register('members-external-filter-positions-by-member', null, true);

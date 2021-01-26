@@ -188,6 +188,9 @@ The view has the following filters:
     :Expiration Date:
         chooses the date range for the expiration date, can set start, finish or both
 
+    :In Position On:
+        date of interest for which :term:`members <member>` hold :term:`positions <position>`
+
 .. image:: images/task-details-view.*
     :align: center
 

@@ -376,7 +376,6 @@ def get_tags_users(tags, users, ondate):
     # collect all the users which have the indicated tags
     for tag in tags:
         for position in tag.positions:
-            # todo: #322 use effective date to retrieve positions for member
             for member in members_active(position, ondate):
                 users.add(member)
         for user in tag.users:

@@ -383,6 +383,18 @@ h1 .select2-selection__rendered {
     color: #377ba8 !important;
 }
 
+/* mimic select2 sizing */
+.like-select2-sizing {
+    /* match select2-container--default */
+    background-color: white;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    cursor: text;
+    /* match select2-container */
+    box-sizing: border-box;
+    min-height: 32px;
+}
+
 /* hidden row display */
 table.dataTable tbody tr.hidden-row:not(.selected) {
     background-color: Peru;
