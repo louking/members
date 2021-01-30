@@ -541,5 +541,11 @@ function afterdatatables() {
         position_wizard_editor.on('submitComplete closed', function(e) {
             effectivedate.change();
         });
+
+    // special processing for distribution
+    } else if (location.pathname.includes('/distribution')) {
+        // handle effective date update by retrieving data by /rest and refreshing table
+        set_effective_date('#effective-date', '#todays-date-button');
+
     }
 }

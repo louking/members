@@ -68,13 +68,16 @@ Glossary
         a formal proposal put to the voting :term:`members <member>`, for which a :term:`vote` will be taken and
         a formal decision made
 
+    organization
+        the group of :term:`members <member>` who hold :term:`positions <position>` for managing the :term:`interest`
+
     organization admin
         :term:`members <member>` who serve in a supervisory position and
-        can manage the organization by creating :term:`members <member>`, :term:`positions <position>`, and
+        can manage the :term:`organization` by creating :term:`members <member>`, :term:`positions <position>`, and
         assigning :term:`members <member>` to :term:`positions <position>`.
 
     position
-        the volunteer position that a member is assigned. Examples: President, Training Coach, Race Director
+        the volunteer position that a :term:`member` is assigned. Examples: President, Training Coach, Race Director
 
     rsvp
         when a :term:`member` is :term:`invited <invite>` to a :term:`meeting`, they are given a link to a form

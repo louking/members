@@ -6,6 +6,49 @@ This page gives a reference to all **membertility** views which are available to
 :term:`members <member>` who have access to the Organization menu via various :term:`security roles <security role>`.
 
 
+.. _Distribution List view:
+
+Distribution List view
+===========================
+**Navigation:** Organization > Distribution List
+
+The Distribution List view is used to view and download a distribution list, suitable for copy/paste into an
+email client. The **CSV** button can be used to download a csv file of the filtered view.
+
+    :Member:
+        the :term:`member's <member>` name
+
+    :Email:
+        email address for the :term:`member`
+
+    :Position Tags:
+        the :term:`tags <tag>` which are implied by the :term:`member's <member>` :term:`positions <position>`
+
+    :Positions:
+        the :term:`positions <position>` held by the :term:`member` on **In Position On** date
+
+    :Roles:
+        the :term:`security role(s) <security role>` which are used by the application when this
+        :term:`member` is accessing the system
+
+The view has the following filters:
+
+    :Tags:
+        the :term:`tags <tag>` of interest which are implied by the :term:`member's <member>` :term:`positions <position>`
+
+    :Positions:
+        the :term:`positions <position>` of interest held by the :term:`member` on **In Position On** date
+
+    :Roles:
+        the :term:`security role(s) <security role>` of interest
+
+    :In Position On:
+        date of interest for which :term:`members <member>` hold :term:`positions <position>`
+
+.. image:: images/distribution-list-view.*
+    :align: center
+
+
 .. _Members view:
 
 Members view

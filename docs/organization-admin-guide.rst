@@ -65,8 +65,10 @@ column below, and used for the **Used For** purpose in the **View** column below
         - :ref:`Meetings view`
 
 
+.. _Email Distribution List:
 
+Email Distribution List
+===========================
 
-
-
-
+Sometimes it may be desirable to send emails to :term:`members <member>` in the :term:`organization` using regular
+email. For this the :ref:`Distribution List view` can be used to download a csv file of email addresses.

@@ -17,15 +17,15 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition, Position, Tag
 from ...model import localinterest_query_params, localinterest_viafilter
-from ...helpers import members_active, all_active_members, member_position_active, member_positions
+from ...helpers import members_active, all_active_members, member_position_active, member_positions, positions_active
 from .viewhelpers import dtrender, localinterest
 
-from loutilities.user.model import User
+from loutilities.user.model import User, Interest, Role
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
-from loutilities.tables import get_request_action, get_request_data, page_url_for
+from loutilities.tables import get_request_action, get_request_data, page_url_for, SEPARATOR
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN
-from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.user.tables import DbCrudApiInterestsRolePermissions, DteDbOptionsPickerBase
 
 class ParameterError(Exception): pass
 
@@ -207,11 +207,6 @@ def positiondate_pretablehtml():
         with filtercontainerdiv(style='margin-bottom: 4px;'):
             filterdiv('positiondate-external-filter-startdate', 'In Position On')
 
-        # with datefilter:
-        #     label('In Position On', _for='effective-date')
-        #     input(type='text', id='effective-date', name='effective-date', value=dtrender.dt2asc(date.today()))
-        #     a('Clear Date', id='clear-date', href='#')
-        # filters = div(style='display: none;')
     return pretablehtml.render()
 
 positiondate_yadcf_options = {
@@ -508,3 +503,187 @@ class PositionWizardApi(MethodView):
 
 bp.add_url_rule('/<interest>/_positionwizard/rest', view_func=PositionWizardApi.as_view('positionwizard'),
                 methods=['GET', 'POST'])
+
+##########################################################################################
+# distribution endpoint
+###########################################################################################
+
+def distribution_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            filterdiv('distribution-external-filter-tags', 'Tags')
+            filterdiv('distribution-external-filter-positions', 'Positions')
+            filterdiv('distribution-external-filter-roles', 'Roles')
+
+            with filterdiv('distribution-external-filter-startdate', 'In Position On'):
+                input(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing' )
+                button('Today', id='todays-date-button')
+
+    return pretablehtml.render()
+
+distribution_yadcf_options = [
+    yadcfoption('tags.tag:name', 'distribution-external-filter-tags', 'multi_select',
+                placeholder='Select tags', width='200px'),
+    yadcfoption('positions.position:name', 'distribution-external-filter-positions', 'multi_select',
+                placeholder='Select positions', width='200px'),
+    yadcfoption('roles.role:name', 'distribution-external-filter-roles', 'multi_select',
+                placeholder='Select roles', width='200px'),
+]
+
+distribution_dbattrs = 'id,interest_id,name,email,__readonly__,__readonly__,__readonly__'.split(',')
+distribution_formfields = 'rowid,interest_id,name,email,positions,tags,roles'.split(',')
+distribution_dbmapping = dict(zip(distribution_dbattrs, distribution_formfields))
+distribution_formmapping = dict(zip(distribution_formfields, distribution_dbattrs))
+
+class PositionsPicker(DteDbOptionsPickerBase):
+    def __init__(self):
+        super().__init__(
+            labelfield='position',
+        )
+
+    def get(self, dbrow_or_id):
+        localuser = self.get_dbrow(dbrow_or_id)
+        ondate = request.args.get('ondate', date.today())
+        positions = positions_active(localuser, ondate)
+        positions.sort(key=lambda p: p.position.lower())
+        labelitems = [p.position for p in positions]
+        valueitems = [str(p.id) for p in positions]
+        items = {'position': SEPARATOR.join(labelitems), 'id': SEPARATOR.join(valueitems)}
+        return items
+
+    def options(self):
+        positions = Position.query.filter_by(interest=localinterest()).all()
+        positions.sort(key=lambda p: p.position.lower())
+        options = [{'label': p.position, 'value': p.id} for p in positions]
+        return options
+
+    def col_options(self):
+        col = {}
+        col['type'] = 'select2'
+        col['onFocus'] = 'focus'
+        col['opts'] = {'minimumResultsForSearch': 0 if self.searchbox else 'Infinity',
+                       'multiple': True}
+        col['separator'] = SEPARATOR
+        return col
+
+class TagsPicker(DteDbOptionsPickerBase):
+    def __init__(self):
+        super().__init__(
+            labelfield='tag'
+        )
+
+    def get(self, dbrow_or_id):
+        localuser = self.get_dbrow(dbrow_or_id)
+        ondate = request.args.get('ondate', date.today())
+        positions = positions_active(localuser, ondate)
+        active_tags = set()
+        for p in positions:
+            active_tags |= set(p.tags)
+        tags = list(active_tags)
+        tags.sort(key=lambda t: t.tag.lower())
+
+        labelitems = [t.tag for t in tags]
+        valueitems = [str(t.id) for t in tags]
+        items = {'tag': SEPARATOR.join(labelitems), 'id': SEPARATOR.join(valueitems)}
+        return items
+
+    def options(self):
+        tags = Tag.query.filter_by(interest=localinterest()).all()
+        tags.sort(key=lambda t: t.tag.lower())
+        options = [{'label': t.tag, 'value': t.id} for t in tags]
+        return options
+
+    def col_options(self):
+        col = {}
+        col['type'] = 'select2'
+        col['onFocus'] = 'focus'
+        col['opts'] = {'minimumResultsForSearch': 0 if self.searchbox else 'Infinity',
+                       'multiple': True}
+        col['separator'] = SEPARATOR
+        return col
+
+class RolesPicker(DteDbOptionsPickerBase):
+    def __init__(self):
+        super().__init__(
+            labelfield='role'
+        )
+
+    def get(self, dbrow_or_id):
+        localuser = self.get_dbrow(dbrow_or_id)
+        user = User.query.filter_by(id=localuser.user_id).one()
+        roles = user.roles[:]
+        roles.sort(key=lambda r: r.name)
+
+        labelitems = [r.name for r in roles]
+        valueitems = [str(r.id) for r in roles]
+        items = {'role': SEPARATOR.join(labelitems), 'id': SEPARATOR.join(valueitems)}
+        return items
+
+    def options(self):
+        interest = Interest.query.filter_by(interest=g.interest).one()
+        roles = [r for r in Role.query.all() if g.loutility in r.applications]
+        roles.sort(key=lambda r: r.name)
+        options = [{'label': r.name, 'value': r.id} for r in roles]
+        return options
+
+    def col_options(self):
+        col = {}
+        col['type'] = 'select2'
+        col['onFocus'] = 'focus'
+        col['opts'] = {'minimumResultsForSearch': 0 if self.searchbox else 'Infinity',
+                       'multiple': True}
+        col['separator'] = SEPARATOR
+        return col
+
+class DistributionView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        # we're only interested in active users using the current interest for this view
+        self.queryparams = localinterest_query_params()
+        self.queryparams['active'] = True
+
+distribution_view = DistributionView(
+                    roles_accepted = organization_roles,
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = LocalUser,
+                    template = 'datatables.jinja2',
+                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+                    pagename = 'Distribution List',
+                    endpoint = 'admin.distribution',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/distribution',
+                    dbmapping = distribution_dbmapping,
+                    formmapping = distribution_formmapping,
+                    pretablehtml = distribution_pretablehtml,
+                    yadcfoptions=distribution_yadcf_options,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'name', 'name': 'name', 'label': 'Member',
+                         },
+                        {'data': 'email', 'name': 'email', 'label': 'Email',
+                         },
+                        {'data': 'tags', 'name': 'tags', 'label': 'Position Tags',
+                         '_treatment': {'relationship': { 'optionspicker': TagsPicker() } }
+                         },
+                        {'data': 'positions', 'name': 'positions', 'label': 'Positions',
+                         '_treatment': {'relationship': { 'optionspicker': PositionsPicker() } }
+                         },
+                        {'data': 'roles', 'name': 'roles', 'label': 'Roles',
+                         '_treatment': {'relationship': { 'optionspicker': RolesPicker() } }
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid',
+                    buttons = lambda: [
+                        'csv'],
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+distribution_view.register()
