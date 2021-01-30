@@ -447,7 +447,10 @@ class PositionWizardApi(MethodView):
 
             # get the members which admin wants to be in the position on the effective date
             # separator must match afterdatatables.js else if (location.pathname.includes('/positions'))
-            resultmemberids = requestdata['keyless']['members'].split(', ')
+            # (if empty string is returned, there were no memberids, so use empty list)
+            resultmemberids = []
+            if requestdata['keyless']['members']:
+                resultmemberids = requestdata['keyless']['members'].split(', ')
             resultmembers = [LocalUser.query.filter_by(id=id).one() for id in resultmemberids]
 
             # terminate all current members in this position who should not remain in the result set

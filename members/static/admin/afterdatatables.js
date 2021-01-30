@@ -539,6 +539,7 @@ function afterdatatables() {
 
         // need to refresh and redraw after wizard in case position changes should be visible
         position_wizard_editor.on('submitComplete closed', function(e) {
+            var effectivedate = $('#effective-date');
             effectivedate.change();
         });
 
