@@ -245,7 +245,7 @@ positiondate_view = PositionDateView(
              'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name', 'formfield': 'user',
                               'dbfield': 'user', 'uselist': False,
                               'searchbox': True,
-                              'queryparams': lambda: dict(**{'active': True}, **localinterest_query_params()),
+                              'queryparams': lambda: localinterest_query_params(),
                               }}
          },
         {'data': 'position', 'name': 'position', 'label': 'Position',
