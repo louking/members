@@ -642,9 +642,8 @@ class RolesPicker(DteDbOptionsPickerBase):
 
 class DistributionView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
-        # we're only interested in active users using the current interest for this view
+        # we're only interested in users using the current interest for this view
         self.queryparams = localinterest_query_params()
-        self.queryparams['active'] = True
 
 distribution_view = DistributionView(
                     roles_accepted = organization_roles,
