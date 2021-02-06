@@ -1,12 +1,6 @@
-###########################################################################################
-# blueprint for this view folder
-#
-#       Date            Author          Reason
-#       ----            ------          ------
-#       03/04/20        Lou King        Create
-#
-#   Copyright 2020 Lou King
-###########################################################################################
+'''
+blueprint for this folder
+'''
 
 from flask import Blueprint
 

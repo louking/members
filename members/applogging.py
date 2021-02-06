@@ -1,14 +1,3 @@
-#!/usr/bin/python
-###########################################################################################
-# applogging - define logging for the application
-#
-#   Date        Author          Reason
-#   ----        ------          ------
-#   07/06/18    Lou King        Create (from https://github.com/louking/rrwebapp/blob/master/rrwebapp/applogging.py)
-#
-#   Copyright 2018 Lou King
-#
-###########################################################################################
 '''
 applogging - define logging for the application
 ================================================

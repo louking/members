@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_blank">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FSRC Memorial Scholarship Application</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    {# https://docs.fineuploader.com/quickstart/01-getting-started.html #}
+{#    <link rel="stylesheet" href="/static/js/fine-uploader-5.16.2/jquery.fine-uploader/fine-uploader.min.css">#}
+    <style>
+      .disclaimer{width: 480px; color:#646464;margin:20px auto;padding:0 16px;text-align:center;font:400 12px Roboto,Helvetica,Arial,sans-serif}.disclaimer a{color:#009688}#credit{display:none}
+    </style>
+  </head>
+  <body>
+
+    <!-- adapted from code written by Amit Agarwal amit@labnol.org -->
+
+    <form class="main" id="form" novalidate="novalidate" style="max-width: 480px;margin: 40px auto;">
+      <div id="forminner">
+        <div class="row">
+          <div class="col s12">
+            <h5 class="center-align teal-text">FSRC Memorial Scholarship Application</h5>
+            <p class="disclaimer">Please follow the application instructions found at <a href=http://steeplechasers.org/about/fsrc-memorial-scholarship/fsrc-memorial-scholarship-application-process/>FSRC Memorial Scholarship Application Process</a></p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="name" type="text" name="Name" class="validate" required="" aria-required="true">
+            <label for="name">Name</label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="email" type="email" name="Email" class="validate" required="" aria-required="true">
+            <label for="email">Email Address</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="file-field input-field col s12">
+            <div class="btn">
+              <span>Files</span>
+              <input id="files" type="file" multiple />
+            </div>
+            <div class="file-path-wrapper">
+              <input class="file-path validate" type="text" placeholder="Select one or more files on your computer">
+            </div>
+            Note: you can select multiple files or do a SUBMIT for each file
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="input-field col s6">
+            <button class="waves-effect waves-light btn submit-btn" type="submit"
+{#                    onclick="submitForm(); return false;"#}
+            >Submit</button>
+          </div>
+        </div>
+        <div class="row">
+         <p class="disclaimer">
+         If you have any problems submitting this form, or questions on how to use this form,
+         please send an email describing what you did and what went wrong, or with your question, to
+         <a href="mailto:memorialscholarship@steeplechasers.org?subject=[FSRC Memorial Scholarship - Help] problem or question on application form">memorialscholarship@steeplechasers.org</a>
+         </p>
+        </div>
+        <div class="row">
+          <div class="input-field col s12" id = "progress">
+          </div>
+        </div>
+      </div>
+      <div id="success" style="display:none">
+        <h5 class="left-align teal-text">Files Uploaded</h5>
+        <p>Your application has been successfully submitted</p>
+        <p>Thank you for participating in the FSRC Memorial Scholarship application process</p>
+        <p>You will be hearing from us soon</p>
+        <p>If you have any questions, please send email to <a href="mailto:memorialscholarship@steeplechasers.org">memorialscholarship@steeplechasers.org</a>
+        <p>More files? Click <a id='morefiles', href='#'>here</a> to submit them</p>
+      </div>
+    </form>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    {# https://docs.fineuploader.com/quickstart/01-getting-started.html #}
+{#    <script src="/static/js/fine-uploader-5.16.2/jquery.fine-uploader/jquery.fine-uploader.min.js"></script>#}
+    <!--
+    <script src="https://gumroad.com/js/gumroad.js"></script>
+    -->
+    <script src="/static/frontend/fsrc-scholarship-appl.js"></script>
+
+  </body>
+
+</html>
