@@ -139,7 +139,10 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         # determine current order number, in case we need to add records
         max = db.session.query(func.max(AgendaItem.order)).filter_by(meeting_id=meeting_id).one()
         # if AgendaItem records configured, use current max + 1
-        order = max[0] + 1
+        if max[0]:
+            order = max[0] + 1
+        else:
+            order = 1
         agendaitem = AgendaItem(
             interest=localinterest(),
             meeting_id=formdata['meeting_id'],
@@ -530,7 +533,10 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         max = db.session.query(func.max(MemberStatusReport.order)).filter_by(**self.queryparams).filter(
                 *self.queryfilters).one()
         # if MemberStatusReport records configured, use current max + 1
-        order = max[0] + 1
+        if max[0]:
+            order = max[0] + 1
+        else:
+            order = 1
         dbrow = MemberStatusReport(
             interest=localinterest(),
             meeting=self.meeting,
