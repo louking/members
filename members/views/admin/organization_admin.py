@@ -645,6 +645,15 @@ class DistributionView(DbCrudApiInterestsRolePermissions):
         # we're only interested in users using the current interest for this view
         self.queryparams = localinterest_query_params()
 
+    def open(self):
+        '''
+        return the users which have active positions for the indicated date
+        '''
+        ondate = request.args.get('ondate', date.today())
+        allusers = self.model.query.filter_by(**self.queryparams).filter(*self.queryfilters).all()
+        activeusers = [u for u in allusers if positions_active(u, ondate)]
+        self.rows = iter(activeusers)
+
 distribution_view = DistributionView(
                     roles_accepted = organization_roles,
                     local_interest_model = LocalInterest,
@@ -679,13 +688,13 @@ distribution_view = DistributionView(
                     ],
                     servercolumns = None,  # not server side
                     idSrc = 'rowid',
-                    buttons = lambda: [
-                        'csv'],
+                    buttons = lambda: ['csv'],
                     dtoptions = {
-                                        'scrollCollapse': True,
-                                        'scrollX': True,
-                                        'scrollXInner': "100%",
-                                        'scrollY': True,
-                                  },
+                        'order': [['name:name', 'asc']],
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': True,
+                    },
                     )
 distribution_view.register()
