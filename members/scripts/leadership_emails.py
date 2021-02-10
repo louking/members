@@ -121,7 +121,7 @@ def main():
             subject = emailtemplate.subject
             if emailtemplate.from_email:
                 fromlist = emailtemplate.from_email
-            refurl = url_for('admin.taskchecklist', interest=g.interest)
+            refurl = url_for('admin.taskchecklist', interest=g.interest, _external=True)
 
             for emailaddr in mem2tasks:
                 # only send email if there are tasks overdue or upcoming
@@ -172,7 +172,7 @@ def main():
             subject = emailtemplate.subject
             if emailtemplate.from_email:
                 fromlist = emailtemplate.from_email
-            refurl = url_for('admin.taskdetails', interest=g.interest)
+            refurl = url_for('admin.taskdetails', interest=g.interest, _external=True)
 
             # loop through responsible managers, setting up their email
             for manager in responsibility:
