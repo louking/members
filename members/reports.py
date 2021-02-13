@@ -41,6 +41,8 @@ def meeting_gen_reports(meeting_id, reports):
 
     interest = localinterest()
     themeeting = Meeting.query.filter_by(id=meeting_id).one()
+    # must match meeting-status-report.jinja2
+    discussionfields = ['discussiontitle', 'agendaitem']
 
     def meeting_agenda_context():
         actionitems = ActionItem.query.filter_by(interest=interest).filter(
@@ -92,7 +94,7 @@ def meeting_gen_reports(meeting_id, reports):
         context = {'meeting': obj2dict(themeeting), 'reports': []}
         for position in positions:
             # if the position has an agenda heading configured, use that for the title, else use the name of the position
-            heading = position.agendaheading.heading if position.agendaheading else position.position
+            heading = '{}: {}'.format(position.agendaheading.heading, position.position) if position.agendaheading else position.position
 
             sr = pos2sr.get(position.id, None)
 
@@ -108,10 +110,18 @@ def meeting_gen_reports(meeting_id, reports):
                 if sr.statusreport:
                     status = sr.statusreport
 
+                discussioncontexts = []
+                for discussion in discussions:
+                    if discussion.statusreport_id != sr.id: continue
+                    discussioncontext = {}
+                    for f in discussionfields:
+                        discussioncontext[f] = obj2dict(getattr(discussion, f))
+                    discussioncontexts.append(discussioncontext)
+
                 report = {
                     'title': '{} - {}'.format(heading, ', '.join(names)),
                     'statusreport': status,
-                    'discussions': [obj2dict(d) for d in discussions if d.statusreport_id == sr.id]
+                    'discussions': discussioncontexts
                 }
 
             # status report for position not found
@@ -140,11 +150,19 @@ def meeting_gen_reports(meeting_id, reports):
             if not sr.statusreport and not sr.discussionitems:
                 continue
 
+            discussioncontexts = []
+            for discussion in discussions:
+                if discussion.statusreport_id != sr.id: continue
+                discussioncontext = {}
+                for f in discussionfields:
+                    discussioncontext[f] = obj2dict(getattr(discussion, f))
+                discussioncontexts.append(discussioncontext)
+
             report = {
                 # there should only be one MemberStatusReport linked to this StatusReport
                 'title': '{} - {}'.format(sr.title, sr.memberstatusreports[0].invite.user.name),
                 'statusreport': obj2dict(sr.statusreport),
-                'discussions': [obj2dict(d) for d in discussions if d.statusreport_id == sr.id]
+                'discussions': discussioncontexts
             }
             context['reports'].append(report)
 
