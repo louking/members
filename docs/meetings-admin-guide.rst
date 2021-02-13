@@ -132,10 +132,6 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 * there will be a popup with the list of :term:`members <member>` who will be invited
 * click **Send Invitations**
 
-.. note::
-    sometimes the list of :term:`members <member>` isn't shown. This is a known problem which can be safely
-    ignored [#209]
-
 The :term:`invitations <invite>` are sent to the :term:`members <member>` who resolve to the **Invite Tags**
 specified for the :term:`meeting`, and an :term:`agenda item` with title *Attendees* is created. As
 :term:`invited <invite>` :term:`members <member>` :term:`rsvp` to the meeting, their **RSVP** will show whether
@@ -391,30 +387,37 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 add Google Workspace documents to a meeting folder
 ------------------------------------------------------
 
-Prior to any :term:`meeting` being created, this system would have been configured with the folder to store the Google
-Workspace documents which will be created, with a separate folder configuration for each type of document.
+Prior to any :term:`meeting` being created, the :term:`super admin` must configure the system with a folder to store the Google
+Workspace documents which will be created. There's a separate folder configuration for each type of document.
 
 .. note::
     the folders for the types of documents can be the same or different as desired
 
-If it is desired to have the documents available from some other folder (e.g., one which was created specifically for the
+If it is desired to have the documents accessible from some other folder (e.g., one which was created specifically for the
 meeting), manual intervention is needed.
 
-It is recommended that the file(s) be "Added" rather than "Moved" to the specific meeting folder. This allows meeting
-documents to be found in a well known place for ease of review across meetings, as well as in the folders for each meeting.
+The file(s) must be "Added" rather than "Moved" to the specific meeting folder. This allows meeting
+documents to be found in a well known place for ease of review across meetings, as well as in the folders for each
+meeting. But more importantly, membertility only has permission to write to certain folders, so if the file is
+moved that will cause problems with the access, and there will be unpredictable results.
 
 Using Google Workspaces,
 
 * open the folder where the file was created
+
+  * to find this folder, click on the file's link in the :ref:`Meetings view`, then in the browser address box,
+    change "preview" to "edit" and reload the page
+  * then click on the folder icon to the right of the filename, which opens a pull-down
+  * then click on the square/arrow icon to the right of the folder name in the pull-down to open the file's folder
+  * again **please don't move the file**
+
 * click on the file you want to add to another folder
 * on your keyboard, press **Shift + z**
 * choose the destination folder you want to add the file to
 * click **Add here**
 
-Now the same file(s) can be found by navigating to the known folder, or by navigating to the meeting folder, and any
+Now the same file(s) can be found by navigating to the well known folder, or by navigating to the meeting folder, and any
 changes to the file(s) will happen in both folders.
-
-Alternately the file can be moved, but again that is not recommended.
 
 .. warning::
     do not copy the file and save it somewhere else, as this would prevent the system from managing the file
@@ -422,7 +425,8 @@ Alternately the file can be moved, but again that is not recommended.
 
 .. warning::
     do not edit any of these files directly as the system may overwrite what you've changed. Rather, use the system to make
-    any changes you want to the file and use **Generate Docs** to make the update
+    any changes you want captured in the file. Then **Generate Docs** can be used to make the update to
+    the :term:`agenda` or :term:`minutes`. :term:`Status report <status report>` will be updated automatically.
 
 References
 
