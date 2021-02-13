@@ -14,10 +14,13 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
 from ...model import db, LocalInterest, LocalUser, CLUB_SERVICE_RUNSIGNUP
+from ...version import __docversion__
 from .viewhelpers import localinterest
 from running.runsignup import RunSignUp, ClubMemberships
 
 class parameterError(Exception): pass
+
+adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # members endpoint
@@ -74,7 +77,7 @@ clubmembers_view = ClubMembers(
                     db = db,
                     model = LocalUser,
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/membership-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pretablehtml = clubmembers_filters.render(),
                     yadcfoptions = clubmembers_yadcf_options,
                     pagename = 'Club Members',

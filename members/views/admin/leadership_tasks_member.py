@@ -16,6 +16,7 @@ from dominate.tags import a, div, input, button
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
 from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
+from ...version import __docversion__
 from loutilities.tables import SEPARATOR, get_request_data
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
@@ -25,6 +26,8 @@ from .viewhelpers import lastcompleted, get_status, get_order, get_expires
 from .viewhelpers import create_taskcompletion, get_task_completion, get_member_tasks
 
 debug = False
+
+adminguide = 'https://members.readthedocs.io/en/{docversion}/leadership-task-member-guide.html'.format(docversion=__docversion__)
 
 # field upload endpoint
 fieldupload = FieldUpload(
@@ -129,7 +132,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             local_interest_model=LocalInterest,
             roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
             template='datatables.jinja2',
-            templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-member-guide.html'},
+            templateargs={'adminguide': adminguide},
             pagename='Task Checklist',
             endpoint='admin.taskchecklist',
             endpointvalues={'interest': '<interest>'},

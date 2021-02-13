@@ -28,7 +28,7 @@ from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
-from .meetings_common import motions_childelementargs
+from .meetings_common import motions_childelementargs, adminguide
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -92,7 +92,7 @@ meetings_view = MeetingsView(
     model=Meeting,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Meetings',
     endpoint='admin.meetings',
     endpointvalues={'interest': '<interest>'},
@@ -248,7 +248,7 @@ invites_view = InvitesView(
     model=Invite,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pretablehtml=invites_filters.render(),
     yadcfoptions=invites_yadcf_options,
     pagename='Invites',
@@ -339,7 +339,7 @@ class ActionItemsView(ActionItemsBase):
 actionitems_view = ActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Action Items',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.actionitems',
     rule='/<interest>/actionitems',
     buttons=[
@@ -360,7 +360,7 @@ class MotionVotesView(MotionVotesBase):
 motionvotes_view = MotionVotesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Motion Votes',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.motionvotes',
     rule='/<interest>/motionvotes',
     buttons=[
@@ -419,7 +419,7 @@ class MotionsView(MotionsBase):
 motions_view = MotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     pagename='Motions',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.motions',
     rule='/<interest>/motions',
     buttons=[
@@ -636,7 +636,7 @@ meeting_view = MeetingView(
     model=AgendaItem,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Meeting',
     endpoint='admin.meeting',
     endpointvalues={'interest': '<interest>'},
@@ -905,7 +905,7 @@ class TheirStatusReportView(MemberStatusReportBase):
 
 theirstatusreport_view = TheirStatusReportView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Their Status Report',
     endpoint='admin.theirstatusreport',
     endpointvalues={'interest': '<interest>'},
@@ -1284,7 +1284,7 @@ meetingstatus_view = MeetingStatusView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     pretablehtml=meetingstatus_pretablehtml,
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     yadcfoptions=meetingstatus_yadcf_options,
     pagename='Meeting Status',
     endpoint='admin.meetingstatus',
@@ -1518,7 +1518,7 @@ agendaheadings_view = DbCrudApiInterestsRolePermissions(
     model=AgendaHeading,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Agenda Headings',
     endpoint='admin.agendaheadings',
     endpointvalues={'interest': '<interest>'},

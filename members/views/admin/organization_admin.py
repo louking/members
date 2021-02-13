@@ -19,6 +19,7 @@ from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPos
 from ...model import localinterest_query_params, localinterest_viafilter
 from ...helpers import members_active, all_active_members, member_position_active, member_positions, positions_active
 from .viewhelpers import dtrender, localinterest
+from ...version import __docversion__
 
 from loutilities.user.model import User, Interest, Role
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -32,6 +33,9 @@ class ParameterError(Exception): pass
 debug = False
 
 organization_roles = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN]
+adminguide = 'https://members.readthedocs.io/en/{docversion}/organization-admin-guide.html'.format(
+    docversion=__docversion__)
+
 
 ##########################################################################################
 # positions endpoint
@@ -78,7 +82,7 @@ position_view = DbCrudApiInterestsRolePermissions(
                     model = Position,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Positions',
                     endpoint = 'admin.positions',
                     endpointvalues={'interest': '<interest>'},
@@ -228,7 +232,7 @@ positiondate_view = PositionDateView(
     model=UserPosition,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Position Dates',
     endpoint='admin.positiondates',
     endpointvalues={'interest': '<interest>'},
@@ -317,7 +321,7 @@ tags_view = DbCrudApiInterestsRolePermissions(
     model=Tag,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Tags',
     endpoint='admin.tags',
     endpointvalues={'interest': '<interest>'},
@@ -661,7 +665,7 @@ distribution_view = DistributionView(
                     db = db,
                     model = LocalUser,
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/organization-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Distribution List',
                     endpoint = 'admin.distribution',
                     endpointvalues={'interest': '<interest>'},

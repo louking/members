@@ -20,6 +20,7 @@ from ...model import Position
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
+from ...version import __docversion__
 from ...helpers import positions_active
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires, localinterest
 from .viewhelpers import get_position_taskgroups, get_taskgroup_taskgroups
@@ -42,6 +43,8 @@ from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 class ParameterError(Exception): pass
 
 debug = False
+
+adminguide = 'https://members.readthedocs.io/en/{docversion}/leadership-task-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # tasks endpoint
@@ -125,7 +128,7 @@ task_view = TaskView(
                     assnlistfield='fields',
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'tasks.view.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Tasks',
                     endpoint = 'admin.tasks',
                     endpointvalues={'interest': '<interest>'},
@@ -273,7 +276,7 @@ taskfield_view = TaskFieldCrud(
                     model = TaskField,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Task Fields',
                     endpoint = 'admin.taskfields',
                     endpointvalues={'interest': '<interest>'},
@@ -402,7 +405,7 @@ taskgroup_view = DbCrudApiInterestsRolePermissions(
                     model = TaskGroup,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Task Groups',
                     endpoint = 'admin.taskgroups',
                     endpointvalues={'interest': '<interest>'},
@@ -712,7 +715,7 @@ taskdetails_view = TaskDetails(
                     template = 'datatables.jinja2',
                     templateargs = {
                         'tablefiles': lambda: fieldupload.list(),
-                        'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html',
+                        'adminguide': adminguide,
                     },
                     pretablehtml = taskdetails_filters.render(),
                     yadcfoptions = taskdetails_yadcf_options,
@@ -920,7 +923,7 @@ membersummary = MemberSummary(
                     db = db,
                     model = LocalUser,
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pretablehtml = membersummary_filters.render(),
                     yadcfoptions = membersummary_yadcf_options,
                     pagename = 'Member Summary',
@@ -1027,7 +1030,7 @@ history = DbCrudApiInterestsRolePermissions(
                     db = db,
                     model = TaskCompletion,
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-admin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pretablehtml = history_filters.render(),
                     yadcfoptions=history_yadcf_options,
                     pagename = 'History',

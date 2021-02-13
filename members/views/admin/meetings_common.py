@@ -26,6 +26,7 @@ from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...model import localinterest_query_params
 from ...model import MemberStatusReport, StatusReport
 from ...model import INVITE_RESPONSE_NO_RESPONSE
+from ...version import __docversion__
 from ...helpers import positions_active
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -34,6 +35,8 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
 class ParameterError(Exception): pass
+
+adminguide = 'https://members.readthedocs.io/en/{docversion}/meetings-admin-guide.html'.format(docversion=__docversion__)
 
 class ChildElementArgs():
     '''
@@ -209,7 +212,7 @@ memberdiscussions_view = MemberDiscussionsView(
     model=DiscussionItem,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-admin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Discussion Items',
     endpoint='admin.memberdiscussions',
     endpointvalues={'interest': '<interest>'},

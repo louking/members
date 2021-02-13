@@ -11,9 +11,12 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, Tag, localinterest_query_params
 from ...model import all_club_services
+from ...version import __docversion__
 from loutilities.user.model import Interest
 from loutilities.tables import DbCrudApiRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN
+
+adminguide = 'https://members.readthedocs.io/en/{docversion}/super-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # interestattrs endpoint
@@ -48,7 +51,7 @@ interestattr_view = DbCrudApiRolePermissions(
                     model = LocalInterest,
                     version_id_col = 'version_id',  # optimistic concurrency control
                     template = 'datatables.jinja2',
-                    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+                    templateargs={'adminguide': adminguide},
                     pagename = 'Interest Attributes',
                     endpoint = 'admin.interestattrs',
                     rule = '/interestattrs',

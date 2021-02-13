@@ -19,6 +19,7 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Invite, ActionItem
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
+from ...version import __docversion__
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs
 from .viewhelpers import localuser2user, user2localuser
@@ -32,7 +33,7 @@ displaytime = asctime('%Y-%m-%d %H:%M')
 
 class ParameterError(Exception): pass
 
-
+adminguide = 'https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # memberstatusreport endpoint
@@ -107,7 +108,7 @@ class MemberStatusReportView(MemberStatusReportBase):
 
 
 memberstatusreport_view = MemberStatusReportView(
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='My Status Report',
     endpoint='admin.memberstatusreport',
     endpointvalues={'interest': '<interest>'},
@@ -148,7 +149,7 @@ mymeetings_view = MyMeetingsView(
     model=Invite,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='My Meetings',
     endpoint='admin.mymeetings',
     endpointvalues={'interest': '<interest>'},
@@ -256,7 +257,7 @@ myactionitems_view = MyActionItemsView(
     model=ActionItem,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     pretablehtml=agendaitems_filters.render(),
     yadcfoptions=agendaitems_yadcf_options,
     pagename='My Action Items',
@@ -323,7 +324,7 @@ class MemberActionItemsView(ActionItemsBase):
 memberactionitems_view = MemberActionItemsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Action Items',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.memberactionitems',
     rule='/<interest>/memberactionitems',
     buttons=[
@@ -342,7 +343,7 @@ class MemberMotionVotesView(MotionVotesBase):
 membermotionvotes_view = MemberMotionVotesView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Motion Votes',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.membermotionvotes',
     rule='/<interest>/membermotionvotes',
     buttons=[
@@ -361,7 +362,7 @@ class MemberMotionsView(MotionsBase):
 membermotions_view = MemberMotionsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
     pagename='Motions',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/meetings-member-guide.html'},
+    templateargs={'adminguide': adminguide},
     endpoint='admin.membermotions',
     rule='/<interest>/membermotions',
     buttons=[

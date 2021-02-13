@@ -11,6 +11,7 @@ from re import match
 from . import bp
 from ...model import db
 from ...model import LocalInterest, EmailTemplate, DocTemplate
+from ...version import __docversion__
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -20,6 +21,7 @@ class ParameterError(Exception): pass
 
 debug = False
 
+adminguide = 'https://members.readthedocs.io/en/{docversion}/super-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # emailtemplates endpoint
@@ -48,7 +50,7 @@ emailtemplate_view = DbCrudApiInterestsRolePermissions(
     model=EmailTemplate,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Email Templates',
     endpoint='admin.emailtemplates',
     endpointvalues={'interest': '<interest>'},
@@ -104,7 +106,7 @@ doctemplate_view = DbCrudApiInterestsRolePermissions(
     model=DocTemplate,
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
-    templateargs={'adminguide': 'https://members.readthedocs.io/en/latest/leadership-task-superadmin-guide.html'},
+    templateargs={'adminguide': adminguide},
     pagename='Document Templates',
     endpoint='admin.doctemplates',
     endpointvalues={'interest': '<interest>'},

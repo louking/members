@@ -26,6 +26,7 @@ from flask_security import current_user
 from slugify import slugify
 
 # homegrown
+from .version import __docversion__
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -57,7 +58,7 @@ def nav_menu():
     contexthelp = {}
     class add_view():
         def __init__(self, basehelp):
-            self.basehelp = basehelp
+            self.basehelp = basehelp.format(docversion=__docversion__)
 
         def __call__(self, navmenu, text, endpoint, **kwargs):
             prelink = kwargs.pop('prelink', None)
@@ -76,13 +77,13 @@ def nav_menu():
                 contexthelp[url_for(endpoint, **kwargs)] = self.basehelp + slugify(prelink + ' ' + text + ' view')
 
 
-    org_admin_view = add_view('https://members.readthedocs.io/en/latest/organization-admin-reference.html#')
-    leadership_admin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-admin-reference.html#')
-    leadership_superadmin_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-superadmin-reference.html#')
-    leadership_member_view = add_view('https://members.readthedocs.io/en/latest/leadership-task-member-guide.html#')
-    membership_admin_view = add_view('https://members.readthedocs.io/en/latest/membership-admin-guide.html#')
-    meetings_admin_view = add_view('https://members.readthedocs.io/en/latest/meetings-admin-reference.html#')
-    meetings_member_view = add_view('https://members.readthedocs.io/en/latest/meetings-member-guide.html#')
+    org_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/organization-admin-reference.html#')
+    leadership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/leadership-task-admin-reference.html#')
+    leadership_superadmin_view = add_view('https://members.readthedocs.io/en/{docversion}/super-admin-reference.html#')
+    leadership_member_view = add_view('https://members.readthedocs.io/en/{docversion}/leadership-task-member-guide.html#')
+    membership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html#')
+    meetings_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-admin-reference.html#')
+    meetings_member_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html#')
 
     # create context help menu items for views which can't be navigated to from the main menu
     if g.interest:
