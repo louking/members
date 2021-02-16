@@ -14,6 +14,8 @@ from sqlalchemy import func, or_
 from dominate.tags import div, ol, li, p, em, strong, a, i
 from dominate.util import text
 from slugify import slugify
+import inflect
+inflect_engine = inflect.engine()
 
 # homegrown
 from . import bp
@@ -25,10 +27,10 @@ from ...model import MOTION_STATUS_OPEN
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...model import localinterest_query_params
 from ...model import MemberStatusReport, StatusReport
-from ...model import INVITE_RESPONSE_NO_RESPONSE
+from ...model import INVITE_RESPONSE_NO_RESPONSE, MEETING_OPTION_SEPARATOR, MEETING_OPTION_HASSTATUSREPORTS, MEETING_OPTION_RSVP
 from ...version import __docversion__
 from ...helpers import positions_active
-from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -37,6 +39,26 @@ from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 class ParameterError(Exception): pass
 
 adminguide = 'https://members.readthedocs.io/en/{docversion}/meetings-admin-guide.html'.format(docversion=__docversion__)
+
+def custom_meeting():
+    meetingid = request.args['meeting_id']
+    meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+    return meeting.meetingtype.meetingwording
+
+def custom_invitation():
+    meetingid = request.args['meeting_id']
+    meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+    return meeting.meetingtype.invitewording
+
+def custom_invitations():
+    invitation = custom_invitation()
+    invitationplural = inflect_engine.plural(invitation)
+    return invitationplural
+
+def custom_statusreport():
+    meetingid = request.args['meeting_id']
+    meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+    return meeting.meetingtype.statusreportwording
 
 class ChildElementArgs():
     '''
@@ -280,6 +302,10 @@ memberdiscussions_view.register()
 # memberstatusreport endpoint
 ##########################################################################################
 
+def meeting_has_option(meeting, option):
+    '''return True if meeting.meetingtype has option'''
+    return option in meeting.meetingtype.options.split(MEETING_OPTION_SEPARATOR)
+
 def memberstatusreport_buttons():
     invitekey = request.args.get('invitekey', None)
     rsvpclass = ''
@@ -290,22 +316,29 @@ def memberstatusreport_buttons():
         if invite.response == INVITE_RESPONSE_NO_RESPONSE:
             rsvpclass = 'rsvp-noresponse'
     if invitekey and meeting.date >= today:
-        buttons = [
-            {'text': 'New',
-             'action': {'eval': 'mystatus_create'}
-             },
-            {'extend': 'editChildRowRefresh', 'editor':{'eval': 'editor'}, 'className': 'Hidden'},
-            {'text': 'RSVP',
-             'className': rsvpclass,
-             'action': {
-                 'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
-                                                                                interest=g.interest),
-                                                                   invite.invitekey)}
-             },
+        buttons = []
+        if meeting_has_option(meeting, MEETING_OPTION_HASSTATUSREPORTS):
+            buttons += [
+                {'text': 'New',
+                 'action': {'eval': 'mystatus_create'}
+                 },
+                {'extend': 'editChildRowRefresh', 'editor':{'eval': 'editor'}, 'className': 'Hidden'}
+            ]
+        if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+            buttons.append(
+                {'text': 'RSVP',
+                 'className': rsvpclass,
+                 'action': {
+                     'eval': 'mystatus_rsvp("{}?invitekey={}")'.format(rest_url_for('admin._mymeetingrsvp',
+                                                                                    interest=g.interest),
+                                                                       invite.invitekey)}
+                 }
+            )
+        buttons.append(
             {'text': 'Instructions',
              'action': {'eval': 'mystatus_instructions()'}
-             },
-        ]
+             }
+        )
     else:
         buttons = []
 
@@ -481,33 +514,37 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         else:
             order = 1
 
-        # check member's current positions
-        positions = [p for p in positions_active(user2localuser(self.theuser), invite.meeting.date) if p.has_status_report]
-        for position in positions:
-            filters = [StatusReport.position == position] + self.queryfilters
-            # has the member status report already been created? if not, create one
-            if not MemberStatusReport.query.filter_by(**self.queryparams).join(StatusReport).filter(*filters).one_or_none():
-                # statusreport for this position may exist already, done by someone else
-                statusquery = {'interest': localinterest(), 'meeting': self.meeting, 'position': position}
-                statusreport = StatusReport.query.filter_by(**statusquery).one_or_none()
-                if not statusreport:
-                    statusreport = StatusReport(
-                        title='{} Status Report'.format(position.position),
+        # build status reports if this meeting type has status reports
+        meeting = self.get_meeting()
+        if meeting_has_option(meeting, MEETING_OPTION_HASSTATUSREPORTS):
+            # check member's current positions, filter for positions which have status report per statusreporttags
+            srpositions = get_tags_positions(meeting.statusreporttags)
+            positions = [p for p in positions_active(user2localuser(self.theuser), invite.meeting.date) if p in srpositions]
+            for position in positions:
+                filters = [StatusReport.position == position] + self.queryfilters
+                # has the member status report already been created? if not, create one
+                if not MemberStatusReport.query.filter_by(**self.queryparams).join(StatusReport).filter(*filters).one_or_none():
+                    # statusreport for this position may exist already, done by someone else
+                    statusquery = {'interest': localinterest(), 'meeting': self.meeting, 'position': position}
+                    statusreport = StatusReport.query.filter_by(**statusquery).one_or_none()
+                    if not statusreport:
+                        statusreport = StatusReport(
+                            title='{} Status Report'.format(position.position),
+                            interest=localinterest(),
+                            meeting=self.meeting,
+                            position=position
+                        )
+                        db.session.add(statusreport)
+                    # there's always a new memberstatusreport if it didn't exist before
+                    memberstatusreport = MemberStatusReport(
                         interest=localinterest(),
                         meeting=self.meeting,
-                        position=position
+                        invite=invite,
+                        content=statusreport,
+                        order=order,
                     )
-                    db.session.add(statusreport)
-                # there's always a new memberstatusreport if it didn't exist before
-                memberstatusreport = MemberStatusReport(
-                    interest=localinterest(),
-                    meeting=self.meeting,
-                    invite=invite,
-                    content=statusreport,
-                    order=order,
-                )
-                db.session.add(memberstatusreport)
-                order += 1
+                    db.session.add(memberstatusreport)
+                    order += 1
 
         db.session.flush()
         super().open()

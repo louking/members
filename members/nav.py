@@ -132,6 +132,7 @@ def nav_menu():
                     meetings_admin_view(meetingsviews, 'Motion Votes', 'admin.motionvotes', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Agenda Headings', 'admin.agendaheadings', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
+                    meetings_admin_view(meetingsviews, 'Meeting Types', 'admin.meetingtypes', interest=g.interest)
 
                 # meetings member, not admin
                 else:

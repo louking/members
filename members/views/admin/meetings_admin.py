@@ -18,7 +18,7 @@ from sqlalchemy.orm import aliased
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Tag
+from ...model import LocalInterest, LocalUser, Tag, MeetingType
 from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import Email
 from ...model import localinterest_query_params
@@ -27,15 +27,17 @@ from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
+from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP
+from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, adminguide
-from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users
+from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, meeting_has_option
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
-from loutilities.user.model import User
 from loutilities.tables import _editormethod, get_request_data, rest_url_for, CHILDROW_TYPE_TABLE
 
 from loutilities.timeu import asctime
@@ -50,16 +52,16 @@ debug = False
 # meetings endpoint
 ###########################################################################################
 
-meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,'\
-                   'gs_agenda,gs_status,gs_minutes,organizer'.split(',')
-meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,time,location,' \
-                      'gs_agenda,gs_status,gs_minutes,organizer'.split(',')
+meetings_dbattrs = 'id,interest_id,date,purpose,show_actions_since,tags,votetags,statusreporttags,' \
+                   'time,location,meetingtype,gs_agenda,gs_status,gs_minutes,organizer,meetingtype.statusreportwording'.split(',')
+meetings_formfields = 'rowid,interest_id,date,purpose,show_actions_since,tags,votetags,statusreporttags,' \
+                      'time,location,meetingtype,gs_agenda,gs_status,gs_minutes,organizer,statusreportwording'.split(',')
 meetings_dbmapping = dict(zip(meetings_dbattrs, meetings_formfields))
 meetings_formmapping = dict(zip(meetings_formfields, meetings_dbattrs))
 meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
 meetings_formmapping['date'] = lambda dbrow: dtrender.dt2asc(dbrow.date)
-meetings_dbmapping['show_actions_since'] = lambda formrow: dtrender.asc2dt(formrow['show_actions_since'])
-meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow.show_actions_since)
+meetings_dbmapping['show_actions_since'] = lambda formrow: dtrender.asc2dt(formrow['show_actions_since']) if formrow['show_actions_since'] else None
+meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow.show_actions_since) if dbrow.show_actions_since else ''
 
 def meetingcreatefieldvals():
     interest = localinterest()
@@ -79,10 +81,33 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
         """
         output = super().createrow(formdata)
         themeeting = Meeting.query.filter_by(id=self.created_id).one()
-        agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=2, title='Action Items', agendaitem='',
-                                is_action_only=True)
-        db.session.add(agendaitem)
+        if meeting_has_option(themeeting, MEETING_OPTION_SHOWACTIONITEMS):
+            agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=2, title='Action Items', agendaitem='',
+                                    is_action_only=True)
+            db.session.add(agendaitem)
         return output
+
+def meetings_validate(action, formdata):
+    results = []
+
+    # need meetingtype to determine what fields are required
+    meetingtype_id = formdata['meetingtype']['id']
+    meetingtype = MeetingType.query.filter_by(id=meetingtype_id).one_or_none()
+
+    if meetingtype:
+        optionfields = {
+            MEETING_OPTION_SHOWACTIONITEMS: 'show_actions_since',
+            MEETING_OPTION_TIME: 'time',
+            MEETING_OPTION_LOCATION: 'location',
+        }
+        for option in optionfields:
+            if option in meetingtype.options and not formdata[optionfields[option]]:
+                results.append({'name': optionfields[option], 'status': 'please supply'})
+
+    else:
+        results.append({'name': 'meetingtype.id', 'status': 'please supply'})
+
+    return results
 
 meetings_view = MeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
@@ -101,24 +126,34 @@ meetings_view = MeetingsView(
     formmapping=meetings_formmapping,
     checkrequired=True,
     createfieldvals=meetingcreatefieldvals,
+    validate=meetings_validate,
     clientcolumns=[
         {'data': 'purpose', 'name': 'purpose', 'label': 'Purpose',
          'className': 'field_req',
+         },
+        {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
+         'className': 'field_req',
+         '_treatment': {
+             'relationship': {'fieldmodel': MeetingType, 'labelfield': 'meetingtype', 'formfield': 'meetingtype',
+                              'dbfield': 'meetingtype', 'uselist': False,
+                              'queryparams': localinterest_query_params,
+                              'sortkey': lambda row: row.order
+                              }}
          },
         {'data': 'date', 'name': 'date', 'label': 'Date',
          'type': 'datetime',
          'className': 'field_req',
          },
         {'data': 'time', 'name': 'time', 'label': 'Time',
-         'className': 'field_req',
+         # see meetings_validate(), field_req class marked in afterdatatables.js
          },
         {'data': 'location', 'name': 'location', 'label': 'Location',
          'type': 'textarea',
-         'className': 'field_req',
+         # see meetings_validate(), field_req class marked in afterdatatables.js
          },
         {'data': 'show_actions_since', 'name': 'show_actions_since', 'label': 'Show Actions Since',
          'type': 'datetime',
-         'className': 'field_req',
+         # see meetings_validate(), field_req class marked in afterdatatables.js
          },
         {'data': 'organizer', 'name': 'organizer', 'label': 'Organizer',
          'className': 'field_req',
@@ -129,20 +164,8 @@ meetings_view = MeetingsView(
                               'searchbox': True,
                               'uselist': False}}
          },
-        {'data': 'gs_agenda', 'name': 'gs_agenda', 'label': 'Agenda',
-         'type': 'googledoc', 'opts': {'text': 'Agenda'},
-         'render': {'eval': '$.fn.dataTable.render.googledoc( "Agenda" )'},
-         },
-        {'data': 'gs_status', 'name': 'gs_status', 'label': 'Status Report',
-         'type': 'googledoc', 'opts': {'text': 'Status Report'},
-         'render': {'eval': '$.fn.dataTable.render.googledoc( "Status Report" )'},
-         },
-        {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
-         'type': 'googledoc', 'opts': {'text': 'Minutes'},
-         'render': {'eval': '$.fn.dataTable.render.googledoc( "Minutes" )'},
-         },
         {'data': 'tags', 'name': 'tags', 'label': 'Invite Tags',
-         'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
+         'fieldInfo': 'members who have these tags via position, will be invited to the meeting',
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'tags',
                               'dbfield': 'tags', 'uselist': True,
@@ -151,13 +174,35 @@ meetings_view = MeetingsView(
                               }}
          },
         {'data': 'votetags', 'name': 'votetags', 'label': 'Vote Tags',
-         'fieldInfo': 'members who have these tags, either directly or via position, can vote on motions',
+         'fieldInfo': 'members who have these tags via position, can vote on motions',
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'votetags',
                               'dbfield': 'votetags', 'uselist': True,
                               'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
+         },
+        {'data': 'statusreporttags', 'name': 'statusreporttags', 'label': 'Status Report Tags',
+         'fieldInfo': 'members who have these tags via position, are prompted to provide position status reports',
+         '_treatment': {
+             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'statusreporttags',
+                              'dbfield': 'statusreporttags', 'uselist': True,
+                              'searchbox': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'gs_agenda', 'name': 'gs_agenda', 'label': 'Agenda',
+         'type': 'googledoc', 'opts': {'text': 'Agenda'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( "Agenda" )'},
+         },
+        {'data': 'gs_status', 'name': 'gs_status', 'label': 'Report',
+         # todo: 'text': 'Status Report' appears to drive what is shown on Edit view, dangling from #375
+         'type': 'googledoc', 'opts': {'text': 'Status Report'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( meetings_statusreportwording )'},
+         },
+        {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
+         'type': 'googledoc', 'opts': {'text': 'Minutes'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( "Minutes" )'},
          },
     ],
     servercolumns=None,  # not server side
@@ -622,6 +667,10 @@ def meeting_pretablehtml():
             dd(**{'data-editor-field': 'message'})
             dd(**{'data-editor-field': 'options'})
 
+        with script():
+            raw('var invitations_text = "{}";\n'.format(custom_invitations().title()))
+            raw('var invitation_text = "{}";\n'.format(custom_invitation().title()))
+
     return pretablehtml.render()
 
 
@@ -637,7 +686,7 @@ meeting_view = MeetingView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': adminguide},
-    pagename='Meeting',
+    pagename=custom_meeting,
     endpoint='admin.meeting',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/meeting',
@@ -791,7 +840,7 @@ meeting_view = MeetingView(
         'editChildRowRefresh',
         'remove',
         # 'editor' gets eval'd to editor instance
-        {'text': 'Send Invites',
+        {'text': 'Send {}'.format(custom_invitations()).title(),
          'name': 'send-invites',
          'editor': {'eval': 'meeting_invites_editor'},
          'url': url_for('admin._meetinginvite', interest=g.interest),
@@ -1101,7 +1150,11 @@ class MeetingInviteApi(MeetingApiBase):
             # set defaults
             meeting = Meeting.query.filter_by(id=meeting_id).one()
             from_email = meeting.organizer.email
-            subject = '[{} {}] Invitation -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
+            rsvp_text = ''
+            if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+                rsvp_text = 'RSVP and '
+            subject = '[{} {}] {} -- {}{} Request'.format(
+                meeting.purpose, meeting.date, custom_invitation(), rsvp_text, custom_statusreport()).title()
             message = ''
             # todo: need to tailor when #274 is fixed
             options = 'statusreport,actionitems'
@@ -1139,7 +1192,7 @@ class MeetingInviteApi(MeetingApiBase):
             from_email = requestdata['keyless']['from_email']
             subject = requestdata['keyless']['subject']
             message = requestdata['keyless']['message']
-            options = requestdata['keyless']['options']
+            # options = requestdata['keyless']['options']
 
             email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL).one_or_none()
             if not email:
@@ -1150,14 +1203,19 @@ class MeetingInviteApi(MeetingApiBase):
             email.from_email = from_email
             email.subject = subject
             email.message = message
-            email.options = options
+            # email.options = options
             db.session.flush()
 
             agendaitem = generateinvites(meeting_id)
 
-            # use meeting view's dte to get the response data
-            thisrow = meeting_view.dte.get_response_data(agendaitem)
-            self._responsedata = [thisrow]
+            # if attendees agendaitem was created, return it to caller
+            if agendaitem:
+                # use meeting view's dte to get the response data
+                thisrow = meeting_view.dte.get_response_data(agendaitem)
+                self._responsedata = [thisrow]
+            # if attendees agendaitem wasn't created, return empty response
+            else:
+                self._responsedata = []
 
             db.session.commit()
             return jsonify(self._responsedata)
@@ -1179,8 +1237,17 @@ bp.add_url_rule('/<interest>/_meetinginvite/rest', view_func=MeetingInviteApi.as
 ###########################################################################################
 
 class MeetingStatusView(DbCrudApiInterestsRolePermissions):
-    def beforequery(self):
-        self.queryparams['has_status_report'] = True
+    def open(self):
+        '''
+        retrieve all the positions which have status reports for this meeting
+        '''
+        meeting_id = request.args['meeting_id']
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
+
+        # assumes self.serverside = False
+        # self.rows will be handled in nexttablerow()
+        rows = get_tags_positions(meeting.statusreporttags)
+        self.rows = iter(rows)
 
     @_editormethod(checkaction='edit', formrequest=True)
     def put(self, thisid):
@@ -1479,10 +1546,10 @@ class MeetingStatusReminderApi(MeetingApiBase):
             # do this at the end to pick up invite.lastreminded (updated in generatereminder())
             self._responsedata = []
             meeting = Meeting.query.filter_by(id=meeting_id).one()
+            srpositions = get_tags_positions(meeting.statusreporttags)
             for user in userstates:
                 for position in positions_active(user, meeting.date):
-                    # todo: needs update after #272 fixed
-                    if position.has_status_report:
+                    if position in srpositions:
                         thisrow = meetingstatus_view.dte.get_response_data(position)
                         self._responsedata += [thisrow]
 
@@ -1555,3 +1622,96 @@ agendaheadings_view = DbCrudApiInterestsRolePermissions(
 )
 agendaheadings_view.register()
 
+##########################################################################################
+# meetingtypes endpoint
+###########################################################################################
+
+class MeetingTypesView(DbCrudApiInterestsRolePermissions):
+    def createrow(self, formdata):
+        '''
+        provide default for order field when row is created
+        :param formdata: data from form
+        :return: see super().createrow()
+        '''
+        max = db.session.query(func.max(MeetingType.order)).filter_by(**self.queryparams).filter(*self.queryfilters).one()
+        if max[0]:
+            formdata['order'] = max[0] + 1
+        else:
+            formdata['order'] = 1
+        output = super().createrow(formdata)
+        return output
+
+meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,meetingwording,statusreportwording,invitewording'.split(',')
+meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,meetingwording,statusreportwording,invitewording'.split(',')
+meetingtypes_dbmapping = dict(zip(meetingtypes_dbattrs, meetingtypes_formfields))
+meetingtypes_formmapping = dict(zip(meetingtypes_formfields, meetingtypes_dbattrs))
+
+meetingtypes_view = MeetingTypesView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=MeetingType,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': adminguide},
+    pagename='Meeting Types',
+    endpoint='admin.meetingtypes',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/meetingtypes',
+    dbmapping=meetingtypes_dbmapping,
+    formmapping=meetingtypes_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'order', 'name': 'order', 'label': 'Reorder',
+         'type': 'hidden',
+         'className': 'reorder shrink-to-fit',
+         'render': {'eval': 'render_grip'},
+         },
+        {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
+         '_unique': True,
+         },
+        {'data': 'meetingwording', 'name': 'meetingwording', 'label': '"meeting"',
+         'fieldInfo': 'If you don\'t want the text on the page and emails to say "meeting" you can customize '
+                      'that here. Use lowercase letters.',
+         'ed': {'label': 'Custom Wording for "meeting"', 'def': 'meeting'},
+        },
+        {'data': 'statusreportwording', 'name': 'statusreportwording', 'label': '"status report"',
+         'fieldInfo': 'If you don\'t want the text on the page and emails to say "status report" you can customize '
+                      'that here. Use lowercase letters.',
+         'ed': {'label': 'Custom Wording for "status report"', 'def': 'status report'},
+         },
+        {'data': 'invitewording', 'name': 'invitewording', 'label': '"invitation"',
+         'fieldInfo': 'If you don\'t want the text on the page and emails to say "invitation" you can customize '
+                      'that here. Use lowercase letters.',
+         'ed': {'label': 'Custom Wording for "invitation"', 'def': 'invitation'},
+         },
+        {'data': 'options', 'name': 'options', 'label': 'Options',
+         'type': 'checkbox',
+         'ed': {
+             'options': [{'value': o, 'label': MEETING_OPTIONS[o]} for o in MEETING_OPTIONS],
+             'separator': MEETING_OPTION_SEPARATOR,
+         }
+         },
+    ],
+    idSrc='rowid',
+    buttons=[
+        'create',
+        'editRefresh',
+        'remove',
+        'csv'
+    ],
+    dtoptions={
+        'order': [['order:name', 'asc']],
+        'rowReorder': {
+            'dataSrc': 'order',
+            'selector': 'td.reorder',
+            'snapX': True,
+        },
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+meetingtypes_view.register()

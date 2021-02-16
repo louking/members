@@ -276,23 +276,25 @@ function afterdatatables() {
         fltr_init();
 
     // special processing for meeting
-    } else if (location.pathname.includes('/meeting') && !location.pathname.includes('/meetings')) {
+    } else if (location.pathname.includes('/meeting')
+                && !location.pathname.includes('/meetings')
+                && !location.pathname.includes('/meetingtypes')) {
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
         meeting_invites_editor = new $.fn.dataTable.Editor({
             fields: [
-                {name: 'invitestates', data: 'invitestates', label: 'Invitation Status', type: 'display',
+                {name: 'invitestates', data: 'invitestates', label: invitation_text + ' Status', type: 'display',
                     className: 'field_req full block'},
                 {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
                 {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
-                    className: 'field_req full block'},
+                    className: 'full block'},
                 {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
-                {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
-                    options: [
-                        {label: 'Request Status Report', value: 'statusreport'},
-                        {label: 'Show Action Items', value: 'actionitems'},
-                    ],
-                    separator: ',',
-                }
+                // {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
+                //     options: [
+                //         {label: 'Request Status Report', value: 'statusreport'},
+                //         {label: 'Show Action Items', value: 'actionitems'},
+                //     ],
+                //     separator: ',',
+                // }
             ],
         });
 
@@ -301,7 +303,7 @@ function afterdatatables() {
         meeting_invites_editor
             .buttons([
                 {
-                    'text': 'Send Invitations',
+                    'text': 'Send ' + invitations_text,
                     'action': function () {
                         this.submit( null, null, function(data){
                             var that = this;
@@ -328,7 +330,7 @@ function afterdatatables() {
                     className: 'field_req full block'},
                 {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
                 {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
-                    className: 'field_req full block'},
+                    className: 'full block'},
                 {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
             ],
         });
@@ -393,15 +395,15 @@ function afterdatatables() {
                     className: 'field_req full block'},
                 {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
                 {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
-                    className: 'field_req full block'},
+                    className: 'full block'},
                 {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
-                {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
-                    options: [
-                        {label: 'Request Status Report', value: 'statusreport'},
-                        {label: 'Show Action Items', value: 'actionitems'},
-                    ],
-                    separator: ',',
-                }
+                // {name: 'options', data: 'options', label: '', type: 'checkbox', className: 'full block',
+                //     options: [
+                //         {label: 'Request Status Report', value: 'statusreport'},
+                //         {label: 'Show Action Items', value: 'actionitems'},
+                //     ],
+                //     separator: ',',
+                // }
             ],
         });
 

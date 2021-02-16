@@ -68,8 +68,8 @@ def position_pretablehtml():
 
     return pretablehtml.render()
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,has_status_report,tags,agendaheading,__readonly__'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,has_status_report,tags,agendaheading,users'.split(',')
+position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,tags,agendaheading,__readonly__'.split(',')
+position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,tags,agendaheading,users'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
@@ -101,11 +101,6 @@ position_view = DbCrudApiInterestsRolePermissions(
                          },
                         {'data': 'users', 'name': 'users', 'label': 'Members',
                          'fieldInfo': 'members who hold this position on selected position date', 'type': 'readonly'
-                         },
-                        {'data': 'has_status_report', 'name': 'has_status_report', 'label': 'Has Status Report',
-                         'className': 'TextCenter',
-                         '_treatment': {'boolean': {'formfield': 'has_status_report', 'dbfield': 'has_status_report'}},
-                         'ed': {'def': 'yes'},
                          },
                         {'data': 'tags', 'name': 'tags', 'label': 'Tags',
                          'fieldInfo': 'tags for this position',

@@ -365,7 +365,7 @@ def get_position_taskgroups(position, taskgroups):
 
 def get_tags_users(tags, users, ondate):
     '''
-    get users which have specified tag
+    get users which have specified tags (following position)
 
     :param tags: list of tags to search for
     :param users: input and output set of localusers
@@ -380,3 +380,16 @@ def get_tags_users(tags, users, ondate):
                 users.add(member)
         for user in tag.users:
             users.add(user)
+
+def get_tags_positions(tags):
+    '''
+    get positions which have specified tags
+
+    :param tags: list of tags to search for
+    :return: set(position, ...)
+    '''
+    # collect all the positions which have the indicated tags
+    positions = set()
+    for tag in tags:
+        positions |= set(tag.positions)
+    return positions

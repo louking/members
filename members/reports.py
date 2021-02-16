@@ -18,7 +18,7 @@ from dominate.tags import p
 # homegrown
 from .model import Meeting, ActionItem, AgendaItem, StatusReport, Position, DiscussionItem, MemberStatusReport
 from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite
-from .views.admin.viewhelpers import localinterest
+from .views.admin.viewhelpers import localinterest, get_tags_positions
 from .helpers import positions_active, members_active
 from loutilities.googleauth import GoogleAuthService
 from loutilities.nesteddict import obj2dict
@@ -69,7 +69,7 @@ def meeting_gen_reports(meeting_id, reports):
         # need to pull in discussion agenda item due to lazy loading
         for discussion in discussions:
             garbage = discussion.agendaitem
-        positions = Position.query.filter_by(interest=interest, has_status_report=True).order_by(Position.position).all()
+        positions = get_tags_positions(themeeting.statusreporttags)
 
         # this is a little klunky, but we need to weed out any RSVP status reports
         rsvp_statusreport_ids = [m.content.id

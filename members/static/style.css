@@ -28,6 +28,10 @@ div.DTE_Field input._rsc_CRUD_input_short {
     width: 85%;
 }
 
+div.DTE_Body div.DTE_Body_Content div.DTE_Field.full > label {
+    width: 50%;
+}
+
 /* jqueryui progressbar */
 .ui-progressbar {
   position: relative;

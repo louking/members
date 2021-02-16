@@ -133,14 +133,14 @@ function meeting_sendinvites(url) {
                     });
 
                     meeting_invites_editor
-                        .title('Send Invitations')
+                        .title('Send ' + invitations_text)
                         .edit(null, false)
                         // no editing id, and don't show immediately
                         .set('invitestates', invites.html())
                         .set('from_email', json.from_email)
                         .set('subject', json.subject)
                         .set('message', json.message)
-                        .set('options', json.options)
+                        // .set('options', json.options)
                         .open();
                 }
             },
@@ -207,7 +207,7 @@ function meeting_sendreminders(url) {
                         });
                     }
                     if (json.invitestates.invites.length > 0) {
-                        var invitesp = invites.append($('<p>').text('New invites will be sent to'));
+                        var invitesp = invites.append($('<p>').text('New ' + invitations_text + ' will be sent to'));
                         var invitesul = $('<ul>');
                         invitesp.append(invitesul);
                         $.each(json.invitestates.invites, function (i, invite) {
@@ -402,6 +402,10 @@ function meeting_send_email(url) {
         });
     }
     return fn;
+}
+
+function meetings_statusreportwording(meeting) {
+    return _.startCase(meeting.statusreportwording);
 }
 
 /**

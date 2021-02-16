@@ -5,6 +5,7 @@ models - database models for application
 
 # standard
 from datetime import datetime
+from collections import OrderedDict
 
 # pypi
 from flask import g
@@ -264,6 +265,7 @@ class Position(Base):
     interest            = relationship('LocalInterest', backref=backref('positions'))
     position            = Column(String(POSITION_LEN))
     description         = Column(String(DESCR_LEN))
+    # has_status_report is obsolete -- Meeting.statusreporttags is used instead
     has_status_report   = Column(Boolean, default=True)
     agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
     agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
@@ -361,6 +363,45 @@ class Meeting(Base):
     gs_minutes          = Column(Text)
     # keep track of last time status generated
     last_status_gen     = Column(DateTime)
+    # meetingtype defines options and other attributes for the meeting
+    meetingtype_id      = Column(Integer, ForeignKey('meetingtype.id'))
+    meetingtype         = relationship('MeetingType', backref=backref('meetings'))
+
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+MEETING_OPTION_SEPARATOR = ', '
+MEETING_OPTION_RSVP = 'rsvp_required'
+MEETING_OPTION_TIME = 'time_required'
+MEETING_OPTION_LOCATION = 'location_required'
+MEETING_OPTION_HASSTATUSREPORTS = 'has_status_reports'
+MEETING_OPTION_SHOWACTIONITEMS = 'show_action_items'
+MEETING_OPTION_ONLINEMOTIONS = 'allow_online_motions'
+MEETING_OPTION_SHOWGENDOCS = 'show_gen_docs'
+MEETING_OPTIONS = OrderedDict([
+    (MEETING_OPTION_RSVP, 'RSVP Required'),
+    (MEETING_OPTION_TIME, 'Time Required'),
+    (MEETING_OPTION_LOCATION, 'Location Required'),
+    (MEETING_OPTION_HASSTATUSREPORTS, 'Has Status Reports'),
+    (MEETING_OPTION_SHOWACTIONITEMS, 'Show Action Items'),
+    (MEETING_OPTION_SHOWGENDOCS, 'Show Generate Docs Button'),
+    (MEETING_OPTION_ONLINEMOTIONS, 'Allow Online Motion/Votes'),
+])
+
+class MeetingType(Base):
+    __tablename__ = 'meetingtype'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('meetingtypes'))
+
+    order               = Column(Integer)
+    meetingtype         = Column(Text)
+    options             = Column(Text)  # see MEETING_OPTIONS
+    meetingwording      = Column(Text)
+    statusreportwording = Column(Text)
+    invitewording       = Column(Text)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -554,6 +595,7 @@ class MotionVote(Base):
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('motionvotes'))
     vote                = Column(Enum(*motionvote_all))
+    motionvotekey       = Column(Text)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -587,6 +629,10 @@ meetingvotetag_table = Table('meetingvote_tag', Base.metadata,
     Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
+meetingstatusreporttag_table = Table('meetingstatusreport_tag', Base.metadata,
+    Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
 interestmeetingtag_table = Table('interestmeeting_tag', Base.metadata,
     Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
@@ -609,8 +655,14 @@ class Tag(Base):
     users               = relationship( 'LocalUser', secondary=localusertag_table, backref='tags', lazy=True )
     meetings            = relationship( 'Meeting', secondary=meetingtag_table, backref='tags', lazy=True )
     meetingvotes        = relationship( 'Meeting', secondary=meetingvotetag_table, backref='votetags', lazy=True )
+    meetingstatusreports = relationship( 'Meeting', secondary=meetingstatusreporttag_table,
+                                         backref='statusreporttags', lazy=True )
+
+    # interest attributes have defaults for these tags, which are used when setting up meetings
+    # todo: a better way would be to keep track of these by meetingtype (#378)
     interestmeetings    = relationship( 'LocalInterest', secondary=interestmeetingtag_table, backref='interestmeetingtags', lazy=True )
     interestmeetingvotes= relationship( 'LocalInterest', secondary=interestmeetingvotetag_table, backref='interestmeetingvotetags', lazy=True )
+
     version_id          = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col' : version_id

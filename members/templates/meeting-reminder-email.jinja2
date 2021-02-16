@@ -1,14 +1,18 @@
-<p>Just a friendly reminder that you have been invited to the {{ meeting.purpose }} on {{ meeting.date }} {{ meeting.time }}.</p>
+<p>Just a friendly reminder that you have {{ aninvitation_text }} for {{ meeting.purpose }} on {{ meeting.date }}
+    {% if meeting.time %}{{ meeting.time }}{% endif %}</p>
 
-<p>Location / URL</p>
-
-<p style="white-space:pre-wrap; margin-left: 1em;">{{ meeting.location }}</p>
+{% if meeting.location %}
+    <p>Location / URL</p>
+    <p style="white-space:pre-wrap; margin-left: 1em;">{{ meeting.location }}</p>
+{% endif %}
 
 {{ message }}
 
-<p><b>Please RSVP {% if 'statusreport' in options %}and update your status report{% endif %}</b> by clicking <a href={{ rsvpurl }}>here</a>.</p>
+{% if rsvp_required or has_status_reports %}
+    <p>Please {% if rsvp_required %}RSVP and {% endif %}{% if has_status_reports %}enter your {{ statusreport_text }}{% endif %} by clicking <a href={{ rsvpurl }}>here</a>.</p>
+{% endif %}
 
-{% if 'statusreport' in options %}
+{% if has_status_reports %}
     {% if positions %}
     <p>This reminder is being sent specifically for the following Position reports, but please note you may have other
     reports outstanding.</p>
@@ -21,7 +25,7 @@
     {% endif %}
 {% endif %}
 
-{% if 'actionitems' in options %}
+{% if show_action_items %}
     {% if actionitems %}
     <p>Your outstanding action items are listed below. You can update the action item status by clicking <a href={{ actionitemurl }}>here</a>.</p>
 

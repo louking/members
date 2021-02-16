@@ -8,18 +8,22 @@ from datetime import datetime
 
 # pypi
 from flask import g, render_template
-from jinja2 import Template
+import inflect
 
 # homegrown
 from .model import db
 from .model import Meeting, Invite, AgendaItem, ActionItem, Email
 from .model import INVITE_RESPONSE_ATTENDING, ACTION_STATUS_CLOSED
+from .model import MEETING_OPTIONS, MEETING_OPTION_RSVP
 from .views.admin.viewhelpers import localuser2user, localinterest
+from .views.admin.meetings_common import custom_invitation, meeting_has_option
 from .helpers import members_active, positions_active
 from loutilities.flask_helpers.mailer import sendmail
 from loutilities.tables import page_url_for
 
 class ParameterError(Exception): pass
+
+inflect_engine = inflect.engine()
 
 MEETING_INVITE_EMAIL = 'meeting-invite-email'
 MEETING_REMINDER_EMAIL = 'meeting-reminder-email'
@@ -50,9 +54,9 @@ def get_invites(meetingid):
         invitestate = {'name': user.name, 'email': email}
         invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
         if invite:
-            invitestate['state'] = 'attending' if invite.response == INVITE_RESPONSE_ATTENDING else 'invited'
+            invitestate['state'] = 'attending' if invite.response == INVITE_RESPONSE_ATTENDING else '{} sent'.format(custom_invitation())
         else:
-            invitestate['state'] = 'send invitation'
+            invitestate['state'] = 'send {}'.format(custom_invitation())
         return email, invitestate, invite
 
     # send invitations to all those who are tagged like the meeting
@@ -119,8 +123,15 @@ def check_add_invite(meeting, localuser, agendaitem):
             'rsvpurl': rsvpurl,
             'actionitemurl': actionitemurl,
             'message': email.message,
-            'options': email.options,
+            'meeting_text': meeting.meetingtype.meetingwording,
+            'statusreport_text': meeting.meetingtype.statusreportwording,
+            'invitation_text': meeting.meetingtype.invitewording,
+            'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording)
+
         }
+        for meetingoption in MEETING_OPTIONS:
+            context[meetingoption] = meeting_has_option(meeting, meetingoption)
+
         html = render_template('meeting-invite-email.jinja2', **context)
         tolist = localuser.email
         cclist = None
@@ -141,12 +152,15 @@ def generateinvites(meetingid):
     if not meeting:
         raise ParameterError('meeting with id "{}" not found'.format(meetingid))
 
-    # check if agendaitem already exists.
-    agendaitem = AgendaItem.query.filter_by(interest=localinterest(), meeting=meeting, is_attendee_only=True).one_or_none()
-    if not agendaitem:
-        agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
-                                is_attendee_only=True)
-        db.session.add(agendaitem)
+    # only generate Attendees agendaitem if collecting RSVPs
+    agendaitem = None
+    if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+        # check if agendaitem already exists.
+        agendaitem = AgendaItem.query.filter_by(interest=localinterest(), meeting=meeting, is_attendee_only=True).one_or_none()
+        if not agendaitem:
+            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
+                                    is_attendee_only=True)
+            db.session.add(agendaitem)
 
     # have there been any invites previous to this? used later to deactivate any invites which are not still needed
     # need to check now because check_add_invite may add additional invites
@@ -197,7 +211,7 @@ def generatereminder(meetingid, member, positions):
         message = email.message
         tolist = member.email
         cclist = None
-        options = email.options
+        # options = email.options
 
         # get user's outstanding action items
         actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=member). \
@@ -210,7 +224,7 @@ def generatereminder(meetingid, member, positions):
         actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
 
         # filter positions to those which affect this member
-        active_positions = positions_active(member, meeting.date)
+        active_positions = positions_active(member, invite.meeting.date)
         memberpositions = [p for p in positions if p in active_positions]
 
         # create and send email
@@ -220,9 +234,15 @@ def generatereminder(meetingid, member, positions):
             'actionitems': actionitems,
             'rsvpurl': rsvpurl,
             'actionitemurl': actionitemurl,
+            'meeting_text': invite.meeting.meetingtype.meetingwording,
+            'statusreport_text': invite.meeting.meetingtype.statusreportwording,
+            'invitation_text': invite.meeting.meetingtype.invitewording,
+            'aninvitation_text': inflect_engine.a(invite.meeting.meetingtype.invitewording),
             'positions': memberpositions,
-            'options': options,
         }
+        for meetingoption in MEETING_OPTIONS:
+            context[meetingoption] = meeting_has_option(invite.meeting, meetingoption)
+
         html = render_template('meeting-reminder-email.jinja2', **context)
 
         sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
