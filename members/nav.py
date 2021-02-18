@@ -108,11 +108,11 @@ def nav_menu():
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)
+                org_admin_view(orgadmin, 'Distribution List', 'admin.distribution', interest=g.interest)
                 org_admin_view(orgadmin, 'Members', 'userrole.members')
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
                 org_admin_view(orgadmin, 'Tags', 'admin.tags', interest=g.interest)
-                org_admin_view(orgadmin, 'Distribution List', 'admin.distribution', interest=g.interest)
 
             # meetings member stuff
             if (current_user.has_role(ROLE_MEETINGS_MEMBER) or current_user.has_role(ROLE_MEETINGS_ADMIN)
