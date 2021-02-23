@@ -17,7 +17,11 @@
         {% endif %}
     {% endif %}
     {% if not agendaitem.is_action_only %}
-        <li>{{ agendaitem.title }}</li>
+        <li>{{ agendaitem.title }}
+        {% if agendaitem.agendaitem %}
+            {{ agendaitem.agendaitem }}
+        {% endif %}
+        </li>
     {% else %}
         <li>{{ agendaitem.title }} (updates since {{ meeting.show_actions_since }})</li>
         <ul>
