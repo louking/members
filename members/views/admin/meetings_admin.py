@@ -396,7 +396,7 @@ actionitems_view = ActionItemsView(
 actionitems_view.register()
 
 ##########################################################################################
-# motionsvote endpoint
+# motionsvotes endpoint
 ###########################################################################################
 
 class MotionVotesView(MotionVotesBase):
@@ -1156,8 +1156,6 @@ class MeetingInviteApi(MeetingApiBase):
             subject = '[{} {}] {} -- {}{} Request'.format(
                 meeting.purpose, meeting.date, custom_invitation(), rsvp_text, custom_statusreport()).title()
             message = ''
-            # todo: need to tailor when #274 is fixed
-            options = 'statusreport,actionitems'
 
             # if mail has previously been sent, pick up values used prior
             email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
@@ -1165,9 +1163,8 @@ class MeetingInviteApi(MeetingApiBase):
                 from_email = email.from_email
                 subject = email.subject
                 message = email.message
-                options = email.options
 
-            return jsonify(from_email=from_email, subject=subject, message=message, options=options,
+            return jsonify(from_email=from_email, subject=subject, message=message,
                            invitestates=invitestates)
 
         except Exception as e:
@@ -1462,8 +1459,6 @@ class MeetingStatusReminderApi(MeetingApiBase):
             from_email = meeting.organizer.email
             subject = '[{} {}] Reminder -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
             message = ''
-            # todo: need to tailor when #274 is fixed
-            options = 'statusreport,actionitems'
 
             # if mail has been sent as invite, pick up values used prior
             email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
@@ -1472,7 +1467,6 @@ class MeetingStatusReminderApi(MeetingApiBase):
                 # override default subject
                 subject = '[{} {}] Reminder -- RSVP and Status Report Request'.format(meeting.purpose, meeting.date)
                 message = email.message
-                options = email.options
 
             # if mail has been sent as reminder, pick up values used prior
             email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_REMINDER_EMAIL).one_or_none()
@@ -1480,7 +1474,6 @@ class MeetingStatusReminderApi(MeetingApiBase):
                 from_email = email.from_email
                 subject = email.subject
                 message = email.message
-                options = email.options
 
             theseposids = request.args['ids'].split(',')
             userstates, positions = self.get_reminders(meeting_id, theseposids)
@@ -1494,7 +1487,7 @@ class MeetingStatusReminderApi(MeetingApiBase):
                 else:
                     invitestates['invites'].append({'name': user.name, 'email': user.email})
 
-            return jsonify(from_email=from_email, subject=subject, message=message, options=options,
+            return jsonify(from_email=from_email, subject=subject, message=message,
                            invitestates=invitestates)
 
         except Exception as e:
@@ -1523,7 +1516,6 @@ class MeetingStatusReminderApi(MeetingApiBase):
             from_email = requestdata['keyless']['from_email']
             subject = requestdata['keyless']['subject']
             message = requestdata['keyless']['message']
-            options = requestdata['keyless']['options']
 
             # if mail has been sent as reminder, save in previous record, else create record then save
             email = Email.query.filter_by(interest=localinterest(), meeting_id=meeting_id, type=MEETING_REMINDER_EMAIL).one_or_none()
@@ -1533,7 +1525,6 @@ class MeetingStatusReminderApi(MeetingApiBase):
             email.from_email = from_email
             email.subject = subject
             email.message = message
-            email.options = options
             # flush so generatereminder() can pick up latest email record
             db.session.flush()
 

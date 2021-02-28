@@ -223,7 +223,6 @@ function meeting_sendreminders(url) {
                         .set('from_email', json.from_email)
                         .set('subject', json.subject)
                         .set('message', json.message)
-                        .set('options', json.options)
                         .open();
                 }
             },
