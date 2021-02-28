@@ -234,6 +234,112 @@ function meeting_sendreminders(url) {
     return fn;
 }
 
+var meeting_discussion_saeditor = new SaEditor({
+    title: 'Send Discussion Request',
+    fields: [
+                {name: 'invitestates', data: 'invitestates', label: 'Send to', type: 'display',
+                    className: 'field_req full block'},
+                {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
+                {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
+                    className: 'full block'},
+                {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
+            ],
+    buttons: [
+                'Send Discussion Request',
+                {
+                    text: 'Cancel',
+                    action: function() {
+                        this.close();
+                    }
+                }
+            ],
+    get_urlparams: function(e, dt, node, config) {
+        return {}
+    },
+    form_values: function(json) {
+        // create table from json response. for some reason need dummy div element
+        // else html doesn't have <table> in it
+        var invites = $('<div>');
+        var invitestbl = $('<table style="margin-left: 1em">');
+        invites.append(invitestbl);
+        var $th = $('<tr>').append(
+            $('<th>').text('name (email)').attr('align', 'left'),
+            $('<th>').text('state').attr('align', 'left'),
+        ).appendTo(invitestbl);
+        $.each(json.invitestates, function(i, invite) {
+            var $tr = $('<tr>').append(
+                $('<td>').text(invite.name + ' (' + invite.email + ')'),
+                $('<td>').text(invite.state),
+            ).appendTo(invitestbl);
+        });
+
+        return {
+            invitestates: invites.html(),
+            from_email: json.from_email,
+            subject: json.subject,
+            message: json.message,
+        }
+    },
+});
+
+// need to create this function because of some funkiness of how eval works from the python interface
+var meeting_send_discussion_req = function(url) {
+    return meeting_discussion_saeditor.edit_button_hook(url);
+}
+
+var motion_evote_saeditor = new SaEditor({
+    title: 'Send eVote Requests',
+    fields: [
+                {name: 'evotes', data: 'evotes', label: 'Send to', type: 'display',
+                    className: 'field_req full block'},
+                {name: 'subject', data: 'subject', label: 'Subject', type: 'text', className: 'field_req full block'},
+                {name: 'message', data: 'message', label: 'Message', type: 'ckeditorClassic',
+                    className: 'full block'},
+                {name: 'from_email', data: 'from_email', label: 'From', type: 'text', className: 'field_req full block'},
+            ],
+    buttons: [
+                'Send eVote Requests',
+                {
+                    text: 'Cancel',
+                    action: function() {
+                        this.close();
+                    }
+                }
+            ],
+    get_urlparams: function(e, dt, node, config) {
+        return {
+            motion_id: dt.rows({selected: true}).ids()[0]
+        }
+    },
+    form_values: function(json) {
+        // create table from json response. for some reason need dummy div element
+        // else html doesn't have <table> in it
+        var evotes = $('<div>');
+        var evotestbl = $('<table style="margin-left: 1em">');
+        evotes.append(evotestbl);
+        var $th = $('<tr>').append(
+            $('<th>').text('name (email)').attr('align', 'left'),
+        ).appendTo(evotestbl);
+        $.each(json.tolist, function(i, evote) {
+            var $tr = $('<tr>').append(
+                $('<td>').text(evote),
+            ).appendTo(evotestbl);
+        });
+
+        return {
+            evotes: evotes.html(),
+            from_email: json.from_email,
+            subject: json.subject,
+            message: json.message,
+        }
+    },
+});
+
+// need to create this function because of some funkiness of how eval works from the python interface
+var motion_send_evote_req = function(url) {
+    return motion_evote_saeditor.edit_button_hook(url);
+}
+
 var position_wizard_editor;
 
 function position_wizard(url) {

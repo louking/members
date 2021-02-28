@@ -5,12 +5,13 @@ meetings_admin - administrative task handling for meetings admin
 # standard
 from datetime import datetime, date
 from traceback import format_exception_only, format_exc
+from uuid import uuid4
 
 # pypi
 from flask import g, request, jsonify, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import h1, div, label, input, select, option, script, dd
+from dominate.tags import h1, div, label, input, select, option, script, dd, p, b
 from dominate.util import text, raw
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
@@ -25,13 +26,14 @@ from ...model import localinterest_query_params
 from ...model import invite_response_all
 from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
 from ...helpers import positions_active, members_active
-from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email
+from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, send_discuss_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
-from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP
+from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
 from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, adminguide
-from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, meeting_has_option
+from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport
+from .meetings_common import meeting_has_option, meeting_has_button
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
@@ -421,6 +423,35 @@ motionvotes_view.register()
 ###########################################################################################
 
 class MotionsView(MotionsBase):
+    def setbuttons(self):
+        # standard buttons
+        buttons = [
+                      'editChildRowRefresh',
+                      'csv'
+                  ]
+
+        # special button if meeting has online motion voting
+        meeting_id = request.args.get('meeting_id', None)
+        if meeting_id:
+            # create only if in meeting
+            buttons.insert(0, 'create')
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            if meeting_has_option(meeting, MEETING_OPTION_ONLINEMOTIONS):
+                buttons.append({
+                    'extend': 'selected',
+                    'text': 'Send eVote Requests',
+                    'name': 'send-evote-req',
+                    'editor': {'eval': 'motion_evote_saeditor.saeditor'},
+                    'url': url_for('admin._motionvote', interest=g.interest),
+                    'action': {
+                        'eval': 'motion_send_evote_req("{}")'.format(rest_url_for('admin._motionvote',
+                                                                                      interest=g.interest))
+                    },
+                },
+                )
+
+        return buttons
+
     def editor_method_postcommit(self, form):
         # this is here in case invites changed during edit action
         # self.updateinvites()
@@ -450,7 +481,9 @@ class MotionsView(MotionsBase):
             # this user wasn't invited to the meeting
             if not invite: continue
 
-            vote = MotionVote(interest=localinterest(), meeting=meeting, motion=motion, user=user)
+            vote = MotionVote(interest=localinterest(), meeting=meeting, motion=motion, user=user,
+                              motionvotekey=uuid4().hex)
+
             # if user is attending the meeting, assume they approve, otherwise no vote
             if invite.attended:
                 vote.vote = MOTIONVOTE_STATUS_APPROVED
@@ -467,10 +500,7 @@ motions_view = MotionsView(
     templateargs={'adminguide': adminguide},
     endpoint='admin.motions',
     rule='/<interest>/motions',
-    buttons=[
-        'editChildRowRefresh',
-        'csv'
-    ],
+    buttons=lambda: motions_view.setbuttons(),
     childrowoptions={
         'template': 'motion-child-row.njk',
         'showeditor': True,
@@ -486,6 +516,71 @@ motions_view.register()
 ##########################################################################################
 # meeting endpoint
 ###########################################################################################
+
+MEETING_BUTTON_OPTION_SEND_INVITES = 'send_invitations'
+MEETING_BUTTON_OPTION_DISCUSSION_REQ = 'send_discussion_req'
+MEETING_BUTTON_OPTION_GEN_DOCS = 'generate_docs'
+MEETING_BUTTON_OPTION_SEND_EMAIL = 'send_email'
+# note config property is lambda function, else exception raised for working outside of application context
+MEETING_BUTTON_OPTIONS = [
+    {
+        'option': {
+            'value': MEETING_BUTTON_OPTION_SEND_INVITES, 'label': 'Send Invitations',
+            'attr': {'title': 'add "invites" and send individual emails with link to rsvp/status page'}
+        },
+        'config': lambda: {
+            'text': 'Send {}'.format(custom_invitations()).title(),
+            'name': 'send-invites',
+            'editor': {'eval': 'meeting_invites_editor'},
+            'url': url_for('admin._meetinginvite', interest=g.interest),
+            'action': {
+                'eval': 'meeting_sendinvites("{}")'.format(rest_url_for('admin._meetinginvite',
+                                                                        interest=g.interest))
+            }
+        },
+
+    },
+    {
+        'option': {
+            'value': MEETING_BUTTON_OPTION_DISCUSSION_REQ, 'label': 'Send Discussion Request',
+            'attr': {'title': 'add "invites" and send group email with open To: list'}
+        },
+        'config': lambda: {
+            'text': 'Send Discussion Request',
+            'action': {
+                'eval': 'meeting_send_discussion_req("{}")'.format(rest_url_for('admin._meetinginvitediscuss',
+                                                                                interest=g.interest))
+            }
+        }
+    },
+    {
+        'option': {
+            'value': MEETING_BUTTON_OPTION_GEN_DOCS, 'label': 'Generate Docs',
+            'attr': {'title': 'generate agenda and/or minutes documents'}
+        },
+        'config': lambda: {
+            'text': 'Generate Docs',
+            'action': {
+                'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin._meetinggendocs',
+                                                                          interest=g.interest))
+            }
+        },
+
+    },
+    {
+        'option': {
+            'value': MEETING_BUTTON_OPTION_SEND_EMAIL, 'label': 'Send Email',
+            'attr': {'title': 'send group email'}
+        },
+        'config': lambda: {
+            'text': 'Send Email',
+            'action': {
+                'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin._meetingsendemail',
+                                                                       interest=g.interest))
+            }
+        },
+    },
+]
 
 meeting_dbattrs = 'id,interest_id,meeting_id,order,title,agendaitem,discussion,is_attendee_only,is_action_only,'\
                   'is_hidden,hidden_reason,agendaheading'.split(',')
@@ -504,6 +599,20 @@ def meeting_validate(action, formdata):
     return results
 
 class MeetingView(DbCrudApiInterestsRolePermissions):
+
+    def setbuttons(self):
+        buttons = [
+            'create',
+            'editChildRowRefresh',
+            'remove'
+        ]
+        meetingid = request.args['meeting_id']
+        meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
+        for buttonoption in MEETING_BUTTON_OPTIONS:
+            if meeting_has_button(meeting, buttonoption['option']['value']):
+                buttons.append(buttonoption['config']())
+
+        return buttons
 
     def permission(self):
         '''
@@ -813,7 +922,7 @@ meeting_view = MeetingView(
             {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions_view,
              'tableidtemplate': 'motions-{{ parentid }}',
              'args': {
-                 'buttons': ['create', 'editChildRowRefresh', 'remove'],
+                 # 'buttons': is motions_view.setbuttons(), [don't override]
                  'columns': {
                      'datatable': {
                          # uses data field as key
@@ -834,31 +943,7 @@ meeting_view = MeetingView(
     },
     serverside=True,
     idSrc='rowid',
-    # need function here else rest_url_for gives RuntimeError (no app context)
-    buttons=lambda: [
-        'create',
-        'editChildRowRefresh',
-        'remove',
-        # 'editor' gets eval'd to editor instance
-        {'text': 'Send {}'.format(custom_invitations()).title(),
-         'name': 'send-invites',
-         'editor': {'eval': 'meeting_invites_editor'},
-         'url': url_for('admin._meetinginvite', interest=g.interest),
-         'action': {
-             'eval': 'meeting_sendinvites("{}")'.format(rest_url_for('admin._meetinginvite',
-                                                                       interest=g.interest))}
-         },
-        {'text':'Generate Docs',
-         'action': {
-             'eval': 'meeting_generate_docs("{}")'.format(rest_url_for('admin._meetinggendocs',
-                                                                       interest=g.interest))}
-         },
-        {'text':'Send Email',
-         'action': {
-             'eval': 'meeting_send_email("{}")'.format(rest_url_for('admin._meetingsendemail',
-                                                                    interest=g.interest))}
-         },
-    ],
+    buttons=lambda: meeting_view.setbuttons(),
     dtoptions={
         'scrollCollapse': True,
         'scrollX': True,
@@ -1154,7 +1239,7 @@ class MeetingInviteApi(MeetingApiBase):
             if meeting_has_option(meeting, MEETING_OPTION_RSVP):
                 rsvp_text = 'RSVP and '
             subject = '[{} {}] {} -- {}{} Request'.format(
-                meeting.purpose, meeting.date, custom_invitation(), rsvp_text, custom_statusreport()).title()
+                meeting.purpose, meeting.date, custom_invitation().title(), rsvp_text, custom_statusreport().title())
             message = ''
 
             # if mail has previously been sent, pick up values used prior
@@ -1226,6 +1311,95 @@ class MeetingInviteApi(MeetingApiBase):
             return jsonify(output_result)
 
 bp.add_url_rule('/<interest>/_meetinginvite/rest', view_func=MeetingInviteApi.as_view('_meetinginvite'),
+                methods=['GET', 'POST'])
+
+
+#########################################################################################
+# meetingdiscuss api endpoint
+#########################################################################################
+
+class MeetingDiscussApi(MeetingApiBase):
+
+    def get(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            meeting_id = request.args['meeting_id']
+            invitestates, invites = get_invites(meeting_id)
+
+            # set defaults
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            from_email = meeting.organizer.email
+            subject = '[{} {}] Discussion Request'.format(
+                meeting.purpose, meeting.date)
+            message = ''
+
+            # if mail has previously been sent, pick up values used prior
+            email = Email.query.filter_by(meeting_id=meeting.id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if email:
+                from_email = email.from_email
+                subject = email.subject
+                message = email.message
+                options = email.options
+
+            return jsonify(from_email=from_email, subject=subject, message=message, invitestates=invitestates)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status': 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            # there should be one 'id' in this form data, 'keyless'
+            requestdata = get_request_data(request.form)
+            meeting_id = request.args['meeting_id']
+            from_email = requestdata['keyless']['from_email']
+            subject = requestdata['keyless']['subject']
+            message = requestdata['keyless']['message']
+            # options = requestdata['keyless']['options']
+
+            email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL).one_or_none()
+            if not email:
+                email = Email(interest=localinterest(), type=MEETING_INVITE_EMAIL, meeting_id=meeting_id)
+                db.session.add(email)
+
+            # save updates, used by generateinvites()
+            email.from_email = from_email
+            email.subject = subject
+            email.message = message
+            db.session.flush()
+
+            generateinvites(meeting_id, sendemail=False, agendatitle=None)
+            send_discuss_email(meeting_id)
+
+            self._responsedata = []
+
+            db.session.commit()
+            return jsonify(self._responsedata)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_meetinginvitediscuss/rest', view_func=MeetingDiscussApi.as_view('_meetinginvitediscuss'),
                 methods=['GET', 'POST'])
 
 
@@ -1632,8 +1806,8 @@ class MeetingTypesView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
-meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,meetingwording,statusreportwording,invitewording'.split(',')
-meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,meetingwording,statusreportwording,invitewording'.split(',')
+meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording'.split(',')
+meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording'.split(',')
 meetingtypes_dbmapping = dict(zip(meetingtypes_dbattrs, meetingtypes_formfields))
 meetingtypes_formmapping = dict(zip(meetingtypes_formfields, meetingtypes_dbattrs))
 
@@ -1677,10 +1851,17 @@ meetingtypes_view = MeetingTypesView(
                       'that here. Use lowercase letters.',
          'ed': {'label': 'Custom Wording for "invitation"', 'def': 'invitation'},
          },
-        {'data': 'options', 'name': 'options', 'label': 'Options',
+        {'data': 'options', 'name': 'options', 'label': 'Meeting Options',
          'type': 'checkbox',
          'ed': {
              'options': [{'value': o, 'label': MEETING_OPTIONS[o]} for o in MEETING_OPTIONS],
+             'separator': MEETING_OPTION_SEPARATOR,
+         }
+         },
+        {'data': 'buttonoptions', 'name': 'buttonoptions', 'label': 'Meeting Button Options',
+         'type': 'checkbox',
+         'ed': {
+             'options': [o['option'] for o in MEETING_BUTTON_OPTIONS],
              'separator': MEETING_OPTION_SEPARATOR,
          }
          },

@@ -77,13 +77,14 @@ def get_invites(meetingid):
     # return the state values to simplify client work, also return the database records
     return list(invitestates.values()), list(invites.values())
 
-def check_add_invite(meeting, localuser, agendaitem):
+def check_add_invite(meeting, localuser, agendaitem, sendemail=True):
     """
     check if user invite needs to be added
 
     :param meeting: Meeting instance
     :param localuser: LocalUser instance
     :param agendaitem: AgendaItem instance for invite to be attached to
+    :param sendemail: True means send email to localuser
     :return: invite (may have been created)
     """
     invite = Invite.query.filter_by(interest=localinterest(), meeting=meeting, user=localuser).one_or_none()
@@ -102,49 +103,52 @@ def check_add_invite(meeting, localuser, agendaitem):
         db.session.add(invite)
         db.session.flush()
 
-        # get user's outstanding action items
-        actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser).\
-            filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
+        # optionally send email to user
+        if sendemail:
+            # get user's outstanding action items
+            actionitems = ActionItem.query.filter_by(interest=localinterest(), assignee=localuser). \
+                filter(ActionItem.status != ACTION_STATUS_CLOSED).all()
 
-        # send email to user
-        email = Email.query.filter_by(meeting=meeting, type=MEETING_INVITE_EMAIL).one()
-        subject = email.subject
+            email = Email.query.filter_by(meeting=meeting, type=MEETING_INVITE_EMAIL).one()
+            subject = email.subject
 
-        fromlist = email.from_email
+            fromlist = email.from_email
 
-        rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
-                               urlargs={'invitekey': invitekey},
-                               _external=True)
-        actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
+            rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
+                                   urlargs={'invitekey': invitekey},
+                                   _external=True)
+            actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
 
-        context = {
-            'meeting': meeting,
-            'actionitems': actionitems,
-            'rsvpurl': rsvpurl,
-            'actionitemurl': actionitemurl,
-            'message': email.message,
-            'meeting_text': meeting.meetingtype.meetingwording,
-            'statusreport_text': meeting.meetingtype.statusreportwording,
-            'invitation_text': meeting.meetingtype.invitewording,
-            'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording)
+            context = {
+                'meeting': meeting,
+                'actionitems': actionitems,
+                'rsvpurl': rsvpurl,
+                'actionitemurl': actionitemurl,
+                'message': email.message,
+                'meeting_text': meeting.meetingtype.meetingwording,
+                'statusreport_text': meeting.meetingtype.statusreportwording,
+                'invitation_text': meeting.meetingtype.invitewording,
+                'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording)
 
-        }
-        for meetingoption in MEETING_OPTIONS:
-            context[meetingoption] = meeting_has_option(meeting, meetingoption)
+            }
+            for meetingoption in MEETING_OPTIONS:
+                context[meetingoption] = meeting_has_option(meeting, meetingoption)
 
-        html = render_template('meeting-invite-email.jinja2', **context)
-        tolist = localuser.email
-        cclist = None
-        sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+            html = render_template('meeting-invite-email.jinja2', **context)
+            tolist = localuser.email
+            cclist = None
+            sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
 
     invite.activeinvite = True
     return invite
 
-def generateinvites(meetingid):
+def generateinvites(meetingid, sendemail=True, agendatitle='Attendees'):
     """
     generate the invitations for a specified meeting; return the agendaitem if created
 
     :param meetingid: Meeting.id
+    :param sendemail: True means email should be sent to user
+    :param agendatitle: title for agendaitem, if None or empty string, don't create this
     :return: AgendaItem
     """
     meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
@@ -154,11 +158,11 @@ def generateinvites(meetingid):
 
     # only generate Attendees agendaitem if collecting RSVPs
     agendaitem = None
-    if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+    if meeting_has_option(meeting, MEETING_OPTION_RSVP) and agendatitle:
         # check if agendaitem already exists.
         agendaitem = AgendaItem.query.filter_by(interest=localinterest(), meeting=meeting, is_attendee_only=True).one_or_none()
         if not agendaitem:
-            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title='Attendees', agendaitem='',
+            agendaitem = AgendaItem(interest=localinterest(), meeting=meeting, order=1, title=agendatitle, agendaitem='',
                                     is_attendee_only=True)
             db.session.add(agendaitem)
 
@@ -171,11 +175,11 @@ def generateinvites(meetingid):
     currinvites = set()
     for tag in meeting.tags:
         for user in tag.users:
-            thisinvite = check_add_invite(meeting, user, agendaitem)
+            thisinvite = check_add_invite(meeting, user, agendaitem, sendemail=sendemail)
             currinvites |= {thisinvite.id}
         for position in tag.positions:
             for member in members_active(position, meeting.date):
-                thisinvite = check_add_invite(meeting, member, agendaitem)
+                thisinvite = check_add_invite(meeting, member, agendaitem, sendemail=sendemail)
                 currinvites |= {thisinvite.id}
 
     # make invite inactive for anyone who was previously invited, but should not currently be invited
@@ -272,9 +276,47 @@ def send_meeting_email(meeting_id, subject, message):
     tolist = ['{} <{}>'.format(i.user.name, i.user.email) for i in invites]
 
     # use from address configured for email
-    email = Email.query.filter_by(meeting_id=meeting_id, type='meeting-email', interest=localinterest()).one()
+    email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL, interest=localinterest()).one()
     fromaddr = email.from_email
 
     result = sendmail(subject, fromaddr, tolist, message)
+
+    return tolist
+
+def send_discuss_email(meeting_id):
+    """
+    send email to meeting invitees
+
+    :param meeting_id: id of meeting
+    :param subject: subject for message
+    :param message: message in html format
+    :return: list of addresses email was sent to
+    """
+    invites = Invite.query.filter_by(meeting_id=meeting_id).all()
+    meeting = Meeting.query.filter_by(id=meeting_id).one()
+
+    tolist = ['{} <{}>'.format(i.user.name, i.user.email) for i in invites]
+
+    # use from address configured for email
+    email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL, interest=localinterest()).one()
+    fromaddr = email.from_email
+    subject = email.subject
+    message = email.message
+
+    # create and send email
+    context = {
+        'meeting': meeting,
+        'message': message,
+        'meeting_text': meeting.meetingtype.meetingwording,
+        'statusreport_text': meeting.meetingtype.statusreportwording,
+        'invitation_text': meeting.meetingtype.invitewording,
+        'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording),
+    }
+    for meetingoption in MEETING_OPTIONS:
+        context[meetingoption] = meeting_has_option(meeting, meetingoption)
+
+    html = render_template('meeting-discuss-email.jinja2', **context)
+
+    sendmail(subject, fromaddr, tolist, html)
 
     return tolist

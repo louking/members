@@ -399,6 +399,7 @@ class MeetingType(Base):
     order               = Column(Integer)
     meetingtype         = Column(Text)
     options             = Column(Text)  # see MEETING_OPTIONS
+    buttonoptions       = Column(Text)  # see MEETING_BUTTON_OPTIONS in meetings_admin.py
     meetingwording      = Column(Text)
     statusreportwording = Column(Text)
     invitewording       = Column(Text)

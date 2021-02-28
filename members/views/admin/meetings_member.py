@@ -8,25 +8,28 @@ from datetime import date, datetime
 from traceback import format_exc, format_exception_only
 
 # pypi
-from flask import request, flash, g, jsonify, current_app
+from flask import request, flash, jsonify, current_app
 from flask_security import current_user, logout_user, login_user
 from flask.views import MethodView
-from sqlalchemy import func
-from dominate.tags import div, h1
+from dominate.tags import div, h1, p, b
 
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Invite, ActionItem
+from ...model import LocalInterest, LocalUser, Invite, ActionItem, Motion, MotionVote
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
+from ...model import motionvote_all
 from ...version import __docversion__
+from ...meeting_evotes import get_evotes, generateevotes
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs
 from .viewhelpers import localuser2user, user2localuser
+from loutilities.tables import get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.timeu import asctime
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
+from loutilities.flask.user.views import SelectInterestsView
 
 isodate = asctime('%Y-%m-%d')
 displaytime = asctime('%Y-%m-%d %H:%M')
@@ -453,4 +456,173 @@ class MyMeetingRsvpApi(MethodView):
 bp.add_url_rule('/<interest>/_mymeetingrsvp/rest', view_func=MyMeetingRsvpApi.as_view('_mymeetingrsvp'),
                 methods=['GET', 'POST'])
 
+##########################################################################################
+# motionvote endpoint
+###########################################################################################
+
+MOTIONVOTE_KEY = 'motionvotekey'
+
+class MotionVoteView(SelectInterestsView):
+    # remove auth_required() decorator
+    decorators = []
+
+    def permission(self):
+        motionvotekey = request.args.get(MOTIONVOTE_KEY, None)
+        if motionvotekey:
+            permitted = True
+            motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
+            user = localuser2user(motionvote.user)
+
+            if current_user != user:
+                # log out and in automatically
+                # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
+                logout_user()
+                login_user(user)
+                db.session.commit()
+                flash('you have been automatically logged in as {}'.format(current_user.name))
+
+            # at this point, if current_user has the target user (may have been changed by invitekey)
+            # check role permissions, permitted = True (from above) unless determined otherwise
+            roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
+            allowed = False
+            for role in roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+            if not allowed:
+                permitted = False
+
+        # no motionvotekey, not permitted
+        else:
+            permitted = False
+
+        return permitted
+
+    def getval(self):
+        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
+        return '"{}"'.format(motionvote.vote)
+
+    def putval(self, val):
+        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
+        motionvote.vote = val
+        db.session.commit()
+
+def motionvote_preselecthtml():
+    motionvotekey = request.args.get(MOTIONVOTE_KEY)
+    motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
+    meeting = motionvote.meeting
+    motion = motionvote.motion
+    user = motionvote.user
+    html = div()
+    with html:
+        h1('{} {}: {}\'s Vote'.format(meeting.date, meeting.purpose, user.name))
+        p(b('Motion'))
+        p(motion.motion)
+    return html.render()
+
+motionvote_view = MotionVoteView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
+    local_interest_model=LocalInterest,
+    app=bp,
+    pagename='motion vote',
+    templateargs={'adminguide': adminguide},
+    endpoint='admin.motionvote',
+    endpointvalues={'interest': '<interest>'},
+    preselecthtml=motionvote_preselecthtml,
+    rule='<interest>/motionvote',
+    selectlabel='Vote',
+    select2options={
+        'width': '200px',
+        'data': motionvote_all
+    },
+)
+motionvote_view.register()
+
+#########################################################################################
+# motionvote api endpoint
+#########################################################################################
+
+class MotionVoteApi(MethodView):
+
+    def __init__(self):
+        self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
+
+    def permission(self):
+        '''
+        determine if current user is permitted to use the view
+        '''
+        # adapted from loutilities.tables.DbCrudApiRolePermissions
+        allowed = False
+
+        # must have meeting_id query arg
+        if request.args.get('motion_id', False):
+            for role in self.roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+
+        return allowed
+
+    def get(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            motion_id = request.args['motion_id']
+            tolist = get_evotes(motion_id)
+
+            # set defaults
+            motion = Motion.query.filter_by(id=motion_id).one()
+            from_email = motion.meeting.organizer.email
+            subject = '[{} {}] Motion eVote Request'.format(
+                motion.meeting.purpose, motion.meeting.date)
+            message = ''
+
+            return jsonify(from_email=from_email, subject=subject, message=message, tolist=tolist)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status': 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+    def post(self):
+        try:
+            # verify user can write the data, otherwise abort (adapted from loutilities.tables._editormethod)
+            if not self.permission():
+                db.session.rollback()
+                cause = 'operation not permitted for user'
+                return jsonify(error=cause)
+
+            # there should be one 'id' in this form data, 'keyless'
+            requestdata = get_request_data(request.form)
+            motion_id = request.args['motion_id']
+            from_email = requestdata['keyless']['from_email']
+            subject = requestdata['keyless']['subject']
+            message = requestdata['keyless']['message']
+
+            generateevotes(motion_id, from_email, subject, message)
+
+            self._responsedata = []
+
+            db.session.commit()
+            return jsonify(self._responsedata)
+
+        except Exception as e:
+            exc = ''.join(format_exception_only(type(e), e))
+            output_result = {'status' : 'fail', 'error': 'exception occurred:<br>{}'.format(exc)}
+            # roll back database updates and close transaction
+            db.session.rollback()
+            current_app.logger.error(format_exc())
+            return jsonify(output_result)
+
+bp.add_url_rule('/<interest>/_motionvote/rest', view_func=MotionVoteApi.as_view('_motionvote'),
+                methods=['GET', 'POST'])
 

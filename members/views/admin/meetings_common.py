@@ -5,6 +5,7 @@ meetings_common - common view support for meetings
 # standard
 from datetime import date
 from copy import deepcopy
+from uuid import uuid4
 
 # pypi
 from flask import request, g
@@ -305,6 +306,10 @@ memberdiscussions_view.register()
 def meeting_has_option(meeting, option):
     '''return True if meeting.meetingtype has option'''
     return option in meeting.meetingtype.options.split(MEETING_OPTION_SEPARATOR)
+
+def meeting_has_button(meeting, button):
+    '''return True if meeting.meetingtype has buttonoption'''
+    return button in meeting.meetingtype.buttonoptions.split(MEETING_OPTION_SEPARATOR)
 
 def memberstatusreport_buttons():
     invitekey = request.args.get('invitekey', None)
@@ -935,6 +940,12 @@ class MotionVotesBase(DbCrudApiInterestsRolePermissions):
                 delfields.append(field)
         for field in delfields:
             del self.queryparams[field]
+
+    def createrow(self, formdata):
+        mvform = super().createrow(formdata)
+        motionvote = MotionVote.query.filter_by(id=self.created_id).one()
+        motionvote.motionvotekey = uuid4().hex
+        return mvform
 
 motionvotes_filters = filtercontainerdiv()
 motionvotes_filters += filterdiv('motionvotes-external-filter-date', 'Date')

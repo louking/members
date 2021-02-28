@@ -156,6 +156,8 @@ function afterdatatables() {
     });
 
     // special processing for task checklist
+    var pathname = location.pathname;
+    var interest = get_group_val();
     if (location.pathname.includes('/taskchecklist'))
     {
         // handle effective date update by retrieving data by /rest and refreshing table
@@ -276,9 +278,7 @@ function afterdatatables() {
         fltr_init();
 
     // special processing for meeting
-    } else if (location.pathname.includes('/meeting')
-                && !location.pathname.includes('/meetings')
-                && !location.pathname.includes('/meetingtypes')) {
+    } else if (pathname == `/admin/${interest}/meeting`) {
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
         meeting_invites_editor = new $.fn.dataTable.Editor({
             fields: [
@@ -354,6 +354,9 @@ function afterdatatables() {
                     }
                 }
             ])
+
+        motion_evote_saeditor.init();
+        meeting_discussion_saeditor.init();
 
         // only show hidden_reason field if is_hidden is true (yes)
         editor.dependent('is_hidden', function(val, data, callback) {
@@ -443,6 +446,7 @@ function afterdatatables() {
             }
         });
 
+        // todo: remove as part of fix for #391
         _dt_table.on('select deselect', function(e, dt, type, indexes) {
             var ids = _dt_table.rows({selected:true}).ids();
             if (ids.length == 0) {
