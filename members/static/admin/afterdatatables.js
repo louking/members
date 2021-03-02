@@ -468,6 +468,10 @@ function afterdatatables() {
     } else if (location.pathname.includes('/mymeetings')) {
         onclick_trigger(_dt_table, 'td.view-control', 'view-status');
 
+    // special processing for mymotionvotes
+    } else if ((pathname == `/admin/${interest}/mymotionvotes`)) {
+        onclick_trigger(_dt_table, 'td.view-control', 'view-motionvote');
+
     // special processing for positiondates
     } else if (location.pathname.includes('/positiondates')) {
         // set initial filter to today

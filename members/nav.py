@@ -121,6 +121,8 @@ def nav_menu():
                 navbar.items.append(meetingsviews)
                 meetings_member_view(meetingsviews, 'My Meetings', 'admin.mymeetings', interest=g.interest)
                 meetings_member_view(meetingsviews, 'My Action Items', 'admin.myactionitems', interest=g.interest)
+                # todo: should this be disabled if no motionvotes for this user?
+                meetings_member_view(meetingsviews, 'My Motion Votes', 'admin.mymotionvotes', interest=g.interest)
                 # not sure there is any need for this
                 # meetings_member_view(meetingsviews, 'My Discussion Items', 'admin.memberdiscussions', interest=g.interest)
 

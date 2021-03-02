@@ -822,3 +822,20 @@ function discussionitems_postcreate(dt, ed) {
     }
 }
 
+/**
+ * return function handles View Motion Vote button from My Motion Votes view
+ *
+ * @param url - url to navigate to
+ * @returns {function(e, dt, node, config): void}
+ */
+function mymotionvote_motionvote(url) {
+    return function(e, dt, node, config) {
+        var args = allUrlParams();
+        var motionvotekey = dt.rows({selected:true}).data()[0].motionvotekey;
+        args.motionvotekey = motionvotekey;
+        var newsearch = $.param(args);
+        var newloc = url + '?' + newsearch;
+        window.location.href = newloc;
+    }
+}
+

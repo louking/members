@@ -8,7 +8,7 @@ from datetime import date, datetime
 from traceback import format_exc, format_exception_only
 
 # pypi
-from flask import request, flash, jsonify, current_app
+from flask import request, flash, jsonify, current_app, url_for, g
 from flask_security import current_user, logout_user, login_user
 from flask.views import MethodView
 from dominate.tags import div, h1, p, b
@@ -316,6 +316,86 @@ myactionitems_view = MyActionItemsView(
 )
 myactionitems_view.register()
 
+##########################################################################################
+# mymotionvotes endpoint
+##########################################################################################
+
+class MyMotionVotesView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        self.queryparams['user'] = user2localuser(current_user)
+
+mymotionvotes_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,motion.motion,vote,motionvotekey'.split(',')
+mymotionvotes_formfields = 'rowid,interest_id,purpose,date,motion,vote,motionvotekey'.split(',')
+mymotionvotes_dbmapping = dict(zip(mymotionvotes_dbattrs, mymotionvotes_formfields))
+mymotionvotes_formmapping = dict(zip(mymotionvotes_formfields, mymotionvotes_dbattrs))
+mymotionvotes_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
+
+mymotionvotes_view = MyMotionVotesView(
+    roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=MotionVote,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': adminguide},
+    pagename='My Motion Votes',
+    endpoint='admin.mymotionvotes',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/mymotionvotes',
+    dbmapping=mymotionvotes_dbmapping,
+    formmapping=mymotionvotes_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': '',  # needs to be '' else get exception converting options from meetings render_template
+         # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+         'name': 'view-control',
+         'className': 'view-control shrink-to-fit',
+         'orderable': False,
+         'defaultContent': '',
+         'label': '',
+         'type': 'hidden',  # only affects editor modal
+         'title': 'View',
+         'render': {'eval': 'render_icon("fas fa-eye")'},
+         },
+        {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
+         'type': 'readonly'
+         },
+        {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting Purpose',
+         'type': 'readonly'
+         },
+        {'data': 'motion', 'name': 'motion', 'label': 'Motion',
+         'type': 'readonly'
+         },
+        {'data': 'vote', 'name': 'vote', 'label': 'Vote',
+         'type': 'readonly',
+         },
+        {'data': 'motionvotekey', 'name': 'motionvotekey', 'label': 'My Motion Vote',
+         'type': 'hidden',
+         'dt': {'visible': False},
+         },
+    ],
+    idSrc='rowid',
+    buttons=lambda: [
+        {
+            'extend': 'edit',
+            'name': 'view-motionvote',
+            'text': 'View Motion Vote',
+            'action': {'eval': 'mymotionvote_motionvote("{}")'.format(url_for('admin.motionvote', interest=g.interest))},
+            'className': 'Hidden',
+        },
+        'csv',
+    ],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'order': [['date:name', 'desc']],
+    },
+)
+mymotionvotes_view.register()
+
 
 ##########################################################################################
 # memberactionitems endpoint
@@ -498,6 +578,13 @@ class MotionVoteView(SelectInterestsView):
 
         return permitted
 
+    def setdisplayonly(self):
+        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
+        today = date.today()
+        meetingdate = motionvote.meeting.date
+        return today > meetingdate
+
     def getval(self):
         motionvotekey = request.args.get(MOTIONVOTE_KEY)
         motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
@@ -527,6 +614,7 @@ motionvote_view = MotionVoteView(
     local_interest_model=LocalInterest,
     app=bp,
     pagename='motion vote',
+    displayonly=lambda: motionvote_view.setdisplayonly(),
     templateargs={'adminguide': adminguide},
     endpoint='admin.motionvote',
     endpointvalues={'interest': '<interest>'},
