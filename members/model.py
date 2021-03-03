@@ -403,6 +403,7 @@ class MeetingType(Base):
     meetingwording      = Column(Text)
     statusreportwording = Column(Text)
     invitewording       = Column(Text)
+    autoagendatitle     = Column(Text)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

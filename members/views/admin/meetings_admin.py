@@ -15,6 +15,8 @@ from dominate.tags import h1, div, label, input, select, option, script, dd, p, 
 from dominate.util import text, raw
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
+from loutilities.nesteddict import obj2dict
+from jinja2 import Environment
 
 # homegrown
 from . import bp
@@ -83,10 +85,23 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
         """
         output = super().createrow(formdata)
         themeeting = Meeting.query.filter_by(id=self.created_id).one()
+
+        # special processing for action items agenda
         if meeting_has_option(themeeting, MEETING_OPTION_SHOWACTIONITEMS):
             agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=2, title='Action Items', agendaitem='',
                                     is_action_only=True)
             db.session.add(agendaitem)
+
+        # special processing if autoagendatitle is specified, run the template engine to do any translation
+        if themeeting.meetingtype.autoagendatitle:
+            garbage = themeeting.meetingtype # because of lazy loading
+            meetingdict = obj2dict(themeeting)
+            agitemtemp = Environment().from_string(themeeting.meetingtype.autoagendatitle)
+            agendatitle = agitemtemp.render(meetingdict)
+            agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=3, title=agendatitle, agendaitem='',
+                                    is_action_only=False)
+            db.session.add(agendaitem)
+
         return output
 
 def meetings_validate(action, formdata):
@@ -1806,8 +1821,8 @@ class MeetingTypesView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
-meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording'.split(',')
-meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording'.split(',')
+meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording,autoagendatitle'.split(',')
+meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording,autoagendatitle'.split(',')
 meetingtypes_dbmapping = dict(zip(meetingtypes_dbattrs, meetingtypes_formfields))
 meetingtypes_formmapping = dict(zip(meetingtypes_formfields, meetingtypes_dbattrs))
 
@@ -1836,6 +1851,12 @@ meetingtypes_view = MeetingTypesView(
         {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
          '_unique': True,
          },
+        {'data': 'autoagendatitle', 'name': 'autoagendatitle', 'label': 'Automatic Agenda Item Title',
+         'fieldInfo': 'When a meeting is created, if this is specified, it will cause an agenda item to be created '
+                      'in the meeting with this title. Note this can include text of the form {{ purpose }} or '
+                      '{{ meetingtype.statusreportwording }} which is templated against the meeting record. '
+                      'See the administrator for acceptable template variables.',
+        },
         {'data': 'meetingwording', 'name': 'meetingwording', 'label': '"meeting"',
          'fieldInfo': 'If you don\'t want the text on the page and emails to say "meeting" you can customize '
                       'that here. Use lowercase letters.',
