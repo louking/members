@@ -379,14 +379,12 @@ MEETING_OPTION_LOCATION = 'location_required'
 MEETING_OPTION_HASSTATUSREPORTS = 'has_status_reports'
 MEETING_OPTION_SHOWACTIONITEMS = 'show_action_items'
 MEETING_OPTION_ONLINEMOTIONS = 'allow_online_motions'
-MEETING_OPTION_SHOWGENDOCS = 'show_gen_docs'
 MEETING_OPTIONS = OrderedDict([
     (MEETING_OPTION_RSVP, 'RSVP Required'),
     (MEETING_OPTION_TIME, 'Time Required'),
     (MEETING_OPTION_LOCATION, 'Location Required'),
     (MEETING_OPTION_HASSTATUSREPORTS, 'Has Status Reports'),
     (MEETING_OPTION_SHOWACTIONITEMS, 'Show Action Items'),
-    (MEETING_OPTION_SHOWGENDOCS, 'Show Generate Docs Button'),
     (MEETING_OPTION_ONLINEMOTIONS, 'Allow Online Motion/Votes'),
 ])
 
