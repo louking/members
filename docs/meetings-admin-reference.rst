@@ -1,6 +1,6 @@
-===========================================
+*******************************************
 Meetings Admin Reference
-===========================================
+*******************************************
 
 This page gives a reference to all **membertility** views which are available to
 :term:`members <member>` who have the :term:`meeting admin` :term:`security role`.
@@ -254,11 +254,13 @@ Edit of an :term:`agenda` item is inline with the table, with :ref:`Action Items
         if **Hide** is set to *yes*, the reason the :term:`agenda` item was hidden should be entered here. The
         :term:`invitee <invite>` will be able to see this from their :ref:`My Status Report view`
 
-In addition to the **New**, **Edit**, **Delete** buttons, there are three action buttons.
+In addition to the **New**, **Edit**, **Delete** buttons, there are action buttons. Action buttons are shown or not
+depending on which **Meeting Type** was chosen (configured in the :ref:`Meeting Types view`).
 
-    :Send Invites:
-        use this to send the initial :term:`invitation <invite>` to the meeting, or if any positions have been updated
-        which affect the meeting attendance
+    :Send Invitations:
+        use this to send the initial :term:`invitations <invite>` to the meeting, or if any positions have been updated
+        which affect the meeting attendance. Individual emails are sent which include a link that the :term:`member`
+        can use to :term:`RSVP <rsvp>` and/or update their :term:`status reports <status report>`
 
         :Subject:
             default subject is provided by the system, but can be changed if desired
@@ -269,30 +271,39 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are three action
         :From:
             defaults to the email address of the :term:`meeting` **Organizer**, but can be updated if desired
 
-        :option checkboxes:
-            * check **Request Status Report** if the text in the email should mention that a status report is needed
-            * check **Show Action Items** if outstanding action items should be shown in the email
-
         .. note::
             if any positions which affect meeting attendance have been updated, a nightly job will take care of
             sending additional :term:`invitations <invite>`
+
+    :Send Discussion Request:
+        use this to send a discussion request for the meeting. A single email is sent to the :term:`invitees <invite>`,
+        suitable for a *reply/all* discussion
+
+        :Subject:
+            default subject is provided by the system, but can be changed if desired
+
+        :Message:
+            add additional message to the invitiation if desired
+
+        :From:
+            defaults to the email address of the :term:`meeting` **Organizer**, but can be updated if desired
 
     :Generate Docs:
         use this to generate documents associated with the meeting
 
         .. note::
-            the status report document is automatically created and updated as people write or update
+            the :term:`status report` document is automatically created and updated as people write or update
             their status reports
 
         .. note::
-            for upcoming meetings, a nightly process regenerates documents which were previously generated, in case changes
-            are made which would affect those documents. This does not apply to minutes since these are normally
+            for upcoming meetings, a nightly process regenerates the :term:`agenda`, in case changes
+            are made which would affect it. This does not apply to :term:`minutes` since these are normally
             generated after the meeting
 
 
     :Send Email:
-        use this to send email to the :term:`members <member>` on the :term:`meeting` :term:`invite` list. Note the
-        default email subject contains the meeting purpose and date, and can be edited
+        use this to send email to the :term:`invitees <invite>`. Note the
+        default subject contains the meeting purpose and date, and can be edited
 
         :Subject:
             default subject is provided by the system, but can be changed if desired
@@ -304,19 +315,25 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are three action
             defaults to the email address which was used during **Send Invites**, but can be updated if desired
 
 
+.. image:: images/meeting-all-buttons.*
+    :align: center
+
 .. image:: images/meeting-view.*
     :align: center
 
-.. image:: images/meeting-edit.*
+.. image:: images/meeting-send-invites.*
     :align: center
 
-.. image:: images/meeting-send-invites.*
+.. image:: images/meeting-send-discussion-req.*
     :align: center
 
 .. image:: images/meeting-generate-docs.*
     :align: center
 
 .. image:: images/meeting-send-email.*
+    :align: center
+
+.. image:: images/meeting-edit.*
     :align: center
 
 
@@ -332,45 +349,56 @@ this view is used to navigate to the individual meeting for administration purpo
     :Purpose:
         short name of the meeting, e.g., Board Meeting
 
+    :Meeting Type:
+        type of the meeting, as created by :ref:`Meeting Types view`
+
     :Date:
         date the meeting will take place
 
     :Time:
-        time of the meeting
+        time of the meeting (optional, depending on **Meeting Type**)
 
     :Location:
-        location of the meeting, either a physical address, a URL (e.g., for Google Meet), or "by email"
+        location of the meeting, either a physical address or a URL (e.g., for Google Meet) (optional,
+        depending on **Meeting Type**)
 
     :Show Actions Since:
         action items are shown in agenda, minutes, etc. Any action items which have been updated after this
-        date will be shown associated with this meeting
+        date will be shown associated with this meeting (optional, depending on **Meeting Type**)
 
     :Organizer:
         the meeting organizer. When emails are sent from this view, the **From** address will default to this
         :term:`member's <member>` email address. This defaults to the currently logged in member
 
-    :Agenda:
-        if agenda has been generated to Google Workplace, this is the link to the file
-
-    :Status Report:
-        if status report has been generated to Google Workplace, this is the link to the file
-
-    :Minutes:
-        if minutes has been generated to Google Workplace, this is the link to the file
-
     :Invite Tags:
-        members who are associated with these tags through their position will be invited to the meeting
+        :term:`members <member>` who are associated with these :term:`tags <tag>` through their :term:`position` will be
+        invited to the :term:`meeting`
 
     :Vote Tags:
-        members who are associated with these tags through their position will be invited to the meeting
+        :term:`members <member>` who are associated with these :term:`tags <tag>` through their :term:`position` may
+        vote on :term:`motions <motion>` associated with the :term:`meeting`
 
-In addition to the **New**, **Edit**, **Delete** buttons, there are two navigation buttons.
+    :Status Report Tags:
+        :term:`members <member>` who are associated with these :term:`tags <tag>` through their :term:`position` will
+        be prompted to provide :term:`position` :term:`status reports <status report>`
+
+    :Agenda:
+        this is the link to the :term:`agenda` document
+
+    :Status Report:
+        this is the link to the :term:`status report` document
+
+    :Minutes:
+        this is the link to the :term:`minutes` document
+
+In addition to the **New**, **Edit**, **Delete** buttons, there are these navigation buttons.
 
     :View Meeting:
-        this is the edit view for the meeting which is used during the meeting, brings up :ref:`Meeting view`
+        this is the view for the :term:`meeting` which can be used to prepare the :term:`agenda` or during the
+        :term:`meeting`, brings up :ref:`Meeting view`
 
     :Meeting Status:
-        this gives status of the meeting for use prior to the meeting, showing missing and entered status reports. This
+        this gives status of the :term:`meeting`, showing missing and entered status reports. This
         brings up :ref:`Meeting Status view`
 
     :Their Status Report:
@@ -381,6 +409,68 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are two navigati
     :align: center
 
 .. image:: images/meetings-edit.*
+    :align: center
+
+
+.. _Meeting Types view:
+
+Meeting Types view
+======================
+**Navigation:** Meetings > Meeting Types
+
+The Meeting Types view is used to control the behavior of the :ref:`Meeting view`, and to identify which buttons
+should be shown.
+
+    :Meeting Type:
+        name of the meeting type
+
+    :Automatic Agenda Item Title:
+        if this is specified, when the meeting is created an agenda item will be created in the meeting with this
+        title. Note this can include text of the form {{ purpose }} or {{ meetingtype.statusreportwording }} which
+        is templated against the meeting record. See the administrator for acceptable template variables.
+
+    :Custom Wording for "meeting":
+        if you don't want the text on the page and emails to say something other than "meeting" you can customize that
+        here. Use lowercase letters.
+
+    :Custom Wording for "status report":
+        if you want the text on the page and emails to say something other than "status report" you can customize that
+        here. Use lowercase letters.
+
+    :Custom Wording for "invitation":
+        if you want the text on the page and emails to say something other than "invitation" you can customize that
+        here. Use lowercase letters.
+
+    :Meeting Options:
+        these control the behavior of the :ref:`Meeting view` for meetings of this **Meeting Type**
+
+            * *RSVP Required* - require the :term:`member` to :term:`RSVP <rsvp>` to the meeting
+            * *Time Required* - require the :term:`meeting admin` to add **Time** when creating the :term:`meeting`
+            * *Location Required* - require the :term:`meeting admin` to add **Location** when creating the :term:`meeting`
+            * *Has Status Reports* - the :term:`member` will be shown a page which allows creation of
+              :term:`status reports <status report>`
+            * *Show Action Items* - require the :term:`meeting admin` to add **Show Actions Since** when creating the :term:`meeting`.
+              The :ref:`Meeting view` will show and agenda item with :term:`action items <action item>`
+            * *Allow Online Motion/Votes* - the :ref:`Motions view` within a meeting agenda item will have a button
+              to **Send eVote Requests**
+
+    :Meeting Buttons:
+        these control what buttons to show for the :ref:`Meeting view`. See :ref:`Meeting view` for the description
+        of each button's behavior
+
+            * *Send Invitations* - this button should be configured if the **Meeting Options**
+              include *RSVP Required* and/or *Has Status Reports*.
+            * *Send Discussion Request* - this button should be configured if the **Meeting Options**
+              include *Allow Online Motion/Votes*
+            * *Generate Docs* - this button should be configured if the :term:`meeting` will include an :term:`agenda`
+              or :term:`minutes`
+            * *Send Email* - this button should be configured if there will be any need to send email to the
+              :term:`invitees <invite>` after invitations are sent out
+
+.. image:: images/meeting-types-view.*
+    :align: center
+
+.. image:: images/meeting-types-edit.*
     :align: center
 
 

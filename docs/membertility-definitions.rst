@@ -20,6 +20,10 @@ Glossary
         a topic which needs to be brought up at a :term:`meeting`. When a discussion item is created from
         :ref:`My Status Report view`, this automatically creates an :term:`agenda item`
 
+    discussion request
+        an email which is sent to the :term:`members <member>` who resolve via :term:`position` to the **Invite Tags**
+        of a :ref:`meeting`
+
     expiration date
         this is the date the :term:`task` should next be completed by. If this date is in the
         past, the :term:`task` is *overdue* and should be completed as soon as possible.

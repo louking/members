@@ -1,6 +1,6 @@
-===========================================
+*******************************************
 Meetings Admin Guide
-===========================================
+*******************************************
 
 This guide describes the concepts of the **membertility** Meetings Module, and gives guidance on
 how to achieve the :term:`meeting` work flow.
@@ -79,7 +79,7 @@ Meeting Data Model
         { rank=same; "action item 1", "motion 1" };
     }
 
-Prepare for :term:`Meeting <meeting>` Module use
+Prepare for Meeting Module use
 ===============================================================================
 
 The following needs to be set up in the database before using the meeting module. These require the indicated role
@@ -93,12 +93,12 @@ to achieve. Full documentation of this is TBD.
   [super-admin]
 
 
-Use cases for before the :term:`meeting` (for when you want to...)
+Use cases for before the meeting (for when you want to...)
 ============================================================================
 
 These sections describe what an :term:`meeting admin`  might want to do when planning a :term:`meeting`.
 
-create a :term:`meeting`
+create a meeting
 ---------------------------
 
 When a :term:`meeting` is being planned, the first thing to do is create it.
@@ -106,38 +106,73 @@ When a :term:`meeting` is being planned, the first thing to do is create it.
 * bring up :ref:`Meetings view`
 * click **New**
 * **Purpose** should be a short description of the meeting, e.g., *Board Meeting*
-* **Location** can be a physical location, a videoconference URL, or *by email*
-* **Time** the time of the meeting needs to be entered
+* **Meeting Type** defines the behavior of the meeting. The different meeting types are defined using :ref:`Meeting Types view`
+* **Date** is when the meeting takes place, or the date after which no more activity is allowed on the meeting
+* **Time** the time of the meeting needs to be entered (optional, depending on **Meeting Type**)
+* **Location** can be a physical location, a videoconference URL, or *by email* (optional, depending on **Meeting Type**)
 * **Show Actions Since** is used to determine which :term:`action items <action item>` are highlighted in
   the :term:`meeting` :term:`invitation <invite>`, in the :term:`agenda`, etc. This should normally be set to the
-  date of the last meeting of this type.
-* **Invite Tags** and **Vote Tags** should be defaulted, but if not, need to be set to the group(s) used for the
-  :term:`invitations <invite>` and :term:`votes <vote>` respectively
+  date of the last meeting of this type. (optional, depending on **Meeting Type**)
+* **Invite Tags**, **Vote Tags**, and **Status Report Tags** need to be set to the group(s) used for the
+  :term:`invitations <invite>`, :term:`votes <vote>`, and :term:`status reports <status report>` respectively
+
+  .. note::
+    these :term:`tags <tag>` are associated with :term:`positions <position>` using the :ref:`Positions view`
+
 * click **Create**
 
 To access the :term:`meeting` you just created, select the row and click **View Meeting**. You'll see that there is an
 :term:`action item` :term:`agenda item` which was automatically created.
 
-:term:`invite` :term:`members <member>` to a meeting
------------------------------------------------------
-In order to :term:`invite` :term:`members <member>` to a meeting, you must be in the :term:`meeting's <meeting>`
-:ref:`Meeting view`.
+If the **Meeting Type** is has an **Automatic Agenda Item Title**, an :term:`agenda item` with the indicated title is created.
 
-To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
-**View Meeting**
+invite members to a meeting (in-person / virtual)
+-------------------------------------------------------------------------------------
+In order to :term:`invite` :term:`members <member>` to an in-person or virtual meeting, you must be in the
+:term:`meeting's <meeting>` :ref:`Meeting view`. To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from
+:ref:`Meetings view` select the meeting and click **View Meeting**
 
 From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
-* click **Send Invites**
-* there will be a popup with the list of :term:`members <member>` who will be invited
+* click **Send Invitations**
+* there will be a popup with the list of :term:`members <member>` who will be invited, and you will be given the option
+  to change the **Subject**, add a **Message**, and update the **From** address
 * click **Send Invitations**
 
 The :term:`invitations <invite>` are sent to the :term:`members <member>` who resolve to the **Invite Tags**
-specified for the :term:`meeting`, and an :term:`agenda item` with title *Attendees* is created. As
+specified for the :term:`meeting`.
+
+If the **Meeting Type** is has the option *RSVP Required*, an :term:`agenda item` with title *Attendees* is created. As
 :term:`invited <invite>` :term:`members <member>` :term:`rsvp` to the meeting, their **RSVP** will show whether
 they plan to come to the :term:`meeting`.
 
-check to see if :term:`status reports <status report>` are missing, and send reminders
+invite member discussion for a meeting (*Online Motion/Votes*)
+---------------------------------------------------------------------------------------------
+In order to solicit discussion for a meeting with *Online Motion/Votes*, you must be in the
+:term:`meeting's <meeting>` :ref:`Meeting view`. To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from
+:ref:`Meetings view` select the meeting and click **View Meeting**
+
+From the :term:`meeting's <meeting>` :ref:`Meeting view`,
+
+* click **Send Discussion Request**
+* there will be a popup with the list of :term:`members <member>` who will be invited, and you will be given the option
+  to change the **Subject**, add a **Message**, and update the **From** address
+
+  .. hint::
+
+    the **Message** should include what the discussion is about, and when the discussion should be completed. The
+    :term:`meeting` **Date** is the last day for voting on any :term:`motions <motion>` which come out of the
+    discussion
+
+* click **Send Discussion Request**
+
+The :term:`discussion request` is sent to the :term:`members <member>` who resolve to the **Invite Tags**
+specified for the :term:`meeting`. The intention is that discussion will be held on the email thread. Once the discussion
+has run its course, motion text should be proposed and the motion moved and seconded.
+
+This electronic voting process continues at :ref:`create online motion`.
+
+check to see if status reports are missing, and send reminders
 ------------------------------------------------------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting Status view`, from :ref:`Meetings view` select the meeting and click
 **Meeting Status**.
@@ -151,12 +186,11 @@ From the :term:`meeting's <meeting>` :ref:`Meeting Status view`,
     to see all the :term:`positions <position>`, you may need to show additional entries (top left of the table)
 
 * click **Send Reminders**
-    * reminder emails are sent to :term:`members <member>` who hold these positions
+* there will be a popup with the list of :term:`members <member>` to whom reminders will be sent, and you will be given the option
+  to change the **Subject**, add a **Message**, and update the **From** address
+* click **Send Reminders** to send the reminder emails
 
-* popup indicates which :term:`members <member>` were sent a reminder
-* click **OK** to dismiss the popup
-
-on behalf of a :term:`member`, enter :term:`RSVP <rsvp>` and :term:`status reports <status report>`
+on behalf of a member, enter RSVP and status reports
 -----------------------------------------------------------------------------------------------------
 
 If a :term:`member` isn't able to use the system to :term:`RSVP <rsvp>` and/or enter their
@@ -170,7 +204,7 @@ To enter the :term:`member's <member>` :term:`RSVP <rsvp>` and/or :term:`status 
 member in the table heading. From there, you can proceed as if you were the selected :term:`member`, using the instructions
 from :ref:`My Status Report view`.
 
-review the :term:`agenda`
+review the agenda
 -------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**. The current :term:`agenda` is displayed.
@@ -188,9 +222,9 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
     * select the :term:`agenda item`, click **Edit**, then update the **Title**
 
-  .. note::
-    discussion item titles shown in the :term:`status report` document will show the :term:`member's <member>` original
-    text
+      .. note::
+        discussion item titles shown in the :term:`status report` document will show the :term:`member's <member>` original
+        text
 
 * each :term:`position` has a default :term:`agenda` heading, but if this needs to be changed
 
@@ -203,9 +237,10 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
     * select the :term:`agenda item`, click **Edit**, then update the **Summary**
 
       .. note::
-        this overwrites the words written by the :term:`member`, so should be done only when needed
+        this overwrites the words written by the :term:`member` when they created their :term:`status report` and
+        will be reflected into the :term:`status report` document, so should be done only when needed
 
-reorder :term:`agenda items <agenda item>`
+reorder agenda items
 -------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**. The current :term:`agenda` is displayed.
@@ -223,7 +258,7 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
   .. note::
     for best results, :term:`agenda items <agenda item>` with the same :term:`agenda` heading should be grouped together
 
-create a new :term:`agenda item`
+create a new agenda item
 -----------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click **View Meeting**
 
@@ -240,7 +275,7 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 * click **Save**
 * reorder as needed
 
-generate :term:`meeting` documents
+generate meeting documents
 -------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
@@ -248,12 +283,17 @@ To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetin
 From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
 * click **Generate Docs**
-* select the documents to be generated
+* select the documents to be generated (e.g., *Agenda*)
 * click **Submit**
 * the documents are generated and the popup disappears
 * the link(s) to the documents can be found using the :ref:`Meetings view`
 
-send email to :term:`meeting` :term:`invitees <invite>`
+.. note::
+
+    the :term:`status report` document is automatically updated as :term:`members <member>` update their
+    status reports, after a slight delay
+
+send email to meeting invitees
 ---------------------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
@@ -261,17 +301,16 @@ To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetin
 From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
 * click **Send Email**
-* edit **Subject** and **Message** as desired
-* click **Submit**
-* a popup shows who the mail was sent to
-* click **OK** to dismiss the popup
+* there will be a popup with the list of :term:`members <member>` to whom the email will be sent, and you will be given
+  the option to change the **Subject**, add a **Message**, and update the **From** address
+* click **Send Email**
 
-Use cases for during the :term:`meeting` (for when you want to...)
+Use cases for during the meeting (for when you want to...)
 ============================================================================
 This section describes what the :term:`meeting admin` might want to do during the :term:`meeting`.
 
-update the attendee list
----------------------------
+update the attendance list
+------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
 
@@ -289,7 +328,7 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
     if someone comes to the meeting who isn't in the Invites table, this can be recorded in the **Discussion**
     field -- use a bullet list for best formatting in the :term:`minutes` document
 
-add discussion about an :term:`agenda item`
+add discussion about an agenda item
 ---------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
@@ -301,7 +340,7 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 * add discussion text under **Discussion**
 * click **Save**
 
-add an :term:`action item`
+add an action item
 ---------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
@@ -321,8 +360,8 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
 * click **Create**
 
-record a :term:`motion`, its discussion, and :term:`vote` tally
-------------------------------------------------------------------
+record a motion, its discussion, and vote tally (in-person / virtual)
+----------------------------------------------------------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
 **View Meeting**
 
@@ -364,14 +403,59 @@ To edit the :term:`votes <vote>`,
 
 References
 
-* https://bizfluent.com/how-10030515-make-motion-board-directors-meeting.html
-* https://www.boardeffect.com/blog/how-to-write-a-motion-for-a-board-meeting/
+* `How to Make a Motion at a Board of Directors Meeting`_
+* `How to Write a Motion for a Board Meeting`_
 
-Use cases for after the :term:`meeting` (for when you want to...)
+
+.. _create online motion:
+
+record a motion, its discussion, and vote tally (*Online Motion/Votes*)
+----------------------------------------------------------------------------------------
+To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view` select the meeting and click
+**View Meeting**
+
+From the :term:`meeting's <meeting>` :ref:`Meeting view`,
+
+* select the :term:`agenda item` being discussed which relates to the :term:`motion`
+* click **Edit**
+* under **Motions**, click **New**
+* enter a clear, specific description of the :term:`motion` under **Motion** (see the references for best practices
+  for wording motions)
+* select the person who made the motion as the **Mover**
+* select the person who seconded the motion as the **Seconder**
+* optionally record any comments about the :term:`motion` which come out during the discussion
+* if the wording of the :term:`motion` needs to be changed due to the discussion, change this now
+* click **Create**
+
+  .. note::
+    the motion can be created as above, and then updated by clicking **Edit** under **Motions**
+
+After creating the :term:`motion` the motion's **Votes** table is created. The :term:`votes <vote>` are initialized
+to *novote*.
+
+To send a link for voting on the :term:`motion` to the :term:`voting members <voting member>`, select the :term:`motion` and click the
+**Send eVote Requests** button. The :term:`voting members <voting member>` will be displayed, and the :term:`meeting admin`
+will have the opportunity to change the **Subject**, **Message**, and **From Address**. The text of the :term:`motion`
+will automatically be included in the email.
+
+The :term:`voting members <voting member>` will receive an email with a link they can click to record their :term:`vote`.
+All :term:`votes <vote>` must be recorded by the **Date** set for the :term:`meeting`.
+
+.. note::
+
+    if additional time is required for the voting, simply update the **Date** set for the :term:`meeting` using the
+    :ref:`Meetings view`.
+
+References
+
+* `How to Make a Motion at a Board of Directors Meeting`_
+* `How to Write a Motion for a Board Meeting`_
+
+Use cases for after the meeting (for when you want to...)
 ============================================================================
 These sections describe what an :term:`meeting admin`  might want to do after a :term:`meeting`.
 
-generate :term:`meeting` :term:`minutes`
+generate meeting minutes
 -----------------------------------------
 To access the :term:`meeting's <meeting>` :ref:`Meeting view`, from :ref:`Meetings view`, select the meeting and click
 **View Meeting**
@@ -387,8 +471,9 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 add Google Workspace documents to a meeting folder
 ------------------------------------------------------
 
-Prior to any :term:`meeting` being created, the :term:`super admin` must configure the system with a folder to store the Google
-Workspace documents which will be created. There's a separate folder configuration for each type of document.
+Prior to any :term:`meeting` being created, the :term:`super admin` must use the :ref:`Interest Attributes view` to
+configure the system with a folder to store the Google Workspace documents which will be created. There's a separate
+folder configuration for each type of document.
 
 .. note::
     the folders for the types of documents can be the same or different as desired
@@ -419,6 +504,8 @@ Using Google Workspaces,
 Now the same file(s) can be found by navigating to the well known folder, or by navigating to the meeting folder, and any
 changes to the file(s) will happen in both folders.
 
+Also see `Organize your files in Google Drive`_, click on Create a shortcut for a file or folder
+
 .. warning::
     do not copy the file and save it somewhere else, as this would prevent the system from managing the file
     contents
@@ -429,5 +516,10 @@ changes to the file(s) will happen in both folders.
     the :term:`agenda` or :term:`minutes`. :term:`Status report <status report>` will be updated automatically.
 
 References
+------------------------------------------------------
 
-* https://support.google.com/drive/answer/2375091, Move a file or a folder > Save an item to multiple folders
+.. target-notes::
+
+.. _`How to Make a Motion at a Board of Directors Meeting`: https://bizfluent.com/how-10030515-make-motion-board-directors-meeting.html
+.. _`How to Write a Motion for a Board Meeting`: https://www.boardeffect.com/blog/how-to-write-a-motion-for-a-board-meeting/
+.. _`Organize your files in Google Drive`: https://support.google.com/drive/answer/2375091

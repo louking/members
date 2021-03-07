@@ -57,6 +57,9 @@ before traversal, that is described within square brackets ([action]), e.g.,
 Section Management
 ======================
 
+Should really be following https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html?#sections, but
+accidentally ended up with what is below.
+
 Top level section is delineated by ============== above section title and ============== below section title, as can be
 seen in :ref:`Typographical Conventions`.
 
