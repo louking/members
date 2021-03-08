@@ -768,7 +768,7 @@ class ActionItemsBase(DbCrudApiInterestsRolePermissions):
                  },
                 {'data': 'action', 'name': 'action', 'label': 'Action',
                  'className': 'field_req',
-                 'type': 'textarea',
+                 'type': 'ckeditorClassic',
                  'fieldInfo': 'description of action item',
                  },
                 {'data': 'comments', 'name': 'comments', 'label': 'Comments',
@@ -1061,7 +1061,7 @@ class MotionsBase(DbCrudApiInterestsRolePermissions):
                      {'sqla_expr': func.date_format(Meeting.date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'}
                  },
                 {'data': 'motion', 'name': 'motion', 'label': 'Motion',
-                 'type': 'textarea',
+                 'type': 'ckeditorClassic',
                  },
                 {'data': 'comments', 'name': 'comments', 'label': 'Comments',
                  'type': 'ckeditorClassic',
