@@ -5,20 +5,31 @@
     {% if item.discussion %}{{ item.discussion }}{% endif %}
     {% if item.actionitems %}
         {% for ai in item.actionitems %}
-            <div style="margin-left: 1em">ACTION: {{ ai.assignee }} - {{ ai.action }} {{ ai.contents }} ({{ ai.status }})</div><br>
-        {% endfor %}
-    {% endif %}
-    {% if item.motions %}
-        {% for mv in item.motions %}
-            <div style="margin-left: 1em">MOTION {{ mv.status }} [mover {{ mv.mover }}, seconder {{ mv.seconder }}]:
-                {{ mv.motion }}
-                <div style="margin-left: 1em">votes:
-                {% for vote in mv.votes %}
-                    {{ vote.member }} ({{ vote.vote }}){% if not loop.last %}, {% endif %}
-                {% endfor %}
+            <div style="margin-left: 1em">
+                <p>ACTION: {{ ai.assignee }} ({{ ai.status }})</p>
+                <div style="margin-left: 1em">
+                    {{ ai.action }}
+                    {{ ai.contents }}
                 </div>
             </div><br>
         {% endfor %}
+    {% endif %}
+    {% if item.motions %}
+        <div style="margin-left: 1em">
+        {% for mv in item.motions %}
+            <p>MOTION {{ mv.status }} [mover {{ mv.mover }}, seconder {{ mv.seconder }}]:</p>
+            <div style="margin-left: 1em">
+                {{ mv.motion }}
+                {{ mv.comments }}
+                votes:
+                {% for vote in mv.votes %}
+                    {{ vote.member }} ({{ vote.vote }}){% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+            <br>
+        {% endfor %}
+        </div>
+        <br>
     {% endif %}
 {%- endmacro %}
 {% block body %}
