@@ -12,6 +12,7 @@ from flask import request, flash, jsonify, current_app, url_for, g
 from flask_security import current_user, logout_user, login_user
 from flask.views import MethodView
 from dominate.tags import div, h1, p, b
+from dominate.util import raw
 
 # homegrown
 from . import bp
@@ -606,7 +607,9 @@ def motionvote_preselecthtml():
     with html:
         h1('{} {}: {}\'s Vote'.format(meeting.date, meeting.purpose, user.name))
         p(b('Motion'))
-        p(motion.motion)
+        with div(style='margin-left: 1em;'):
+            raw(motion.motion)
+            raw(motion.comments)
     return html.render()
 
 motionvote_view = MotionVoteView(
