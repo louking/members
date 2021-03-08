@@ -105,11 +105,13 @@ def generateevotes(motionid, from_addr, subject, message):
 
     # send evote requests to all those who are tagged like the meeting voting tags
     currevotes = set()
+    members = set()
     for tag in motion.meeting.votetags:
         for member in tag.users:
-            thisevote = send_evote_req(motion, member, from_addr, subject, message)
-            currevotes |= {thisevote.id}
+            members |= {member}
         for position in tag.positions:
             for member in members_active(position, motion.meeting.date):
-                thisevote = send_evote_req(motion, member, from_addr, subject, message)
-                currevotes |= {thisevote.id}
+                members |= {member}
+    for member in members:
+        thisevote = send_evote_req(motion, member, from_addr, subject, message)
+        currevotes |= {thisevote.id}
