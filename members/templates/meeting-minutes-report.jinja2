@@ -6,27 +6,28 @@
     {% if item.actionitems %}
         {% for ai in item.actionitems %}
             <div style="margin-left: 1em">
-                <p>ACTION: {{ ai.assignee }} ({{ ai.status }})</p>
+                <div>ACTION: {{ ai.assignee }} ({{ ai.status }})</div>
                 <div style="margin-left: 1em">
                     {{ ai.action }}
-                    {{ ai.contents }}
+                    {% if ai.contents %}{{ ai.contents }}{% endif %}
                 </div>
-            </div><br>
+            </div>
+            {% if not loop.last %}<br>{% endif %}
         {% endfor %}
     {% endif %}
     {% if item.motions %}
         <div style="margin-left: 1em">
         {% for mv in item.motions %}
-            <p>MOTION {{ mv.status }} [mover {{ mv.mover }}, seconder {{ mv.seconder }}]:</p>
+            <div>MOTION {{ mv.status }} [mover {{ mv.mover }}, seconder {{ mv.seconder }}]:</div>
             <div style="margin-left: 1em">
                 {{ mv.motion }}
-                {{ mv.comments }}
+                {% if mv.comments %}{{ mv.comments }}{% endif %}
                 votes:
                 {% for vote in mv.votes %}
                     {{ vote.member }} ({{ vote.vote }}){% if not loop.last %}, {% endif %}
                 {% endfor %}
             </div>
-            <br>
+            {% if not loop.last %}<br>{% endif %}
         {% endfor %}
         </div>
         <br>

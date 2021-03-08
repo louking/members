@@ -9,5 +9,5 @@
 
 <div style="margin-left: 1em">
     {{ motion.motion }}
-    {{ motion.comments }}
+    {% if motion.comments %}{{ motion.comments }}{% endif %}
 </div>
