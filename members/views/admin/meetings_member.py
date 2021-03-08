@@ -609,7 +609,8 @@ def motionvote_preselecthtml():
         p(b('Motion'))
         with div(style='margin-left: 1em;'):
             raw(motion.motion)
-            raw(motion.comments)
+            if motion.comments:
+                raw(motion.comments)
     return html.render()
 
 motionvote_view = MotionVoteView(
