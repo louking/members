@@ -26,7 +26,7 @@ imagesize==1.2.0
 itsdangerous==1.1.0
 Jinja2==2.11.1
 jsmin==2.2.2
-loutilities==3.4.0
+loutilities==3.4.3.0
 Mako==1.1.2
 Markdown==3.2.1
 MarkupSafe==1.1.1
