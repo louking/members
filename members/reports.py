@@ -5,7 +5,6 @@ reports - generate reports
 
 # standard
 from tempfile import TemporaryDirectory
-from shutil import rmtree
 from os.path import join as pathjoin
 from copy import copy
 
@@ -14,11 +13,14 @@ from flask import current_app
 from jinja2 import Environment
 from slugify import slugify
 from dominate.tags import p
+from sqlalchemy import or_
 
 # homegrown
-from .model import Meeting, ActionItem, AgendaItem, StatusReport, Position, DiscussionItem, MemberStatusReport
-from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite
+from .model import Meeting, ActionItem, AgendaItem, StatusReport, DiscussionItem, MemberStatusReport
+from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite, MEETING_OPTIONS
+from .model import MEETING_OPTION_SHOWACTIONITEMS, ACTION_STATUS_CLOSED
 from .views.admin.viewhelpers import localinterest, get_tags_positions
+from .views.admin.meetings_common import meeting_has_option
 from .helpers import positions_active, members_active
 from loutilities.googleauth import GoogleAuthService
 from loutilities.nesteddict import obj2dict
@@ -45,8 +47,12 @@ def meeting_gen_reports(meeting_id, reports):
     discussionfields = ['discussiontitle', 'agendaitem']
 
     def meeting_agenda_context():
-        actionitems = ActionItem.query.filter_by(interest=interest).filter(
-            ActionItem.update_time >= themeeting.show_actions_since).all()
+        if meeting_has_option(themeeting, MEETING_OPTION_SHOWACTIONITEMS):
+            actionitems = ActionItem.query.filter_by(interest=interest).filter(
+                or_(ActionItem.update_time >= themeeting.show_actions_since,
+                    ActionItem.status != ACTION_STATUS_CLOSED)).all()
+        else:
+            actionitems = []
         for ai in actionitems:
             # pull in assignee due to lazy loading
             garbage = ai.assignee
@@ -171,8 +177,12 @@ def meeting_gen_reports(meeting_id, reports):
     def meeting_minutes_context():
         # create action item data structures,
         # including summary (actionitems) and mapping from agenda item to action item (agenda2action)
-        dbactionitems = ActionItem.query.filter_by(interest=interest).filter(
-            ActionItem.update_time >= themeeting.show_actions_since).all()
+        if meeting_has_option(themeeting, MEETING_OPTION_SHOWACTIONITEMS):
+            dbactionitems = ActionItem.query.filter_by(interest=interest).filter(
+                or_(ActionItem.update_time >= themeeting.show_actions_since,
+                    ActionItem.status != ACTION_STATUS_CLOSED)).all()
+        else:
+            dbactionitems = []
         actionitems = []
         agenda2action = {}
         for dbactionitem in dbactionitems:
@@ -279,6 +289,10 @@ def meeting_gen_reports(meeting_id, reports):
             'agendaitems': agendaitems,
             'motions': motions,
         }
+
+        # add meeting options to context
+        for meetingoption in MEETING_OPTIONS:
+            context[meetingoption] = meeting_has_option(themeeting, meetingoption)
 
         # maybe attendee agenda item has additional information, if so include that in the context
         if dbattendees:
