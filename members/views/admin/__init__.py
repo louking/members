@@ -10,6 +10,7 @@ bp = Blueprint('admin', __name__.split('.')[0], url_prefix='/admin', static_fold
 from . import home
 from . import local_user_interest
 from . import files
+from . import uploads
 from . import sysinfo
 
 # superadmin

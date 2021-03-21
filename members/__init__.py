@@ -14,13 +14,14 @@ from flask_security import SQLAlchemyUserDatastore, current_user
 from werkzeug.local import LocalProxy
 
 # homegrown
+from .views.admin.viewhelpers import localinterest
+from .model import update_local_tables, LocalUser, LocalInterest
+from .views.admin.uploads import init_uploads
 import loutilities
 from loutilities.configparser import getitems
 from loutilities.user import UserSecurity
 from loutilities.user.model import Interest, Application, User, Role
 from loutilities.flask_helpers.mailer import sendmail
-from .views.admin.viewhelpers import localinterest
-from .model import update_local_tables, LocalUser, LocalInterest
 
 # define security globals
 user_datastore = None
@@ -61,6 +62,9 @@ def create_app(config_obj, configfiles=None, local_update=True):
     # initialize database
     from .model import db
     db.init_app(app)
+
+    # initialize uploads
+    init_uploads(app)
 
     # handle <interest> in URL - https://flask.palletsprojects.com/en/1.1.x/patterns/urlprocessors/
     @app.url_value_preprocessor

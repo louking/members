@@ -4,8 +4,10 @@ $( function () {
     register_group_for_datatable('interest', '#metanav-select-interest');
 });
 
-// This represents the toolbar in #279
+// ckeditor default toolbar
+// This represents the toolbar in #414
 // copied from ckeditor build's sample.html
+// built via https://ckeditor.com/ckeditor-5/online-builder/
 ClassicEditor.defaultConfig = {
     toolbar: {
         items: [
@@ -21,14 +23,35 @@ ClassicEditor.defaultConfig = {
             'strikethrough',
             'removeFormat',
             '|',
-            'indent',
             'outdent',
+            'indent',
             '|',
+            'imageUpload',
             'blockQuote',
             'insertTable',
             'undo',
             'redo'
         ]
+    },
+    image: {
+        toolbar: [
+            'imageTextAlternative',
+            'imageStyle:full',
+            'imageStyle:side'
+        ]
+    },
+    simpleUpload: {
+        // The URL that the images are uploaded to, must match flask-reuploaded configuration
+        uploadUrl: '/admin/uploads',
+
+        // Enable the XMLHttpRequest.withCredentials property.
+        withCredentials: true,
+
+        // Headers sent along with the XMLHttpRequest to the upload server.
+        headers: {
+            'X-CSRF-TOKEN': 'CSRF-Token',
+            Authorization: 'Bearer <JSON Web Token>'
+        }
     },
     language: 'en',
     table: {

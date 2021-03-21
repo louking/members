@@ -48,7 +48,7 @@ d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
 cke_type='classic'           # https://ckeditor.com/ckeditor-5/
-cke_ver='24.0.0-members-317' # https://ckeditor.com/ckeditor-5/
+cke_ver='26.0.0-members-414' # https://ckeditor.com/ckeditor-5/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver),
