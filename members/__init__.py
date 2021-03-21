@@ -31,7 +31,7 @@ security = None
 app = None
 
 # create application
-def create_app(config_obj, configfiles=None, local_update=True):
+def create_app(config_obj, configfiles=None, init_for_operation=True):
     '''
     apply configuration object, then configuration files
     '''
@@ -64,7 +64,8 @@ def create_app(config_obj, configfiles=None, local_update=True):
     db.init_app(app)
 
     # initialize uploads
-    init_uploads(app)
+    if init_for_operation:
+        init_uploads(app)
 
     # handle <interest> in URL - https://flask.palletsprojects.com/en/1.1.x/patterns/urlprocessors/
     @app.url_value_preprocessor
@@ -94,7 +95,7 @@ def create_app(config_obj, configfiles=None, local_update=True):
         g.loutility = Application.query.filter_by(application=app.config['APP_LOUTILITY']).one()
 
         # update LocalUser and LocalInterest tables
-        if local_update:
+        if init_for_operation:
             update_local_tables()
 
         # js/css files
