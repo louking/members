@@ -771,7 +771,7 @@ function mystatus_create(e, dt, node, config) {
     var that = this;
     var show_editor = function() {
         dt.editor()
-            .title('Add ad hoc status report')
+            .title('Add ad hoc ' + statusreport_text)
             .buttons('Create')
             .create();
     }

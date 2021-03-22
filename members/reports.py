@@ -98,6 +98,7 @@ def meeting_gen_reports(meeting_id, reports):
 
         # finally we can determine the context
         context = {'meeting': obj2dict(themeeting), 'reports': []}
+        context['statusreport_text'] = themeeting.meetingtype.statusreportwording
         for position in positions:
             # if the position has an agenda heading configured, use that for the title, else use the name of the position
             heading = '{}: {}'.format(position.agendaheading.heading, position.position) if position.agendaheading else position.position
@@ -168,7 +169,7 @@ def meeting_gen_reports(meeting_id, reports):
                 # there should only be one MemberStatusReport linked to this StatusReport
                 'title': '{} - {}'.format(sr.title, sr.memberstatusreports[0].invite.user.name),
                 'statusreport': obj2dict(sr.statusreport),
-                'discussions': discussioncontexts
+                'discussions': discussioncontexts,
             }
             context['reports'].append(report)
 

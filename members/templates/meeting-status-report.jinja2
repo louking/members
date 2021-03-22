@@ -1,6 +1,6 @@
 {% extends "report-layout.jinja2" %}
 {% block body %}
-<h2>Status Report Summary: {{ meeting.purpose }} - {{ meeting.date }}</h2>
+<h2>{{ statusreport_text|title }} Summary: {{ meeting.purpose }} - {{ meeting.date }}</h2>
 {# see https://jinja.palletsprojects.com/en/2.11.x/templates/#assignments Scoping Behavior #}
 {# positions should already be sorted and filtered to those which have status reports #}
 {% for report in reports %}

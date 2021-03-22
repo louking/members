@@ -12,8 +12,8 @@ from flask import request, g
 from flask_security import current_user
 from sqlalchemy.orm import aliased
 from sqlalchemy import func, or_
-from dominate.tags import div, ol, li, p, em, strong, a, i
-from dominate.util import text
+from dominate.tags import div, ol, li, p, em, strong, a, i, script
+from dominate.util import text, raw
 from slugify import slugify
 import inflect
 inflect_engine = inflect.engine()
@@ -60,6 +60,18 @@ def custom_statusreport():
     meetingid = request.args['meeting_id']
     meeting = Meeting.query.filter_by(id=meetingid, interest_id=localinterest().id).one_or_none()
     return meeting.meetingtype.statusreportwording
+
+def invite_statusreport():
+    invitekey = request.args.get('invitekey', None)
+    meeting_id = request.args.get('meeting_id', None)
+    if invitekey:
+        meeting = Invite.query.filter_by(invitekey=invitekey).one().meeting
+        return meeting.meetingtype.statusreportwording
+    elif meeting_id:
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
+        return meeting.meetingtype.statusreportwording
+    else:
+        return "status report"
 
 class ChildElementArgs():
     '''
@@ -398,10 +410,10 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                  'title': 'Edit',
                  'render': {'eval': 'render_edit'},
                  },
-                {'data': 'title', 'name': 'title', 'label': 'Status Report Title',
+                {'data': 'title', 'name': 'title', 'label': lambda: '{} Title'.format(invite_statusreport().title()),
                  'className': 'field_req',
                  },
-                {'data': 'statusreport', 'name': 'statusreport', 'label': 'Status Report',
+                {'data': 'statusreport', 'name': 'statusreport', 'label': lambda: invite_statusreport().title(),
                  'visible': False,
                  'type': 'ckeditorClassic',
                  },
@@ -699,6 +711,14 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
             div(id='mystatus_button_error', style='display: none;')
 
         return theinstructions
+
+    def custom_wording(self):
+        thevariables = script()
+
+        with thevariables:
+            raw('var statusreport_text = "{}";\n'.format(invite_statusreport().title()))
+
+        return thevariables
 
 ##########################################################################################
 # actionitems endpoint

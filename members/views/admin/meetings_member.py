@@ -23,7 +23,7 @@ from ...model import motionvote_all
 from ...version import __docversion__
 from ...meeting_evotes import get_evotes, generateevotes
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
-from .meetings_common import motions_childelementargs
+from .meetings_common import motions_childelementargs, invite_statusreport
 from .viewhelpers import localuser2user, user2localuser
 from loutilities.tables import get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -105,6 +105,7 @@ class MemberStatusReportView(MemberStatusReportBase):
 
         html = div()
         with html:
+            self.custom_wording()
             self.instructions()
             h1('{} - {} - {}'.format(meeting.date, meeting.purpose, current_user.name), _class='TextCenter')
 
@@ -113,7 +114,7 @@ class MemberStatusReportView(MemberStatusReportBase):
 
 memberstatusreport_view = MemberStatusReportView(
     templateargs={'adminguide': adminguide},
-    pagename='My Status Report',
+    pagename=lambda: 'My {}'.format(invite_statusreport().title()),
     endpoint='admin.memberstatusreport',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/memberstatusreport',

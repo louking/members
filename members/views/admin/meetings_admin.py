@@ -34,7 +34,7 @@ from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_R
 from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, adminguide
-from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport
+from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, invite_statusreport
 from .meetings_common import meeting_has_option, meeting_has_button
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
@@ -1019,6 +1019,7 @@ class TheirStatusReportView(MemberStatusReportBase):
         html = div()
         with html:
             self.instructions()
+            self.custom_wording()
             with h1(_class='TextCenter'):
                 text('{} - {} - '.format(meeting.date, meeting.purpose))
                 invites = Invite.query.filter_by(meeting=meeting).all()
@@ -1055,7 +1056,7 @@ class TheirStatusReportView(MemberStatusReportBase):
 theirstatusreport_view = TheirStatusReportView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     templateargs={'adminguide': adminguide},
-    pagename='Their Status Report',
+    pagename=lambda: 'Their {}'.format(invite_statusreport().title()),
     endpoint='admin.theirstatusreport',
     endpointvalues={'interest': '<interest>'},
     rule='/<interest>/theirstatusreport',
