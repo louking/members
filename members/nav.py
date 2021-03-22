@@ -19,7 +19,7 @@ define navigation bar based on privileges
 # pypi
 from flask import g, current_app, url_for, request
 from flask_nav import Nav
-from flask_nav.elements import Navbar, View, Subgroup, Link
+from flask_nav.elements import Navbar, View, Subgroup, Link, Separator
 from flask_nav.renderers import SimpleRenderer
 from dominate import tags
 from flask_security import current_user
@@ -119,14 +119,7 @@ def nav_menu():
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 meetingsviews = Subgroup('Meetings')
                 navbar.items.append(meetingsviews)
-                meetings_member_view(meetingsviews, 'My Meetings', 'admin.mymeetings', interest=g.interest)
-                meetings_member_view(meetingsviews, 'My Action Items', 'admin.myactionitems', interest=g.interest)
-                # todo: should this be disabled if no motionvotes for this user?
-                meetings_member_view(meetingsviews, 'My Motion Votes', 'admin.mymotionvotes', interest=g.interest)
-                # not sure there is any need for this
-                # meetings_member_view(meetingsviews, 'My Discussion Items', 'admin.memberdiscussions', interest=g.interest)
-
-                # meetings admin stuff
+               # meetings admin stuff
                 if current_user.has_role(ROLE_MEETINGS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                     meetings_admin_view(meetingsviews, 'Meetings', 'admin.meetings', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Action Items', 'admin.actionitems', interest=g.interest)
@@ -135,9 +128,17 @@ def nav_menu():
                     meetings_admin_view(meetingsviews, 'Agenda Headings', 'admin.agendaheadings', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Invites', 'admin.invites', interest=g.interest)
                     meetings_admin_view(meetingsviews, 'Meeting Types', 'admin.meetingtypes', interest=g.interest)
+                    meetingsviews.items.append(Separator())
+
+                meetings_member_view(meetingsviews, 'My Meetings', 'admin.mymeetings', interest=g.interest)
+                meetings_member_view(meetingsviews, 'My Action Items', 'admin.myactionitems', interest=g.interest)
+                # todo: should this be disabled if no motionvotes for this user?
+                meetings_member_view(meetingsviews, 'My Motion Votes', 'admin.mymotionvotes', interest=g.interest)
+                # not sure there is any need for this
+                # meetings_member_view(meetingsviews, 'My Discussion Items', 'admin.memberdiscussions', interest=g.interest)
 
                 # meetings member, not admin
-                else:
+                if not (current_user.has_role(ROLE_MEETINGS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN)):
                     meetings_member_view(meetingsviews, 'Action Items', 'admin.memberactionitems', interest=g.interest,
                                          prelink='member')
                     meetings_member_view(meetingsviews, 'Motions', 'admin.membermotions', interest=g.interest,
