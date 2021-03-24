@@ -140,8 +140,10 @@ def mymeetings_attended(row):
     else:
         return ''
 
-mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey,meeting.gs_agenda,meeting.gs_status,meeting.gs_minutes'.split(',')
-mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey,gs_agenda,gs_status,gs_minutes'.split(',')
+mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,' \
+                     'invitekey,meeting.gs_agenda,meeting.gs_status,meeting.gs_minutes'.split(',')
+mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,' \
+                        'invitekey,gs_agenda,gs_status,gs_minutes'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
 mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
@@ -150,6 +152,9 @@ mymeetings_formmapping['attended'] = mymeetings_attended
 mymeetings_formmapping['gs_agenda'] = lambda row: row.meeting.gs_agenda if row.meeting.gs_agenda else ''
 mymeetings_formmapping['gs_status'] = lambda row: row.meeting.gs_status if row.meeting.gs_status else ''
 mymeetings_formmapping['gs_minutes'] = lambda row: row.meeting.gs_minutes if row.meeting.gs_minutes else ''
+mymeetings_formmapping['meetingtype'] = lambda row: row.meeting.meetingtype.meetingtype
+mymeetings_formmapping['location'] = lambda row: row.meeting.location if row.meeting.location else ''
+
 # connects with beforetables.js meetings_statusreportwording(), the function parameter to googledoc() for gs_status
 mymeetings_formmapping['statusreportwording'] = lambda row: row.meeting.meetingtype.statusreportwording
 # connects with beforetables.js mystatus_statusreport() and the attr parameter to googledoc() for gs_status
@@ -189,7 +194,13 @@ mymeetings_view = MyMeetingsView(
         {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
          'type': 'readonly'
          },
+        {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
+         'type': 'readonly'
+         },
         {'data': 'purpose', 'name': 'purpose', 'label': 'Meeting Purpose',
+         'type': 'readonly'
+         },
+        {'data': 'location', 'name': 'location', 'label': 'Location',
          'type': 'readonly'
          },
         {'data': 'response', 'name': 'response', 'label': 'RSVP',
