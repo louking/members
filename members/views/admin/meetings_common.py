@@ -408,7 +408,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                  'label': '',
                  'type': 'hidden',  # only affects editor modal
                  'title': 'Edit',
-                 'render': {'eval': 'render_edit'},
+                 'render': {'eval': 'render_icon("fas fa-edit")'},
                  },
                 {'data': 'title', 'name': 'title', 'label': lambda: '{} Title'.format(invite_statusreport().title()),
                  'className': 'field_req',

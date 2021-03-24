@@ -24,6 +24,7 @@ from ...version import __docversion__
 from ...meeting_evotes import get_evotes, generateevotes
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, invite_statusreport
+from .meetings_common import meeting_has_option, MEETING_OPTION_RSVP, MEETING_OPTION_HASSTATUSREPORTS
 from .viewhelpers import localuser2user, user2localuser
 from loutilities.tables import get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -130,21 +131,31 @@ class MyMeetingsView(DbCrudApiInterestsRolePermissions):
         self.queryparams['user'] = user2localuser(current_user)
 
 def mymeetings_attended(row):
-    today = date.today()
-    if row.meeting.date >= today:
-        return ''
+    if meeting_has_option(row.meeting, MEETING_OPTION_RSVP):
+        today = date.today()
+        if row.meeting.date >= today:
+            return ''
+        else:
+            return 'yes' if row.attended else 'no'
     else:
-        return 'yes' if row.attended else 'no'
+        return ''
 
 mymeetings_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,response,attended,invitekey,meeting.gs_agenda,meeting.gs_status,meeting.gs_minutes'.split(',')
 mymeetings_formfields = 'rowid,interest_id,purpose,date,response,attended,invitekey,gs_agenda,gs_status,gs_minutes'.split(',')
 mymeetings_dbmapping = dict(zip(mymeetings_dbattrs, mymeetings_formfields))
 mymeetings_formmapping = dict(zip(mymeetings_formfields, mymeetings_dbattrs))
 mymeetings_formmapping['date'] = lambda row: isodate.dt2asc(row.meeting.date)
+mymeetings_formmapping['response'] = lambda row: row.response if meeting_has_option(row.meeting, MEETING_OPTION_RSVP) else ''
 mymeetings_formmapping['attended'] = mymeetings_attended
 mymeetings_formmapping['gs_agenda'] = lambda row: row.meeting.gs_agenda if row.meeting.gs_agenda else ''
 mymeetings_formmapping['gs_status'] = lambda row: row.meeting.gs_status if row.meeting.gs_status else ''
 mymeetings_formmapping['gs_minutes'] = lambda row: row.meeting.gs_minutes if row.meeting.gs_minutes else ''
+# connects with beforetables.js meetings_statusreportwording(), the function parameter to googledoc() for gs_status
+mymeetings_formmapping['statusreportwording'] = lambda row: row.meeting.meetingtype.statusreportwording
+# connects with beforetables.js mystatus_statusreport() and the attr parameter to googledoc() for gs_status
+mymeetings_formmapping['hideviewicon'] = lambda row: not (meeting_has_option(row.meeting, MEETING_OPTION_RSVP) or
+                                                         meeting_has_option(row.meeting, MEETING_OPTION_HASSTATUSREPORTS))
+
 
 mymeetings_view = MyMeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER],
@@ -172,7 +183,8 @@ mymeetings_view = MyMeetingsView(
          'label': '',
          'type': 'hidden',  # only affects editor modal
          'title': 'View',
-         'render': {'eval': 'render_icon("fas fa-eye")'},
+         # see mymeetings_formmapping['disableview'] to known when view icon is disabled
+         'render': {'eval': 'render_icon("fas fa-eye", "hideviewicon")'},
          },
         {'data': 'date', 'name': 'date', 'label': 'Meeting Date',
          'type': 'readonly'
@@ -193,7 +205,7 @@ mymeetings_view = MyMeetingsView(
          },
         {'data': 'gs_status', 'name': 'gs_status', 'label': 'Status Report',
          'type': 'googledoc', 'opts': {'text': 'Status Report'},
-         'render': {'eval': '$.fn.dataTable.render.googledoc( "Status Report" )'},
+         'render': {'eval': '$.fn.dataTable.render.googledoc( meetings_statusreportwording )'},
          },
         {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
          'type': 'googledoc', 'opts': {'text': 'Minutes'},

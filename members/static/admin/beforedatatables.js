@@ -750,14 +750,18 @@ function meetings_theirstatusreport(e, dt, node, config) {
  * @param config
  */
 function mystatus_statusreport(e, dt, node, config) {
-    var args = allUrlParams();
-    var invitekey = dt.rows({selected:true}).data()[0].invitekey;
-    args.invitekey = invitekey;
-    var newsearch = $.param(args);
-    var newloclist = window.location.pathname.split('/').slice(0, -1);
-    newloclist.push('memberstatusreport');
-    var newloc = newloclist.join('/') + '?' + newsearch;
-    window.location.href = newloc;
+    // only one row can be selected
+    var row = dt.rows({selected:true}).data()[0];
+    if (!row.hideviewicon) {
+        var args = allUrlParams();
+        var invitekey = row.invitekey;
+        args.invitekey = invitekey;
+        var newsearch = $.param(args);
+        var newloclist = window.location.pathname.split('/').slice(0, -1);
+        newloclist.push('memberstatusreport');
+        var newloc = newloclist.join('/') + '?' + newsearch;
+        window.location.href = newloc;
+    }
 }
 
 /**
