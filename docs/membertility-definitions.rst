@@ -22,7 +22,7 @@ Glossary
 
     discussion request
         an email which is sent to the :term:`members <member>` who resolve via :term:`position` to the **Invite Tags**
-        of a :ref:`meeting`
+        of a :term:`meeting`
 
     expiration date
         this is the date the :term:`task` should next be completed by. If this date is in the

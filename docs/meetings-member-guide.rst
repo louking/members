@@ -55,10 +55,10 @@ or to navigate to the :ref:`My Status Report view` for a particular meeting.
 This view shows your :term:`RSVP <rsvp>` response, whether you attended, and gives links to any reports which have been
 generated about the meeting.
 
-To navigate to the :ref:`My Status Report view`, where you can :term:`RSVP <rsvp>` and enter your
+To navigate to the :ref:`My Status Report view`, where you can :term:`RSVP <rsvp>` and/or enter your
 :term:`status reports <status report>`,
 
-* on the row with the :term:`meeting` you want to :term:`RSVP <rsvp>` and enter your :term:`status report`, click
+* on the row with the :term:`meeting` you want to :term:`RSVP <rsvp>` and/or enter your :term:`status report`, click
   the view button (|icon-view-2779aa|)
 
 .. image:: images/my-meetings-view.*
