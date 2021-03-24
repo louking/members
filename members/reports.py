@@ -18,7 +18,7 @@ from sqlalchemy import or_
 # homegrown
 from .model import Meeting, ActionItem, AgendaItem, StatusReport, DiscussionItem, MemberStatusReport
 from .model import Motion, MotionVote, motionvote_all, MOTIONVOTE_STATUS_NOVOTE, Invite, MEETING_OPTIONS
-from .model import MEETING_OPTION_SHOWACTIONITEMS, ACTION_STATUS_CLOSED
+from .model import MEETING_OPTION_SHOWACTIONITEMS, ACTION_STATUS_CLOSED, MEETING_OPTION_HASSTATUSREPORTS
 from .views.admin.viewhelpers import localinterest, get_tags_positions
 from .views.admin.meetings_common import meeting_has_option
 from .helpers import positions_active, members_active
@@ -344,6 +344,10 @@ def meeting_gen_reports(meeting_id, reports):
     tmpdir = TemporaryDirectory(prefix='mbr')
     reportenv = Environment(loader=current_app.jinja_loader)
     for thetype in reports:
+        # special processing for 'status-report': skip report if not required for this meeting type
+        if thetype == 'status-report' and not meeting_has_option(themeeting, MEETING_OPTION_HASSTATUSREPORTS):
+            continue
+
         nametemplate = reportenv.from_string(doc[thetype]['docname'])
         docname = nametemplate.render(obj2dict(themeeting))
         docpath = pathjoin(tmpdir.name, '{}.html'.format(slugify(docname)))
