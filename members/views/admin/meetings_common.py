@@ -8,7 +8,7 @@ from copy import deepcopy
 from uuid import uuid4
 
 # pypi
-from flask import request, g
+from flask import request, g, has_request_context
 from flask_security import current_user
 from sqlalchemy.orm import aliased
 from sqlalchemy import func, or_
@@ -362,6 +362,61 @@ def memberstatusreport_buttons():
 
     return buttons
 
+def memberstatusreport_childrowoptions():
+    # we need to skip looking at request.args on initialization, but the request will be picked up when the page is loaded
+    if has_request_context():
+        invitekey = request.args.get('invitekey', None)
+        meeting_id = request.args.get('meeting_id', None)
+        if meeting_id:
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+        elif invitekey:
+            meeting = Invite.query.filter_by(invitekey=invitekey).one().meeting
+        else:
+            raise ParameterError('invalid URL: can\'t find meeting')
+    else:
+        meeting = None
+
+    # basic child row
+    childrowoptions = {
+        'template': 'memberstatusreport-child-row.njk',
+        'showeditor': True,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest'
+    }
+
+    # show discussion table if meeting has discussions
+    # NOTE: "not meeting" handles initialization case without request context)
+    if not meeting or meeting_has_option(meeting, MEETING_OPTION_HASDISCUSSIONS) :
+        childrowoptions['childelementargs'] = [
+                    {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions_view,
+                     'tableidtemplate': 'discussionitems-{{ parentid }}',
+                     'postcreatehook': 'discussionitems_postcreate',
+                     'args': {
+                         'buttons': ['create', 'editRefresh', 'remove'],
+                         'columns': {
+                             'datatable': {
+                                 # uses data field as key
+                                 'purpose': {'visible': False},
+                                 'date': {'visible': False},
+                                 'statusreport': {'visible': False},
+                             },
+                             'editor': {
+                                 # uses name field as key
+                                 'purpose': {'type': 'hidden'},
+                                 'date': {'type': 'hidden'},
+                                 # 'statusreport': {'type': 'hidden'},
+                             },
+                         },
+                         'updatedtopts': {
+                             'dom': 'Brt',
+                             'paging': False,
+                         },
+                     }
+                     },
+                ]
+
+    return childrowoptions
+
 memberstatusreport_dbattrs = 'id,interest_id,order,content.title,is_rsvp,invite_id,'\
                              'content.id,content.statusreport,content.position_id'.split(',')
 memberstatusreport_formfields = 'rowid,interest_id,order,title,is_rsvp,invite_id,'\
@@ -419,39 +474,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                  'type': 'ckeditorClassic',
                  },
             ],
-            childrowoptions={
-                'template': 'memberstatusreport-child-row.njk',
-                'showeditor': True,
-                'group': 'interest',
-                'groupselector': '#metanav-select-interest',
-                'childelementargs': [
-                    {'name': 'discussionitems', 'type': CHILDROW_TYPE_TABLE, 'table': memberdiscussions_view,
-                     'tableidtemplate': 'discussionitems-{{ parentid }}',
-                     'postcreatehook': 'discussionitems_postcreate',
-                     'args': {
-                         'buttons': ['create', 'editRefresh', 'remove'],
-                         'columns': {
-                             'datatable': {
-                                 # uses data field as key
-                                 'purpose': {'visible': False},
-                                 'date': {'visible': False},
-                                 'statusreport': {'visible': False},
-                             },
-                             'editor': {
-                                 # uses name field as key
-                                 'purpose': {'type': 'hidden'},
-                                 'date': {'type': 'hidden'},
-                                 # 'statusreport': {'type': 'hidden'},
-                             },
-                         },
-                         'updatedtopts': {
-                             'dom': 'Brt',
-                             'paging': False,
-                         },
-                     }
-                     },
-                ],
-            },
+            childrowoptions=memberstatusreport_childrowoptions,
             idSrc='rowid',
             buttons=memberstatusreport_buttons,
             dtoptions={
@@ -641,17 +664,18 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         if row['position_id']:
             context['position_id'] = row['position_id']
 
-        tablename = 'discussionitems'
-        tables = [
-            {
-                'name': tablename,
-                'label': 'Discussion Items',
-                'url': rest_url_for('admin.memberdiscussions', interest=g.interest, urlargs=context),
-                'createfieldvals': context,
-                'tableid': self.childtables[tablename]['table'].tableid(**templatecontext)
-            }]
+        if meeting_has_option(invite.meeting, MEETING_OPTION_HASDISCUSSIONS):
+            tablename = 'discussionitems'
+            tables = [
+                {
+                    'name': tablename,
+                    'label': 'Discussion Items',
+                    'url': rest_url_for('admin.memberdiscussions', interest=g.interest, urlargs=context),
+                    'createfieldvals': context,
+                    'tableid': self.childtables[tablename]['table'].tableid(**templatecontext)
+                }]
 
-        row['tables'] = tables
+            row['tables'] = tables
 
         # set DT_RowClass based on accumulated classes
         row['DT_RowClass'] = ' '.join(rowclasses)
