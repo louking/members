@@ -28,7 +28,8 @@ from ...model import MOTION_STATUS_OPEN
 from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
 from ...model import localinterest_query_params
 from ...model import MemberStatusReport, StatusReport
-from ...model import INVITE_RESPONSE_NO_RESPONSE, MEETING_OPTION_SEPARATOR, MEETING_OPTION_HASSTATUSREPORTS, MEETING_OPTION_RSVP
+from ...model import INVITE_RESPONSE_NO_RESPONSE, MEETING_OPTION_SEPARATOR
+from ...model import MEETING_OPTION_HASSTATUSREPORTS, MEETING_OPTION_RSVP, MEETING_OPTION_HASDISCUSSIONS
 from ...version import __docversion__
 from ...helpers import positions_active
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
@@ -656,30 +657,40 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         row['DT_RowClass'] = ' '.join(rowclasses)
 
     def instructions(self):
-        theinstructions = div()
+        meeting = self.get_meeting()
 
+        theinstructions = div()
         with theinstructions:
 
-            # id referenced from beforedatatables.js meeting_send_email()
+            # mystatus-instructions id referenced from beforedatatables.js mystatus_instructions()
             with div(id='mystatus-instructions', style='display: none;'):
                 p('Please respond as follows:')
                 with ol():
-                    with li():
-                        text('RSVP to the meeting by clicking ')
-                        strong('RSVP')
-                        text(' button')
-                    li('Provide Status Reports for each of your positions by editing subsequent rows (see Note)')
-                    with li():
-                        em('Optionally')
-                        text(' add a Status Report for something outside your assigned position by clicking the ')
+                    if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+                        with li():
+                            text('RSVP to the meeting by clicking ')
+                            strong('RSVP')
+                            text(' button')
+                    if meeting_has_option(meeting, MEETING_OPTION_HASSTATUSREPORTS):
+                        if len(meeting.statusreporttags) > 0:
+                            li('Provide {}s for each of your positions by editing pre-filled rows (see Note)'
+                               ''.format(invite_statusreport().title()))
+                        with li():
+                            if len(meeting.statusreporttags) > 0:
+                                em('Optionally ')
+                                text('add ')
+                            else:
+                                text('Add ')
+                            text('a {} by clicking the '.format(invite_statusreport().title()))
+                            strong('New')
+                            text(' button')
+                if meeting_has_option(meeting, MEETING_OPTION_HASDISCUSSIONS):
+                    with p():
+                        text('If you would like to add a discussion item to the meeting agenda, click ')
                         strong('New')
-                        text(' button')
-                with p():
-                    text('If you would like to add a discussion item to the meeting agenda, click ')
-                    strong('New')
-                    text(' in the Discussion Item ')
-                    strong('while editing')
-                    text(' the relevant status report')
+                        text(' in the Discussion Item ')
+                        strong('while editing')
+                        text(' the relevant {}'.format(invite_statusreport().title()))
                 with p():
                     text('For step by step instructions, see the ')
                     a('Help for My Status Report',
@@ -691,7 +702,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                     with li():
                         text('to ')
                         i('view')
-                        text(' a status report, click on ')
+                        text(' a {}, click on '.format(invite_statusreport().title()))
                         i(_class='fa fa-plus', style='background-color: forestgreen; color: white; padding: 2px; '
                                                      'font-size: 60%;')
                         text(' to expand, ')
@@ -701,12 +712,13 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                     with li():
                         text('to ')
                         i('edit')
-                        text(' a status report, click on ')
+                        text(' a {}, click on '.format(invite_statusreport().title()))
                         i(_class='fas fa-edit', style='color: orangered;')
                     with li():
                         text('if the edit button is displayed as ')
                         i(_class='fas fa-edit', style='color: forestgreen;')
-                        text(' this means the status report has been entered -- it can still be edited, though')
+                        text(' this means the {} has been entered -- it can still be edited, though'
+                             ''.format(invite_statusreport().title()))
 
             div(id='mystatus_button_error', style='display: none;')
 
