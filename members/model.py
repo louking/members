@@ -372,6 +372,19 @@ class Meeting(Base):
         'version_id_col': version_id
     }
 
+    def has_meeting_option(self, option):
+        """return True if meeting.meetingtype has option"""
+        return option in self.meetingtype.options.split(MEETING_OPTION_SEPARATOR)
+
+    def has_renew_option(self, option):
+        """return True if meeting.meetingtype has option"""
+        return option in self.meetingtype.renewoptions.split(MEETING_OPTION_SEPARATOR)
+
+    def has_button(self, button):
+        """return True if meeting.meetingtype has buttonoption"""
+        return button in self.meetingtype.buttonoptions.split(MEETING_OPTION_SEPARATOR)
+
+
 MEETING_OPTION_SEPARATOR = ', '
 MEETING_OPTION_RSVP = 'rsvp_required'
 MEETING_OPTION_TIME = 'time_required'
@@ -390,6 +403,17 @@ MEETING_OPTIONS = OrderedDict([
     (MEETING_OPTION_ONLINEMOTIONS, 'Allow Online Motion/Votes'),
 ])
 
+MEETING_RENEW_COPYAGENDASUMMARY = 'copy_agenda_summary'
+MEETING_RENEW_COPYAGENDADISCUSSION = 'copy_agenda_discussion'
+MEETING_RENEW_RESETACTIONDATE = 'show_actions_since_last'
+MEETING_RENEW_OPTIONS = [
+    {'value': MEETING_RENEW_COPYAGENDASUMMARY, 'label': 'Copy Agenda Summary',
+     'attr': {'title': 'agenda titles and summary will be copied'}},
+    {'value': MEETING_RENEW_COPYAGENDADISCUSSION, 'label': 'Copy Agenda Discussion',
+     'attr': {'title': 'agenda titles and discussion will be copied'}},
+    {'value': MEETING_RENEW_RESETACTIONDATE, 'label': 'Show Action Items Since Last Meeting',
+     'attr': {'title': 'show actions since will be set to date of last meeting'}},
+]
 class MeetingType(Base):
     __tablename__ = 'meetingtype'
     id                  = Column(Integer(), primary_key=True)
@@ -404,6 +428,7 @@ class MeetingType(Base):
     statusreportwording = Column(Text)
     invitewording       = Column(Text)
     autoagendatitle     = Column(Text)
+    renewoptions        = Column(Text)
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
@@ -635,6 +660,21 @@ meetingstatusreporttag_table = Table('meetingstatusreport_tag', Base.metadata,
     Column( 'meeting_id', Integer, ForeignKey('meeting.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
+meetingtypeinvitetag_table = Table('meetingtypeinvite_tag', Base.metadata,
+    Column( 'id', Integer, primary_key=True ),
+    Column( 'meetingtype_id', Integer, ForeignKey('meetingtype.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+meetingtypevotetag_table = Table('meetingtypevote_tag', Base.metadata,
+    Column( 'id', Integer, primary_key=True ),
+    Column( 'meetingtype_id', Integer, ForeignKey('meetingtype.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
+meetingtypestatusreporttag_table = Table('meetingtypestatusreport_tag', Base.metadata,
+    Column( 'id', Integer, primary_key=True ),
+    Column( 'meetingtype_id', Integer, ForeignKey('meetingtype.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
 interestmeetingtag_table = Table('interestmeeting_tag', Base.metadata,
     Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
@@ -659,9 +699,13 @@ class Tag(Base):
     meetingvotes        = relationship( 'Meeting', secondary=meetingvotetag_table, backref='votetags', lazy=True )
     meetingstatusreports = relationship( 'Meeting', secondary=meetingstatusreporttag_table,
                                          backref='statusreporttags', lazy=True )
+    meetingtypeinvites  = relationship( 'MeetingType', secondary=meetingtypeinvitetag_table, backref='invitetags', lazy=True )
+    meetingtypevotes    = relationship( 'MeetingType', secondary=meetingtypevotetag_table, backref='votetags', lazy=True )
+    meetingtypestatusreports = relationship( 'MeetingType', secondary=meetingtypestatusreporttag_table,
+                                         backref='statusreporttags', lazy=True )
 
     # interest attributes have defaults for these tags, which are used when setting up meetings
-    # todo: a better way would be to keep track of these by meetingtype (#378)
+    # these two fields have been deprecated due to #378
     interestmeetings    = relationship( 'LocalInterest', secondary=interestmeetingtag_table, backref='interestmeetingtags', lazy=True )
     interestmeetingvotes= relationship( 'LocalInterest', secondary=interestmeetingvotetag_table, backref='interestmeetingvotetags', lazy=True )
 

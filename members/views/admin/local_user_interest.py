@@ -32,10 +32,8 @@ def interestattr_validate(action, formdata):
     return results
 
 interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id,'\
-                       'interestmeetingtags,interestmeetingvotetags,'\
                        'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id,'\
-                          'interestmeetingtags,interestmeetingvotetags,'\
                           'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
@@ -81,22 +79,6 @@ interestattr_view = DbCrudApiRolePermissions(
                         {'data': 'service_id', 'name': 'service_id', 'label': 'Service ID',
                          'fieldInfo': 'ID which Club Service uses for club member access',
                          'className': 'field_req',
-                         },
-                        {'data': 'interestmeetingtags', 'name': 'interestmeetingtags', 'label': 'Meeting Invite Tags',
-                         'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
-                         '_treatment': {
-                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'interestmeetingtags',
-                                              'dbfield': 'interestmeetingtags', 'uselist': True,
-                                              'queryparams': localinterest_query_params,
-                                              }}
-                         },
-                        {'data': 'interestmeetingvotetags', 'name': 'interestmeetingvotetags', 'label': 'Meeting Vote Tags',
-                         'fieldInfo': 'members who have these tags, either directly or via position, can vote on motions',
-                         '_treatment': {
-                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'interestmeetingvotetags',
-                                              'dbfield': 'interestmeetingvotetags', 'uselist': True,
-                                              'queryparams': localinterest_query_params,
-                                              }}
                          },
                         {'data': 'gs_agenda_fdr', 'name': 'gs_agenda_fdr', 'label': 'GSuite Agenda Folder',
                          # 'type': 'googledoc',

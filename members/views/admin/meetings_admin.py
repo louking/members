@@ -26,7 +26,7 @@ from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote, AgendaHead
 from ...model import Email
 from ...model import localinterest_query_params
 from ...model import invite_response_all
-from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE
+from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE, MEETING_RENEW_OPTIONS
 from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, send_discuss_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
@@ -70,8 +70,6 @@ meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow
 def meetingcreatefieldvals():
     interest = localinterest()
     return {
-        'tags.id': [t.id for t in interest.interestmeetingtags],
-        'votetags.id': [t.id for t in interest.interestmeetingvotetags],
         'organizer.id': user2localuser(current_user).id
     }
 
@@ -1822,8 +1820,10 @@ class MeetingTypesView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
-meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording,autoagendatitle'.split(',')
-meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,meetingwording,statusreportwording,invitewording,autoagendatitle'.split(',')
+meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,renewoptions,meetingwording,' \
+                       'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags'.split(',')
+meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,renewoptions,meetingwording,' \
+                          'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags'.split(',')
 meetingtypes_dbmapping = dict(zip(meetingtypes_dbattrs, meetingtypes_formfields))
 meetingtypes_formmapping = dict(zip(meetingtypes_formfields, meetingtypes_dbattrs))
 
@@ -1851,6 +1851,30 @@ meetingtypes_view = MeetingTypesView(
          },
         {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
          '_unique': True,
+         },
+        {'data': 'invitetags', 'name': 'invitetags', 'label': 'Invite Tags',
+         'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
+         '_treatment': {
+             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'invitetags',
+                              'dbfield': 'invitetags', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'votetags', 'name': 'votetags', 'label': 'Vote Tags',
+         'fieldInfo': 'members who have these tags, either directly or via position, can vote on motions',
+         '_treatment': {
+             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'votetags',
+                              'dbfield': 'votetags', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'statusreporttags', 'name': 'statusreporttags', 'label': 'Status Report Tags',
+         'fieldInfo': 'members who have these tags, either directly or via position, will be prompted for status reports',
+         '_treatment': {
+             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'statusreporttags',
+                              'dbfield': 'statusreporttags', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
          },
         {'data': 'autoagendatitle', 'name': 'autoagendatitle', 'label': 'Automatic Agenda Item Title',
          'fieldInfo': 'When a meeting is created, if this is specified, it will cause an agenda item to be created '
@@ -1887,6 +1911,13 @@ meetingtypes_view = MeetingTypesView(
              'separator': MEETING_OPTION_SEPARATOR,
          }
          },
+        {'data': 'renewoptions', 'name': 'renewoptions', 'label': 'Meeting Renew Options',
+         'type': 'checkbox',
+         'ed': {
+             'options': MEETING_RENEW_OPTIONS,
+             'separator': MEETING_OPTION_SEPARATOR,
+         }
+         },
     ],
     idSrc='rowid',
     buttons=[
@@ -1909,3 +1940,47 @@ meetingtypes_view = MeetingTypesView(
     },
 )
 meetingtypes_view.register()
+
+
+##########################################################################################
+# meetingtypetags api
+###########################################################################################
+
+class MeetingTypeTagsApi(MethodView):
+    """
+    Api to retrieve tags associated with meetingtype, to support use of Editor.dependent()
+    """
+    def post(self):
+        meetingtype_id = request.form.get('values[meetingtype.id]')
+        meeting_id = request.form.get('rows[0][rowid]', None)
+        if not meetingtype_id:
+            return jsonify({
+                'values': {
+                    'tags.id': [],
+                    'votetags.id': [],
+                    'statusreporttags.id': [],
+                }
+            })
+        else:
+            meeting = Meeting.query.filter_by(id=meeting_id).one_or_none()
+            meetingtype = MeetingType.query.filter_by(id=meetingtype_id).one()
+            # return current values if unchanged
+            if meeting and meetingtype == meeting.meetingtype:
+                return jsonify({
+                    'values': {
+                        'tags.id': [t.id for t in meeting.tags],
+                        'votetags.id': [t.id for t in meeting.votetags],
+                        'statusreporttags.id': [t.id for t in meeting.statusreporttags],
+                    }
+                })
+            # changing means pick up default
+            else:
+                return jsonify({
+                    'values': {
+                        'tags.id': [t.id for t in meetingtype.invitetags],
+                        'votetags.id': [t.id for t in meetingtype.votetags],
+                        'statusreporttags.id': [t.id for t in meetingtype.statusreporttags],
+                    }
+                })
+
+bp.add_url_rule('/<interest>/_meetingtypetags/rest', view_func=MeetingTypeTagsApi.as_view('_meetingtypetags'), methods=['POST'])

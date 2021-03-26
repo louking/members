@@ -558,5 +558,10 @@ function afterdatatables() {
         // handle effective date update by retrieving data by /rest and refreshing table
         set_effective_date('#effective-date', '#todays-date-button');
 
+    // special processing for meetings
+    } else if (pathname == `/admin/${interest}/meetings`) {
+        editor.dependent('meetingtype.id', {
+            url: `/admin/${interest}/_meetingtypetags/rest`,
+        });
     }
 }
