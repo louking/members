@@ -690,12 +690,12 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
             with div(id='mystatus-instructions', style='display: none;'):
                 p('Please respond as follows:')
                 with ol():
-                    if meeting_has_option(meeting, MEETING_OPTION_RSVP):
+                    if meeting.has_meeting_option(MEETING_OPTION_RSVP):
                         with li():
                             text('RSVP to the meeting by clicking ')
                             strong('RSVP')
                             text(' button')
-                    if meeting_has_option(meeting, MEETING_OPTION_HASSTATUSREPORTS):
+                    if meeting.has_meeting_option(MEETING_OPTION_HASSTATUSREPORTS):
                         if len(meeting.statusreporttags) > 0:
                             li('Provide {}s for each of your positions by editing pre-filled rows (see Note)'
                                ''.format(invite_statusreport().title()))
@@ -708,7 +708,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                             text('a {} by clicking the '.format(invite_statusreport().title()))
                             strong('New')
                             text(' button')
-                if meeting_has_option(meeting, MEETING_OPTION_HASDISCUSSIONS):
+                if meeting.has_meeting_option(MEETING_OPTION_HASDISCUSSIONS):
                     with p():
                         text('If you would like to add a discussion item to the meeting agenda, click ')
                         strong('New')
