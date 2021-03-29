@@ -1514,6 +1514,10 @@ def meetingstatus_pretablehtml():
             dd(**{'data-editor-field': 'message'})
             dd(**{'data-editor-field': 'options'})
 
+        with script():
+            raw('var invitations_text = "{}";\n'.format(custom_invitations().title()))
+            raw('var invitation_text = "{}";\n'.format(custom_invitation().title()))
+
     return pretablehtml.render()
 
 meetingstatus_dbattrs = 'id,interest_id,position,users,status'.split(',')
