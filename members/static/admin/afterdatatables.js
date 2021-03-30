@@ -561,7 +561,15 @@ function afterdatatables() {
     // special processing for meetings
     } else if (pathname == `/admin/${interest}/meetings`) {
         editor.dependent('meetingtype.id', {
-            url: `/admin/${interest}/_meetingtypetags/rest`,
+            url: `/admin/${interest}/_meetingtypeparms/rest`,
         });
+
+        // don't show some fields in form
+        editor
+            .hide('gs_agenda')
+            .hide('gs_minutes')
+            .hide('gs_status')
+            // this gets shown when renew button is used
+            .hide('renewoptions');
     }
 }

@@ -105,26 +105,40 @@ When a :term:`meeting` is being planned, the first thing to do is create it.
 
 * bring up :ref:`Meetings view`
 * click **New**
-* **Purpose** should be a short description of the meeting, e.g., *Board Meeting*
-* **Meeting Type** defines the behavior of the meeting. The different meeting types are defined using :ref:`Meeting Types view`
-* **Date** is when the meeting takes place, or the date after which no more activity is allowed on the meeting
-* **Time** the time of the meeting needs to be entered (optional, depending on **Meeting Type**)
-* **Location** can be a physical location, a videoconference URL, or *by email* (optional, depending on **Meeting Type**)
-* **Show Actions Since** is used to determine which :term:`action items <action item>` are highlighted in
-  the :term:`meeting` :term:`invitation <invite>`, in the :term:`agenda`, etc. This should normally be set to the
-  date of the last meeting of this type. (optional, depending on **Meeting Type**)
-* **Invite Tags**, **Vote Tags**, and **Status Report Tags** need to be set to the group(s) used for the
-  :term:`invitations <invite>`, :term:`votes <vote>`, and :term:`status reports <status report>` respectively
 
-  .. note::
-    these :term:`tags <tag>` are associated with :term:`positions <position>` using the :ref:`Positions view`
+    .. include:: meetings-meetings-fields.rst
 
 * click **Create**
 
-To access the :term:`meeting` you just created, select the row and click **View Meeting**. You'll see that there is an
+To access the :term:`meeting` you just created, select the new row and click **View Meeting**. You'll see that there is an
 :term:`action item` :term:`agenda item` which was automatically created.
 
-If the **Meeting Type** is has an **Automatic Agenda Item Title**, an :term:`agenda item` with the indicated title is created.
+If the **Meeting Type** has an **Automatic Agenda Item Title**, an :term:`agenda item` with the indicated title is created.
+
+renew a meeting
+---------------------------
+When a :term:`meeting` is being planned, the first thing to do is create it.
+
+* bring up :ref:`Meetings view`
+* click **Renew**
+
+    .. note::
+        all of the fields are filled in based on the meeting being renewed, but you'll want to change the
+        **Date** to be the date of the new meeting
+
+    .. include:: meetings-meetings-fields.rst
+
+    * **Renew Options** are defaulted based on **Meeting Type**. These can be changed for this renewal, but if you find
+      yourself changing these each time, it would probably be best to set them as you'd like in the :ref:`Meeting Types view`.
+
+* click **Renew**
+
+To access the :term:`meeting` you just renewed, select the new row and click **View Meeting**. You'll see that there is an
+:term:`action item` :term:`agenda item` which was automatically created, and any agenda items which were meant to be
+copied based on the **Renew Options** will also be there.
+
+If the **Meeting Type** has an **Automatic Agenda Item Title**, an :term:`agenda item` with the indicated title is created.
+
 
 invite members to a meeting (in-person / virtual)
 -------------------------------------------------------------------------------------

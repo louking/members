@@ -391,7 +391,13 @@ this view is used to navigate to the individual meeting for administration purpo
     :Minutes:
         this is the link to the :term:`minutes` document
 
-In addition to the **New**, **Edit**, **Delete** buttons, there are these navigation buttons.
+In addition to the **New**, **Edit**, **Delete** buttons, there is one additional meeting creation button
+
+    :Renew:
+        this allows the :term:`meeting admin` to create a new :term:`meeting` just like the selected previous meeting, but
+        on a different date
+
+and these navigation buttons
 
     :View Meeting:
         this is the view for the :term:`meeting` which can be used to prepare the :term:`agenda` or during the
@@ -411,6 +417,12 @@ In addition to the **New**, **Edit**, **Delete** buttons, there are these naviga
 .. image:: images/meetings-edit.*
     :align: center
 
+**Renew** allows the :term:`meeting admin` to select options for renewing the meeting. The defaults for these
+options are set in :ref:`Meeting Types view`. See :ref:`Meeting Types view` for a description of how these options
+work
+
+.. image:: images/meetings-renew.*
+    :align: center
 
 .. _Meeting Types view:
 
@@ -454,7 +466,7 @@ should be shown.
             * *Allow Online Motion/Votes* - the :ref:`Motions view` within a meeting agenda item will have a button
               to **Send eVote Requests**
 
-    :Meeting Buttons:
+    :Meeting Button Options:
         these control what buttons to show for the :ref:`Meeting view`. See :ref:`Meeting view` for the description
         of each button's behavior
 
@@ -466,6 +478,20 @@ should be shown.
               or :term:`minutes`
             * *Send Email* - this button should be configured if there will be any need to send email to the
               :term:`invitees <invite>` after invitations are sent out
+
+    :Meeting Renew Options:
+        these control how meetings of this type are renewed
+
+            * *Show Actions Since Last Meeting* - if checked, the **Show Actions Since** for the new :term:`meeting`
+              will be set to the date of the last meeting
+            * *Copy Invite Email* - if checked, the text which was sent in the invite email will be copied from the
+              last meeting's
+            * *Copy Reminder Email* - if checked, the text which was sent in the reminder email will be copied from
+              the last meeting's
+            * *Copy Agenda Summary* - if checked, :term:`agenda` titles and summaries will be copied from the last
+              meetings's
+            * *Copy Agenda Discussion* - if checked, :term:`agenda` titles and discussions from the last meeting will
+              be copied into the new meetings agenda summaries
 
 .. image:: images/meeting-types-view.*
     :align: center

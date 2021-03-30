@@ -403,16 +403,22 @@ MEETING_OPTIONS = OrderedDict([
     (MEETING_OPTION_ONLINEMOTIONS, 'Allow Online Motion/Votes'),
 ])
 
+MEETING_RENEW_RESETACTIONDATE = 'show_actions_since_last'
+MEETING_RENEW_COPYINVITEEMAIL = 'copy_invite_email'
+MEETING_RENEW_COPYREMINDEREMAIL = 'copy_reminder_email'
 MEETING_RENEW_COPYAGENDASUMMARY = 'copy_agenda_summary'
 MEETING_RENEW_COPYAGENDADISCUSSION = 'copy_agenda_discussion'
-MEETING_RENEW_RESETACTIONDATE = 'show_actions_since_last'
 MEETING_RENEW_OPTIONS = [
+    {'value': MEETING_RENEW_RESETACTIONDATE, 'label': 'Show Actions Since Last Meeting',
+     'attr': {'title': 'show actions since will be set to date of last meeting'}},
+    {'value': MEETING_RENEW_COPYINVITEEMAIL, 'label': 'Copy Invite Email',
+     'attr': {'title': 'email text from invite will be copied'}},
+    {'value': MEETING_RENEW_COPYREMINDEREMAIL, 'label': 'Copy Reminder Email',
+     'attr': {'title': 'email text from reminder will be copied'}},
     {'value': MEETING_RENEW_COPYAGENDASUMMARY, 'label': 'Copy Agenda Summary',
      'attr': {'title': 'agenda titles and summary will be copied'}},
     {'value': MEETING_RENEW_COPYAGENDADISCUSSION, 'label': 'Copy Agenda Discussion',
      'attr': {'title': 'agenda titles and discussion will be copied'}},
-    {'value': MEETING_RENEW_RESETACTIONDATE, 'label': 'Show Action Items Since Last Meeting',
-     'attr': {'title': 'show actions since will be set to date of last meeting'}},
 ]
 class MeetingType(Base):
     __tablename__ = 'meetingtype'

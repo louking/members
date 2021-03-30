@@ -394,6 +394,61 @@ function position_wizard(url) {
 }
 
 /**
+ * action for meeting renew button
+ * @returns {function(*, *, *, *): void}
+ */
+function meeting_renew_button(newdataurl) {
+    return function ( e, dt, node, config ) {
+        // similar to https://editor.datatables.net/examples/api/duplicateButton.html,
+        // but need to recreate the data because otherwise dependence() won't pick up defaults
+        var data = dt.rows( {selected: true} ).data()[0];
+        $.ajax({
+            url: newdataurl + '?meeting_id=' + data.rowid,
+            success: function(newdata, textStatus, jqXHR) {
+                if (newdata.error) {
+                    showerrorpopup(newdata.error);
+
+                } else {
+                    // show renewoptions just for this form
+                    dt.editor()
+                        .show('renewoptions')
+                        .disable('meetingtype.id');
+                    dt.editor().one('close', function () {
+                        dt.editor()
+                            .hide('renewoptions')
+                            .enable('meetingtype.id');
+                    });
+
+                    dt.editor()
+                        .create(false, {
+                            title: 'Renew',
+                            buttons: [
+                                {
+                                    label: 'Renew Meeting',
+                                    action: function () {
+                                        this.submit(null, null, function (submitdata) {
+                                            submitdata.renew = true;
+                                            submitdata.renewid = data.rowid;
+                                        })
+                                    }
+                                },
+                                {
+                                    text: 'Cancel',
+                                    action: function () {
+                                        this.close();
+                                    }
+                                }
+                            ]
+                        })
+                        .set(newdata)
+                        .open();
+                }
+            },
+        })
+    }
+}
+
+/**
  * handles Generate Docs button from Meeting view
  *
  * @param url - rest url to generate the documents

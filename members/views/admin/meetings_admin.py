@@ -11,9 +11,9 @@ from uuid import uuid4
 from flask import g, request, jsonify, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import h1, div, label, input, select, option, script, dd, p, b
+from dominate.tags import h1, div, label, input, select, option, script, dd
 from dominate.util import text, raw
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from sqlalchemy.orm import aliased
 from loutilities.nesteddict import obj2dict
 from jinja2 import Environment
@@ -32,6 +32,8 @@ from ...meeting_invites import generateinvites, get_invites, generatereminder, s
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
 from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION
+from ...model import MEETING_RENEW_COPYAGENDADISCUSSION, MEETING_RENEW_COPYAGENDASUMMARY, MEETING_RENEW_RESETACTIONDATE
+from ...model import MEETING_RENEW_COPYINVITEEMAIL, MEETING_RENEW_COPYREMINDEREMAIL
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, adminguide
 from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, invite_statusreport
@@ -41,7 +43,7 @@ from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN
-from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.user.tables import DbCrudApiInterestsRolePermissions, DbPermissionsMethodViewApi
 from loutilities.tables import _editormethod, get_request_data, rest_url_for, CHILDROW_TYPE_TABLE
 
 from loutilities.timeu import asctime
@@ -51,6 +53,7 @@ class ParameterError(Exception): pass
 
 debug = False
 
+MEETINGS_ADMIN_ROLES = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
 
 ##########################################################################################
 # meetings endpoint
@@ -66,13 +69,18 @@ meetings_dbmapping['date'] = lambda formrow: dtrender.asc2dt(formrow['date'])
 meetings_formmapping['date'] = lambda dbrow: dtrender.dt2asc(dbrow.date)
 meetings_dbmapping['show_actions_since'] = lambda formrow: dtrender.asc2dt(formrow['show_actions_since']) if formrow['show_actions_since'] else None
 meetings_formmapping['show_actions_since'] = lambda dbrow: dtrender.dt2asc(dbrow.show_actions_since) if dbrow.show_actions_since else ''
+meetings_formmapping['renewoptions'] = lambda dbrow: dbrow.meetingtype.renewoptions
 
 def meetingcreatefieldvals():
     interest = localinterest()
     return {
-        'organizer.id': user2localuser(current_user).id
+        'organizer.id': user2localuser(current_user).id,
     }
 
+AI_ORDER_ATTENDEE = 1
+AI_ORDER_ACTIONITEMS = 2
+AI_ORDER_AUTOAGENDAITEM = 3
+AI_ORDER_OTHERS_START = 4
 class MeetingsView(DbCrudApiInterestsRolePermissions):
     def createrow(self, formdata):
         """
@@ -86,9 +94,9 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
 
         # special processing for action items agenda
         if meeting_has_option(themeeting, MEETING_OPTION_SHOWACTIONITEMS):
-            agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=2, title='Action Items', agendaitem='',
-                                    is_action_only=True)
-            db.session.add(agendaitem)
+            newagendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=AI_ORDER_ACTIONITEMS,
+                                       title='Action Items', agendaitem='', is_action_only=True)
+            db.session.add(newagendaitem)
 
         # special processing if autoagendatitle is specified, run the template engine to do any translation
         if themeeting.meetingtype.autoagendatitle:
@@ -96,9 +104,119 @@ class MeetingsView(DbCrudApiInterestsRolePermissions):
             meetingdict = obj2dict(themeeting)
             agitemtemp = Environment().from_string(themeeting.meetingtype.autoagendatitle)
             agendatitle = agitemtemp.render(meetingdict)
-            agendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=3, title=agendatitle, agendaitem='',
-                                    is_action_only=False)
-            db.session.add(agendaitem)
+            newagendaitem = AgendaItem(interest=localinterest(), meeting=themeeting, order=AI_ORDER_AUTOAGENDAITEM,
+                                       title=agendatitle, agendaitem='', is_action_only=False)
+            db.session.add(newagendaitem)
+
+        # special processing if we're renewing the meeting
+        if request.form.get('renew', None) == 'true':
+            oldmeeting_id = request.form.get('renewid')
+            renewoptions = formdata['renewoptions']
+
+            # creates new agenda item
+            def _createagendaitem(order):
+                """
+                create a new agenda item
+
+                :param oldagendaitem: old agenda item
+                :param order: current order within meeting
+                :return: new agenda item, order
+                """
+                # create new agendaitem
+                newagendaitem = AgendaItem(
+                    interest_id=themeeting.interest_id,
+                    meeting_id=themeeting.id,
+                    order=order,
+                )
+                db.session.add(newagendaitem)
+                order += 1
+                db.session.flush()
+                return newagendaitem, order
+
+            # copies email
+            def _copyemail(emtype, frommeeting_id, tomeeting_id):
+                """
+                copy email if it exists
+                
+                :param emtype: type of email
+                :param frommeeting_id: meeting id to copy from
+                :param tomeeting_id: meeting id to copy to
+                :return: None
+                """
+                email = Email.query.filter_by(meeting_id=frommeeting_id, type=emtype).one_or_none()
+                newemail = None
+                if email:
+                    emailkeys = [c.key for c in inspect(Email).attrs
+                                 if c.key not in ['id', 'meeting_id', 'meeting', 'version_id']]
+                    oldvals = [getattr(email, k) for k in emailkeys]
+                    newemail = Email(**dict(zip(emailkeys, oldvals)))
+                    newemail.meeting_id = tomeeting_id
+
+                    # replace initial bracketed information -- probably better with re, but who has time to figure that out
+                    subjectparts = newemail.subject.split(']')
+                    rest = ']'.join(subjectparts[1:]).strip()
+                    if len(subjectparts) == 1:
+                        subjectparts.insert(0, '[')
+                    if subjectparts[0].strip()[0] == '[':
+                        newemail.subject = f'[{themeeting.purpose} {themeeting.date}] {rest}'
+
+                    db.session.add(newemail)
+                    db.session.flush()
+
+            # show_actions_since is set by _meetingrenewdata when the form is first displayed to the user
+            # can't change this here because the user may have changed this before submitting the renew form
+            # oldmeeting = Meeting.query.filter_by(id=oldmeeting_id).one()
+            # if MEETING_RENEW_RESETACTIONDATE in renewoptions:
+            #     themeeting.show_actions_since = oldmeeting.date
+
+            # for copy of agenda items, map the original meeting's agendaitem id to the copied meeting's agendaitem id
+            # always skip agenda items which were created by status report discussions (statusreport_id != None)
+            agendamap = {}
+            order = AI_ORDER_OTHERS_START
+            if MEETING_RENEW_COPYAGENDASUMMARY in renewoptions:
+                for oldagendaitem in AgendaItem.query.filter_by(meeting_id=oldmeeting_id).order_by(AgendaItem.order).all():
+                    # skip agenda items with status reports and special agenda items
+                    if oldagendaitem.statusreport or oldagendaitem.is_attendee_only or oldagendaitem.is_action_only:
+                        continue
+
+                    # create agenda item and copy relevant columns
+                    newagendaitem, order = _createagendaitem(order)
+                    for col in ['title', 'agendaitem', 'is_attendee_only', 'is_action_only']:
+                        setattr(newagendaitem, col, getattr(oldagendaitem, col))
+
+                    # remember we have created newagendaitem (id ok as db.session.flush() was performed)
+                    agendamap[oldagendaitem.id] = newagendaitem.id
+
+            if MEETING_RENEW_COPYAGENDADISCUSSION in renewoptions:
+                for oldagendaitem in AgendaItem.query.filter_by(meeting_id=oldmeeting_id).order_by(AgendaItem.order).all():
+                    # skip agenda items with status reports and special agenda items
+                    if oldagendaitem.statusreport or oldagendaitem.is_attendee_only or oldagendaitem.is_action_only:
+                        continue
+
+                    # pick up agenda items created above if MEETING_RENEW_COPYAGENDASUMMARY
+                    if oldagendaitem.id in agendamap:
+                        newagendaitem = AgendaItem.query.filter_by(id=agendamap[oldagendaitem.id]).one()
+
+                    # create new agenda items if not MEETING_RENEW_COPYAGENDASUMMARY
+                    else:
+                        # create agenda item and copy relevant columns
+                        newagendaitem, order = _createagendaitem(order)
+                        for col in ['title', 'is_attendee_only', 'is_action_only']:
+                            setattr(newagendaitem, col, getattr(oldagendaitem, col))
+
+                    # if something to copy, add to end of summary (agendaitem) if present
+                    if oldagendaitem.discussion:
+                        if not newagendaitem.agendaitem:
+                            newagendaitem.agendaitem = ''
+                        else:
+                            newagendaitem.agendaitem += '\n'
+                        newagendaitem.agendaitem += oldagendaitem.discussion
+
+            # copy emails if desired
+            if MEETING_RENEW_COPYINVITEEMAIL in renewoptions:
+                _copyemail(MEETING_INVITE_EMAIL, oldmeeting_id, themeeting.id)
+            if MEETING_RENEW_COPYREMINDEREMAIL in renewoptions:
+                _copyemail(MEETING_REMINDER_EMAIL, oldmeeting_id, themeeting.id)
 
         return output
 
@@ -215,18 +333,33 @@ meetings_view = MeetingsView(
          'type': 'googledoc', 'opts': {'text': 'Status Report'},
          'render': {'eval': '$.fn.dataTable.render.googledoc( meetings_statusreportwording )'},
          },
-        {'data': 'gs_minutes', 'name': 'gs_minutes_fdr', 'label': 'Minutes',
+        {'data': 'gs_minutes', 'name': 'gs_minutes', 'label': 'Minutes',
          'type': 'googledoc', 'opts': {'text': 'Minutes'},
          'render': {'eval': '$.fn.dataTable.render.googledoc( "Minutes" )'},
+         },
+        {'data': 'renewoptions', 'name': 'renewoptions', 'label': 'Renew Options',
+         'type': 'checkbox',
+         'visible': False,
+         'ed': {
+             'options': MEETING_RENEW_OPTIONS,
+             'separator': MEETING_OPTION_SEPARATOR,
+         }
          },
     ],
     servercolumns=None,  # not server side
     idSrc='rowid',
-    buttons=[
+    buttons=lambda: [
         'create',
+        {
+            'extend': 'selected',
+            'text': 'Renew',
+            'action': {
+                'eval': 'meeting_renew_button("{}")'.format(url_for('admin._meetingrenewdata', interest=g.interest))
+            }
+        },
         'editRefresh',
         'remove',
-        'csv',
+        'separator',
         {
             'extend': 'edit',
             'text': 'View Meeting',
@@ -242,6 +375,8 @@ meetings_view = MeetingsView(
             'text': 'Their Status Report',
             'action': {'eval': 'meetings_theirstatusreport'}
         },
+        'separator',
+        'csv',
     ],
     dtoptions={
         'scrollCollapse': True,
@@ -1125,7 +1260,6 @@ class MeetingApiBase(MethodView):
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
 
-
     def permission(self):
         '''
         determine if current user is permitted to use the view
@@ -1950,11 +2084,11 @@ meetingtypes_view.register()
 # meetingtypetags api
 ###########################################################################################
 
-class MeetingTypeTagsApi(MethodView):
+class MeetingTypeParmsApi(DbPermissionsMethodViewApi):
     """
-    Api to retrieve tags associated with meetingtype, to support use of Editor.dependent()
+    Api to retrieve parameters associated with meetingtype, to support use of Editor.dependent()
     """
-    def post(self):
+    def do_post(self):
         meetingtype_id = request.form.get('values[meetingtype.id]')
         meeting_id = request.form.get('rows[0][rowid]', None)
         if not meetingtype_id:
@@ -1987,4 +2121,48 @@ class MeetingTypeTagsApi(MethodView):
                     }
                 })
 
-bp.add_url_rule('/<interest>/_meetingtypetags/rest', view_func=MeetingTypeTagsApi.as_view('_meetingtypetags'), methods=['POST'])
+meetingtypeparmsapi_view = MeetingTypeParmsApi(
+    app=bp,
+    db=db,
+    roles_accepted=MEETINGS_ADMIN_ROLES,
+    endpoint='admin._meetingtypeparms',
+    rule='/<interest>/_meetingtypeparms/rest',
+    methods=['POST'],
+)
+meetingtypeparmsapi_view.register()
+
+##########################################################################################
+# meetingrenewdata api
+###########################################################################################
+
+class MeetingRenewDataApi(DbPermissionsMethodViewApi):
+    def permission(self):
+        if request.args.get('meeting_id', None):
+            return super().permission()
+        else:
+            return False
+
+    def do_get(self):
+        meeting_id = request.args.get('meeting_id')
+        renewmeeting = Meeting.query.filter_by(id=meeting_id).one()
+        renewoptions = renewmeeting.meetingtype.renewoptions
+        response = meetings_view.dte.get_response_data(renewmeeting)
+        for key in ['rowid', 'gs_agenda', 'gs_minutes', 'gs_status', 'version_id', 'interest_id', 'statusreportwording']:
+            response.pop(key)
+        # convert object fields to field.id
+        for key in ['meetingtype', 'organizer', 'tags', 'votetags', 'statusreporttags']:
+            thisfield = response.pop(key)
+            response[f'{key}.id'] = thisfield['id']
+        if MEETING_RENEW_RESETACTIONDATE in renewoptions:
+            response['show_actions_since'] = dtrender.dt2asc(renewmeeting.date)
+        return jsonify(response)
+
+meetingrenewdataapi_view = MeetingRenewDataApi(
+    app=bp,
+    db=db,
+    roles_accepted=MEETINGS_ADMIN_ROLES,
+    endpoint='admin._meetingrenewdata',
+    rule='/<interest>/_meetingrenewdata',
+    methods=['GET'],
+)
+meetingrenewdataapi_view.register()
