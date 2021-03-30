@@ -197,6 +197,7 @@ asset_bundles = {
         Bundle('datatables.dataRender.datetime.js', filters='jsmin'),    # from loutilities
         Bundle('editor.buttons.editrefresh.js', filters='jsmin'),        # from loutilities
         Bundle('editor.buttons.editchildrowrefresh.js', filters='jsmin'),  # from loutilities
+        Bundle('editor.buttons.separator.js', filters='jsmin'),          # from loutilities
         Bundle('filters.js', filters='jsmin'),                           # from loutilities
         Bundle('utils.js', filters='jsmin'),                             # from loutilities
         Bundle('user/admin/groups.js', filters='jsmin'),                 # from loutilities
