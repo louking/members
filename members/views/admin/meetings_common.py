@@ -34,7 +34,7 @@ from ...version import __docversion__
 from ...helpers import positions_active
 from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
-from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE
+from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE, DteDbRelationship
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 
@@ -782,6 +782,30 @@ actionitems_yadcf_options = [
     yadcfoption('status:name', 'actionitems-external-filter-status', 'select', placeholder='Select', width='100px'),
 ]
 
+class ActionItemAttendeePicker(DteDbRelationship):
+    def options(self):
+        queryparams = self.queryparams() if callable(self.queryparams) else self.queryparams
+        items = []
+        if self.nullable:
+            items += [{'label': '<none>', 'value': None}]
+
+        # optionally filter to those invited to this meeting
+        meeting_id = request.args.get('meeting_id', None)
+        if meeting_id:
+            localusers = set()
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+            get_tags_users(meeting.tags, localusers, meeting.date)
+            items += [{'label': getattr(item, self.labelfield), 'value': item.id}
+                      for item in localusers]
+
+        # if not in a meeting get all the users who are active (see optionpicker parameters)
+        else:
+            items += [{'label': getattr(item, self.labelfield), 'value': item.id}
+                      for item in self.fieldmodel.query.filter_by(**queryparams).all()]
+
+        items.sort(key=lambda k: k['label'].lower())
+        return items
+
 # used by meetings_member.MemberActionItemsView and meetings_admin.ActionItemsView
 class ActionItemsBase(DbCrudApiInterestsRolePermissions):
     def __init__(self, **kwargs):
@@ -835,13 +859,18 @@ class ActionItemsBase(DbCrudApiInterestsRolePermissions):
                 {'data': 'assignee', 'name': 'assignee', 'label': 'Assignee',
                  'className': 'field_req',
                  '_treatment': {
-                     'relationship': {'fieldmodel': localuser_actionitems_alias, 'labelfield': 'name',
-                                      'onclause': localuser_actionitems_onclause,
-                                      'formfield': 'assignee', 'dbfield': 'assignee',
-                                      'queryparams': lambda: {'active': True,
-                                                              'interest': localinterest_query_params()['interest']},
-                                      'searchbox': True,
-                                      'uselist': False}}
+                     'relationship':
+                         {'optionspicker': ActionItemAttendeePicker(
+                             **{'fieldmodel': localuser_actionitems_alias, 'labelfield': 'name',
+                                'onclause': localuser_actionitems_onclause,
+                                'formfield': 'assignee', 'dbfield': 'assignee',
+                                'queryparams': lambda: {'active': True,
+                                                        'interest': localinterest_query_params()['interest']},
+                                'searchbox': True,
+                                'uselist': False}
+                         )
+                         }
+                 }
                  },
                 {'data': 'status', 'name': 'status', 'label': 'Status',
                  'type': 'select2',
