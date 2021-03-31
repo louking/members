@@ -1,0 +1,10 @@
+<p>Please see the enclosed message for {{ meeting.purpose }} on {{ meeting.date }}
+    {% if meeting.time %}{{ meeting.time }}{% endif %}</p>
+
+{% if meeting.location %}
+    <p>Location / URL</p>
+    <p style="white-space:pre-wrap; margin-left: 1em;">{{ meeting.location }}</p>
+{% endif %}
+
+{{ message }}
+

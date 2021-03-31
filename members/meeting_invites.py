@@ -271,15 +271,28 @@ def send_meeting_email(meeting_id, subject, message):
     :param message: message in html format
     :return: list of addresses email was sent to
     """
+    meeting = Meeting.query.filter_by(id=meeting_id).one()
     invites = Invite.query.filter_by(meeting_id=meeting_id).all()
-
     tolist = ['{} <{}>'.format(i.user.name, i.user.email) for i in invites]
 
     # use from address configured for email
     email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL, interest=localinterest()).one()
     fromaddr = email.from_email
 
-    result = sendmail(subject, fromaddr, tolist, message)
+    context = {
+        'meeting': meeting,
+        'message': message,
+        'meeting_text': meeting.meetingtype.meetingwording,
+        'statusreport_text': meeting.meetingtype.statusreportwording,
+        'invitation_text': meeting.meetingtype.invitewording,
+        'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording)
+    }
+    for meetingoption in MEETING_OPTIONS:
+        context[meetingoption] = meeting_has_option(meeting, meetingoption)
+
+    html = render_template('meeting-send-email.jinja2', **context)
+    result = sendmail(subject, fromaddr, tolist, html)
+
 
     return tolist
 
