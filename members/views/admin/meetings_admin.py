@@ -2145,7 +2145,8 @@ class MeetingRenewDataApi(DbPermissionsMethodViewApi):
     def do_get(self):
         meeting_id = request.args.get('meeting_id')
         renewmeeting = Meeting.query.filter_by(id=meeting_id).one()
-        renewoptions = renewmeeting.meetingtype.renewoptions
+        renewoptions = renewmeeting.meetingtype.renewoptions.split(MEETING_OPTION_SEPARATOR) \
+            if renewmeeting.meetingtype.renewoptions else []
         response = meetings_view.dte.get_response_data(renewmeeting)
         for key in ['rowid', 'gs_agenda', 'gs_minutes', 'gs_status', 'version_id', 'interest_id', 'statusreportwording']:
             response.pop(key)
