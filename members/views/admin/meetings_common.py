@@ -11,7 +11,7 @@ from uuid import uuid4
 from flask import request, g, has_request_context
 from flask_security import current_user
 from sqlalchemy.orm import aliased
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_, any_
 from dominate.tags import div, ol, li, p, em, strong, a, i, script
 from dominate.util import text, raw
 from slugify import slugify
@@ -21,7 +21,7 @@ inflect_engine = inflect.engine()
 # homegrown
 from . import bp
 from ...model import db
-from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem, MotionVote, Motion
+from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem, MotionVote, Motion, MeetingType
 from ...model import DiscussionItem
 from ...model import action_all, motion_all, motionvote_all
 from ...model import MOTION_STATUS_OPEN
@@ -916,7 +916,8 @@ class ActionItemsBase(DbCrudApiInterestsRolePermissions):
         super().beforequery()
 
         # add filters if requested
-        self.queryparams['meeting_id'] = request.args.get('meeting_id', None)
+        meeting_id = request.args.get('meeting_id', None)
+        self.queryparams['meeting_id'] = meeting_id
         self.queryparams['agendaitem_id'] = request.args.get('agendaitem_id', None)
 
         # remove empty parameters from query filters
@@ -936,6 +937,20 @@ class ActionItemsBase(DbCrudApiInterestsRolePermissions):
             self.queryfilters = [or_(ActionItem.update_time >= show_actions_since,
                                      ActionItem.status != ACTION_STATUS_CLOSED)]
 
+        # if inside a meeting, limit to actions created for this or equivalent meeting type
+        meetingtype_id = request.args.get('meetingtype_id')
+        if meetingtype_id:
+            meetingtype = MeetingType.query.filter_by(id=meetingtype_id).one()
+            equivmeetingtypes = [meetingtype] + meetingtype.peermeetingtypes
+            meetingtypeids = [e.id for e in equivmeetingtypes]
+            meetingtypefilter = []
+            for mtid in meetingtypeids:
+                meetingtypefilter.append(Meeting.meetingtype_id == mtid)
+
+            if self.queryfilters:
+                self.queryfilters = [and_(*self.queryfilters, or_(*meetingtypefilter))]
+            else:
+                self.queryfilters = [or_(*meetingtypefilter)]
 
 ##########################################################################################
 # motionsvote endpoint

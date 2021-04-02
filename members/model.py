@@ -385,6 +385,14 @@ class Meeting(Base):
         return button in self.meetingtype.buttonoptions.split(MEETING_OPTION_SEPARATOR)
 
 
+# https://blog.ramosly.com/sqlalchemy-orm-setting-up-self-referential-many-to-many-relationships-866c97d9308b
+meetingtype_meetingtype_table = Table(
+    'meetingtype_meetingtype', Base.metadata,
+    Column('id', Integer, primary_key=True),
+    Column('left_id', Integer, ForeignKey('meetingtype.id')),
+    Column('right_id', Integer, ForeignKey('meetingtype.id')),
+)
+
 MEETING_OPTION_SEPARATOR = ', '
 MEETING_OPTION_RSVP = 'rsvp_required'
 MEETING_OPTION_TIME = 'time_required'
@@ -437,6 +445,12 @@ class MeetingType(Base):
     invitewording       = Column(Text)
     autoagendatitle     = Column(Text)
     renewoptions        = Column(Text)
+
+    peermeetingtypes    = relationship('MeetingType',
+                                       secondary=meetingtype_meetingtype_table,
+                                       primaryjoin=id == meetingtype_meetingtype_table.c.right_id,
+                                       secondaryjoin=id == meetingtype_meetingtype_table.c.left_id,
+                                       )
 
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {

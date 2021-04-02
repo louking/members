@@ -826,7 +826,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 tablename = 'actionitems'
                 meeting = Meeting.query.filter_by(id=context['meeting_id']).one()
                 # don't use context for url query, as we want action items from all meetings
-                actionscontext = {'show_actions_since': meeting.show_actions_since}
+                actionscontext = {'show_actions_since': meeting.show_actions_since, 'meetingtype_id': meeting.meetingtype.id}
                 tables.append({
                     'name': tablename,
                     'label': 'Updated Action Items',
@@ -1944,6 +1944,39 @@ agendaheadings_view.register()
 ###########################################################################################
 
 class MeetingTypesView(DbCrudApiInterestsRolePermissions):
+    def updatepeers(self, id, prevpeers):
+        """
+        update peermeetingtypes for all peers
+        :param id: id of meetingtype we're creating or editing
+        :param prevpeers: list of peers which were present before this operation
+        :return: None
+        """
+        # retrieve affected meetingtype; note this is ok for delete as db hasn't flushed yet
+        meetingtype = MeetingType.query.filter_by(id=id).one()
+
+        # equivalent peers include the affected meeting's meetingtypes plus the affected meeting
+        equivpeers = set(meetingtype.peermeetingtypes + [meetingtype])
+        removedpeers = set(prevpeers) - equivpeers
+
+        # for create case, adjust equivalent peers in case some were inadvertently left out
+        if self.action == 'create':
+            for peer in [meetingtype] + meetingtype.peermeetingtypes:
+                equivpeers |= set(peer.peermeetingtypes)
+
+        # if deleting, just remove this one from all of its current peers
+        if self.action == 'remove':
+            for pmt in prevpeers:
+                pmt.peermeetingtypes.remove(meetingtype)
+
+        else:
+            # all equiv peers must have equivalent peermeetingtypes
+            for pmt in equivpeers:
+                pmt.peermeetingtypes = list(equivpeers - {pmt})
+
+            # all peers removed from the group should not include any from the previous group
+            for pmt in removedpeers:
+                pmt.peermeetingtypes = list(set(pmt.peermeetingtypes) - (set(prevpeers) | {meetingtype}))
+
     def createrow(self, formdata):
         '''
         provide default for order field when row is created
@@ -1958,10 +1991,40 @@ class MeetingTypesView(DbCrudApiInterestsRolePermissions):
         output = super().createrow(formdata)
         return output
 
+    def deleterow(self, thisid):
+        """
+        remove all peers so updatepeers behaves properly
+        :param thisid:
+        :return:
+        """
+        meetingtype = MeetingType.query.filter_by(id=thisid).one()
+        meetingtype.peermeetingtypes = []
+        super().deleterow(thisid)
+
+    def editor_method_prehook(self, form):
+        if self.action == 'create':
+            self.prevpeers = []
+        elif self.action != 'refresh':
+            self.thisid = request.view_args.get('thisid')
+
+            # make copy of peer list before doing any updates
+            meetingtype = MeetingType.query.filter_by(id=self.thisid).one()
+            self.prevpeers = meetingtype.peermeetingtypes[:]
+
+    def editor_method_posthook(self, form):
+        if self.action == 'create':
+            self.thisid = self.created_id
+        if self.action != 'refresh':
+            self.updatepeers(self.thisid, self.prevpeers)
+            # table display is updated in afterdatatables.js on('submitSuccess') function
+
+
 meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,renewoptions,meetingwording,' \
-                       'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags'.split(',')
+                       'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags,' \
+                       'peermeetingtypes'.split(',')
 meetingtypes_formfields = 'rowid,interest_id,order,meetingtype,options,buttonoptions,renewoptions,meetingwording,' \
-                          'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags'.split(',')
+                          'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags,' \
+                          'peermeetingtypes'.split(',')
 meetingtypes_dbmapping = dict(zip(meetingtypes_dbattrs, meetingtypes_formfields))
 meetingtypes_formmapping = dict(zip(meetingtypes_formfields, meetingtypes_dbattrs))
 
@@ -1989,6 +2052,7 @@ meetingtypes_view = MeetingTypesView(
          },
         {'data': 'meetingtype', 'name': 'meetingtype', 'label': 'Meeting Type',
          '_unique': True,
+         'className': 'field_req',
          },
         {'data': 'invitetags', 'name': 'invitetags', 'label': 'Invite Tags',
          'fieldInfo': 'members who have these tags, either directly or via position, will be invited to the meeting',
@@ -2011,6 +2075,14 @@ meetingtypes_view = MeetingTypesView(
          '_treatment': {
              'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'statusreporttags',
                               'dbfield': 'statusreporttags', 'uselist': True,
+                              'queryparams': localinterest_query_params,
+                              }}
+         },
+        {'data': 'peermeetingtypes', 'name': 'peermeetingtypes', 'label': 'Add\'l Meeting Types',
+         'fieldInfo': 'action items and motions created under these meeting types are also shown for meetings of this type',
+         '_treatment': {
+             'relationship': {'fieldmodel': MeetingType, 'labelfield': 'meetingtype', 'formfield': 'peermeetingtypes',
+                              'dbfield': 'peermeetingtypes', 'uselist': True,
                               'queryparams': localinterest_query_params,
                               }}
          },

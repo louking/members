@@ -571,5 +571,13 @@ function afterdatatables() {
             .hide('gs_status')
             // this gets shown when renew button is used
             .hide('renewoptions');
+
+    // special processing for meetingtypes
+    } else if (pathname == `/admin/${interest}/meetingtypes`) {
+        editor.on('submitSuccess', function(e, json, data, action) {
+           var urlparams = allUrlParams();
+           resturl = window.location.pathname + '/rest?' + setParams(urlparams);
+           refresh_table_data(_dt_table, resturl);
+        });
     }
 }
