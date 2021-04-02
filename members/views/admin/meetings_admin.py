@@ -8,7 +8,7 @@ from traceback import format_exception_only, format_exc
 from uuid import uuid4
 
 # pypi
-from flask import g, request, jsonify, current_app, url_for
+from flask import g, request, jsonify, current_app, url_for, has_request_context
 from flask.views import MethodView
 from flask_security import current_user
 from dominate.tags import h1, div, label, input, select, option, script, dd
@@ -31,7 +31,7 @@ from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, send_discuss_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
-from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION
+from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION, MEETING_OPTION_HASMOTIONS
 from ...model import MEETING_RENEW_COPYAGENDADISCUSSION, MEETING_RENEW_COPYAGENDASUMMARY, MEETING_RENEW_RESETACTIONDATE
 from ...model import MEETING_RENEW_COPYINVITEEMAIL, MEETING_RENEW_COPYREMINDEREMAIL
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
@@ -805,15 +805,17 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
             self.queryparams['is_hidden'] = False
 
     def postprocessrows(self, rows):
+        meeting_id = request.args['meeting_id']
+        meeting = Meeting.query.filter_by(id=meeting_id).one()
         for row in rows:
             if row['is_hidden'] == 'yes':
                 row['DT_RowClass'] = 'hidden-row'
             tables = []
             context = {
-                'meeting_id': request.args['meeting_id'],
+                'meeting_id': meeting_id,
                 'agendaitem_id': row['rowid']
             }
-            if row['is_attendee_only'] == 'yes':
+            if meeting.has_meeting_option(MEETING_OPTION_RSVP) and row['is_attendee_only'] == 'yes':
                 tablename = 'invites'
                 tables.append({
                     'name': tablename,
@@ -822,7 +824,7 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                     'tableid': self.childtables[tablename]['table'].tableid(**context)
                 })
 
-            elif row['is_action_only'] == 'yes':
+            elif meeting.has_meeting_option(MEETING_OPTION_SHOWACTIONITEMS) and row['is_action_only'] == 'yes':
                 tablename = 'actionitems'
                 meeting = Meeting.query.filter_by(id=context['meeting_id']).one()
                 # don't use context for url query, as we want action items from all meetings
@@ -836,22 +838,25 @@ class MeetingView(DbCrudApiInterestsRolePermissions):
                 })
 
             else:
-                tablename = 'actionitems'
-                tables.append({
-                    'name': tablename,
-                    'label': 'Action Items',
-                    'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=context),
-                    'createfieldvals': context,
-                    'tableid': self.childtables[tablename]['table'].tableid(**context)
-                })
-                tablename = 'motions'
-                tables.append({
-                    'name': tablename,
-                    'label': 'Motions',
-                    'url': rest_url_for('admin.motions', interest=g.interest, urlargs=context),
-                    'createfieldvals': context,
-                    'tableid': self.childtables[tablename]['table'].tableid(**context)
-                })
+                if meeting.has_meeting_option(MEETING_OPTION_SHOWACTIONITEMS):
+                    tablename = 'actionitems'
+                    tables.append({
+                        'name': tablename,
+                        'label': 'Action Items',
+                        'url': rest_url_for('admin.actionitems', interest=g.interest, urlargs=context),
+                        'createfieldvals': context,
+                        'tableid': self.childtables[tablename]['table'].tableid(**context)
+                    })
+
+                if meeting.has_meeting_option(MEETING_OPTION_HASMOTIONS):
+                    tablename = 'motions'
+                    tables.append({
+                        'name': tablename,
+                        'label': 'Motions',
+                        'url': rest_url_for('admin.motions', interest=g.interest, urlargs=context),
+                        'createfieldvals': context,
+                        'tableid': self.childtables[tablename]['table'].tableid(**context)
+                    })
 
             if tables:
                 row['tables'] = tables
@@ -930,6 +935,109 @@ def meeting_pretablehtml():
 
     return pretablehtml.render()
 
+def meeting_childrowoptions():
+    # we need to skip looking at request.args on initialization, but the request will be picked up when the page is loaded
+    if has_request_context():
+        meeting_id = request.args.get('meeting_id', None)
+        if meeting_id:
+            meeting = Meeting.query.filter_by(id=meeting_id).one()
+        else:
+            raise ParameterError('invalid URL: can\'t find meeting')
+    else:
+        meeting = None
+
+    # basic child row
+    childrowoptions = {
+        'template': 'meeting-child-row.njk',
+        'showeditor': True,
+        'group': 'interest',
+        'groupselector': '#metanav-select-interest',
+        'childelementargs': [],
+    }
+
+    # show invites table if meeting has rsvps
+    # NOTE: "not meeting" handles initialization case without request context)
+    if not meeting or meeting_has_option(meeting, MEETING_OPTION_RSVP):
+        childrowoptions['childelementargs'].append({
+            'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites_view,
+            'tableidtemplate': 'invites-{{ parentid }}',
+            'args': {
+                'buttons': [],
+                'columns': {
+                    'datatable': {
+                        # uses data field as key
+                        'date': {'visible': False}, 'purpose': {'visible': False},
+                        'activeinvite': {'visible': False}
+                    },
+                    'editor': {
+                        # uses name field as key
+                        'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                        'response': {'type': 'hidden'}, 'activeinvite': {'type': 'hidden'}
+                    },
+                },
+                'inline': {
+                    # uses name field as key; value is used for editor.inline() options
+                    'attended': {'submitOnBlur': True}
+                },
+                'updatedtopts': {
+                    'dom': 'Bfrt',
+                    'paging': False,
+                }
+            }
+        })
+
+    # show actionitems table if meeting has action items
+    # NOTE: "not meeting" handles initialization case without request context)
+    if not meeting or meeting_has_option(meeting, MEETING_OPTION_SHOWACTIONITEMS):
+        childrowoptions['childelementargs'].append({
+            'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems_view,
+            # rowid is of parent row
+            'tableidtemplate': 'actionitems-{{ parentid }}',
+            'args': {
+                'buttons': ['create', 'editChildRowRefresh', 'remove'],
+                'columns': {
+                    'datatable': {
+                        # uses data field as key
+                        'date': {'visible': False}, 'purpose': {'visible': False},
+                    },
+                    'editor': {
+                        # uses name field as key
+                        'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                    },
+                },
+                'updatedtopts': {
+                    'dom': 'Bfrt',
+                    'paging': False,
+                }
+            }
+        })
+
+    # show motions table if meeting has motions
+    # NOTE: "not meeting" handles initialization case without request context)
+    if not meeting or meeting_has_option(meeting, MEETING_OPTION_HASMOTIONS):
+        childrowoptions['childelementargs'].append({
+            'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions_view,
+            'tableidtemplate': 'motions-{{ parentid }}',
+            'args': {
+                # 'buttons': is motions_view.setbuttons(), [don't override]
+                'columns': {
+                    'datatable': {
+                        # uses data field as key
+                        'date': {'visible': False}, 'purpose': {'visible': False},
+                    },
+                    'editor': {
+                        # uses name field as key
+                        'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
+                    },
+                },
+                'updatedtopts': {
+                    'dom': 'Bfrt',
+                    'paging': False,
+                }
+            }
+        })
+
+    return childrowoptions
 
 # for parent / child editing see
 #   https://datatables.net/blog/2019-01-11#DataTables-Javascript
@@ -1014,81 +1122,7 @@ meeting_view = MeetingView(
          'visible': False,
          },
     ],
-    childrowoptions= {
-        'template': 'meeting-child-row.njk',
-        'showeditor': True,
-        'group': 'interest',
-        'groupselector': '#metanav-select-interest',
-        'childelementargs': [
-            {'name':'invites', 'type':CHILDROW_TYPE_TABLE, 'table':invites_view,
-             'tableidtemplate': 'invites-{{ parentid }}',
-             'args':{
-                     'buttons': [],
-                     'columns': {
-                         'datatable': {
-                             # uses data field as key
-                             'date': {'visible': False}, 'purpose': {'visible': False},
-                             'activeinvite': {'visible': False}
-                         },
-                         'editor': {
-                             # uses name field as key
-                             'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
-                             'response': {'type': 'hidden'}, 'activeinvite': {'type': 'hidden'}
-                         },
-                     },
-                     'inline' : {
-                         # uses name field as key; value is used for editor.inline() options
-                         'attended': {'submitOnBlur': True}
-                     },
-                     'updatedtopts': {
-                         'dom': 'Bfrt',
-                         'paging': False,
-                     }
-                 }
-             },
-            {'name': 'actionitems', 'type': CHILDROW_TYPE_TABLE, 'table': actionitems_view,
-             # rowid is of parent row
-             'tableidtemplate': 'actionitems-{{ parentid }}',
-             'args': {
-                 'buttons': ['create', 'editChildRowRefresh', 'remove'],
-                 'columns': {
-                     'datatable': {
-                         # uses data field as key
-                         'date': {'visible': False}, 'purpose': {'visible': False},
-                     },
-                     'editor': {
-                         # uses name field as key
-                         'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
-                     },
-                 },
-                 'updatedtopts': {
-                     'dom': 'Bfrt',
-                     'paging': False,
-                 }
-             }
-             },
-            {'name': 'motions', 'type': CHILDROW_TYPE_TABLE, 'table': motions_view,
-             'tableidtemplate': 'motions-{{ parentid }}',
-             'args': {
-                 # 'buttons': is motions_view.setbuttons(), [don't override]
-                 'columns': {
-                     'datatable': {
-                         # uses data field as key
-                         'date': {'visible': False}, 'purpose': {'visible': False},
-                     },
-                     'editor': {
-                         # uses name field as key
-                         'date': {'type': 'hidden'}, 'purpose': {'type': 'hidden'},
-                     },
-                 },
-                 'updatedtopts': {
-                     'dom': 'Bfrt',
-                     'paging': False,
-                 }
-             }
-             },
-        ],
-    },
+    childrowoptions= meeting_childrowoptions,
     serverside=True,
     idSrc='rowid',
     buttons=lambda: meeting_view.setbuttons(),
