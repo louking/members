@@ -6,9 +6,10 @@ meetings_member - handling for meetings member
 # standard
 from datetime import date, datetime
 from traceback import format_exc, format_exception_only
+from urllib.parse import urlencode
 
 # pypi
-from flask import request, flash, jsonify, current_app, url_for, g
+from flask import request, flash, jsonify, current_app, url_for, g, redirect
 from flask_security import current_user, logout_user, login_user
 from flask.views import MethodView
 from dominate.tags import div, h1, p, b
@@ -19,7 +20,7 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Invite, ActionItem, Motion, MotionVote
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
-from ...model import motionvote_all
+from ...model import motionvote_all, MOTIONVOTE_KEY_URLARG, INVITE_KEY_URLARG
 from ...version import __docversion__
 from ...meeting_evotes import get_evotes, generateevotes
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
@@ -40,6 +41,8 @@ class ParameterError(Exception): pass
 
 adminguide = 'https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html'.format(docversion=__docversion__)
 
+MEETINGS_MEMBER_ROLES = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
+
 ##########################################################################################
 # memberstatusreport endpoint
 ##########################################################################################
@@ -53,7 +56,7 @@ class MemberStatusReportView(MemberStatusReportBase):
     decorators = []
 
     def permission(self):
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         if invitekey:
             permitted = True
             invite = Invite.query.filter_by(invitekey=invitekey).one()
@@ -85,6 +88,13 @@ class MemberStatusReportView(MemberStatusReportBase):
             permitted = False
 
         return permitted
+
+    def init(self):
+        # redirect to rsvp page if necessary
+        meeting = self.get_meeting()
+        if meeting.has_meeting_option(MEETING_OPTION_RSVP) and not meeting.has_meeting_option(MEETING_OPTION_HASSTATUSREPORTS):
+            args = urlencode(request.args)
+            return redirect('{}?{}'.format(url_for('admin.rsvp', interest=g.interest), args))
 
     def beforequery(self):
         # set user based on invite key
@@ -506,7 +516,7 @@ class MyMeetingRsvpApi(MethodView):
         allowed = False
 
         # must have invitekey query arg
-        if request.args.get('invitekey', False):
+        if request.args.get(INVITE_KEY_URLARG, False):
             for role in self.roles_accepted:
                 if current_user.has_role(role):
                     allowed = True
@@ -516,7 +526,7 @@ class MyMeetingRsvpApi(MethodView):
 
     def get(self):
         try:
-            invitekey = request.args['invitekey']
+            invitekey = request.args[INVITE_KEY_URLARG]
             invite = Invite.query.filter_by(invitekey=invitekey).one()
             options = [r for r in invite_response_all
                        # copy if no response yet, or (if a response) anything but no response
@@ -539,7 +549,7 @@ class MyMeetingRsvpApi(MethodView):
                 cause = 'operation not permitted for user'
                 return jsonify(error=cause)
 
-            invitekey = request.args['invitekey']
+            invitekey = request.args[INVITE_KEY_URLARG]
             response = request.form['response']
 
             invite = Invite.query.filter_by(invitekey=invitekey).one()
@@ -565,14 +575,12 @@ bp.add_url_rule('/<interest>/_mymeetingrsvp/rest', view_func=MyMeetingRsvpApi.as
 # motionvote endpoint
 ###########################################################################################
 
-MOTIONVOTE_KEY = 'motionvotekey'
-
 class MotionVoteView(SelectInterestsView):
     # remove auth_required() decorator
     decorators = []
 
     def permission(self):
-        motionvotekey = request.args.get(MOTIONVOTE_KEY, None)
+        motionvotekey = request.args.get(MOTIONVOTE_KEY_URLARG, None)
         if motionvotekey:
             permitted = True
             motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
@@ -604,25 +612,25 @@ class MotionVoteView(SelectInterestsView):
         return permitted
 
     def setdisplayonly(self):
-        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvotekey = request.args.get(MOTIONVOTE_KEY_URLARG)
         motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
         today = date.today()
         meetingdate = motionvote.meeting.date
         return today > meetingdate
 
     def getval(self):
-        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvotekey = request.args.get(MOTIONVOTE_KEY_URLARG)
         motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
         return '"{}"'.format(motionvote.vote)
 
     def putval(self, val):
-        motionvotekey = request.args.get(MOTIONVOTE_KEY)
+        motionvotekey = request.args.get(MOTIONVOTE_KEY_URLARG)
         motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
         motionvote.vote = val
         db.session.commit()
 
 def motionvote_preselecthtml():
-    motionvotekey = request.args.get(MOTIONVOTE_KEY)
+    motionvotekey = request.args.get(MOTIONVOTE_KEY_URLARG)
     motionvote = MotionVote.query.filter_by(motionvotekey=motionvotekey).one()
     meeting = motionvote.meeting
     motion = motionvote.motion
@@ -741,4 +749,90 @@ class MotionVoteApi(MethodView):
 
 bp.add_url_rule('/<interest>/_motionvote/rest', view_func=MotionVoteApi.as_view('_motionvote'),
                 methods=['GET', 'POST'])
+
+##########################################################################################
+# rsvp endpoint
+###########################################################################################
+
+class RsvpView(SelectInterestsView):
+    # remove auth_required() decorator
+    decorators = []
+
+    def permission(self):
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
+        if invitekey:
+            permitted = True
+            invite = Invite.query.filter_by(invitekey=invitekey).one()
+            user = localuser2user(invite.user)
+
+            if current_user != user:
+                # log out and in automatically
+                # see https://flask-security-too.readthedocs.io/en/stable/api.html#flask_security.login_user
+                logout_user()
+                login_user(user)
+                db.session.commit()
+                flash('you have been automatically logged in as {}'.format(current_user.name))
+
+            # at this point, if current_user has the target user (may have been changed by invitekey)
+            # check role permissions, permitted = True (from above) unless determined otherwise
+            roles_accepted = MEETINGS_MEMBER_ROLES
+            allowed = False
+            for role in roles_accepted:
+                if current_user.has_role(role):
+                    allowed = True
+                    break
+            if not allowed:
+                permitted = False
+
+        # no rsvpkey, not permitted
+        else:
+            permitted = False
+
+        return permitted
+
+    def setdisplayonly(self):
+        invitekey = request.args.get(INVITE_KEY_URLARG)
+        invite = Invite.query.filter_by(invitekey=invitekey).one()
+        today = date.today()
+        meetingdate = invite.meeting.date
+        return today > meetingdate
+
+    def getval(self):
+        invitekey = request.args.get(INVITE_KEY_URLARG)
+        invite = Invite.query.filter_by(invitekey=invitekey).one()
+        return '"{}"'.format(invite.response)
+
+    def putval(self, val):
+        invitekey = request.args.get(INVITE_KEY_URLARG)
+        invite = Invite.query.filter_by(invitekey=invitekey).one()
+        invite.response = val
+        db.session.commit()
+
+def rsvp_preselecthtml():
+    invitekey = request.args.get(INVITE_KEY_URLARG)
+    invite = Invite.query.filter_by(invitekey=invitekey).one()
+    meeting = invite.meeting
+    user = invite.user
+    html = div()
+    with html:
+        h1('{} {}: {}\'s RSVP'.format(meeting.date, meeting.purpose, user.name))
+    return html.render()
+
+rsvp_view = RsvpView(
+    local_interest_model=LocalInterest,
+    app=bp,
+    pagename='rsvp',
+    displayonly=lambda: rsvp_view.setdisplayonly(),
+    templateargs={'adminguide': adminguide},
+    endpoint='admin.rsvp',
+    endpointvalues={'interest': '<interest>'},
+    preselecthtml=rsvp_preselecthtml,
+    rule='<interest>/rsvp',
+    selectlabel='RSVP',
+    select2options={
+        'width': '200px',
+        'data': invite_response_all
+    },
+)
+rsvp_view.register()
 

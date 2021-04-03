@@ -13,7 +13,7 @@ import inflect
 # homegrown
 from .model import db
 from .model import Meeting, Invite, AgendaItem, ActionItem, Email
-from .model import INVITE_RESPONSE_ATTENDING, ACTION_STATUS_CLOSED
+from .model import INVITE_RESPONSE_ATTENDING, INVITE_KEY_URLARG, ACTION_STATUS_CLOSED
 from .model import MEETING_OPTIONS, MEETING_OPTION_RSVP
 from .views.admin.viewhelpers import localuser2user, localinterest
 from .views.admin.meetings_common import custom_invitation, meeting_has_option
@@ -115,7 +115,7 @@ def check_add_invite(meeting, localuser, agendaitem, sendemail=True):
             fromlist = email.from_email
 
             rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
-                                   urlargs={'invitekey': invitekey},
+                                   urlargs={INVITE_KEY_URLARG: invitekey},
                                    _external=True)
             actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
 
@@ -223,7 +223,7 @@ def generatereminder(meetingid, member, positions):
 
         # set up urls for email
         rsvpurl = page_url_for('admin.memberstatusreport', interest=g.interest,
-                               urlargs={'invitekey': invite.invitekey},
+                               urlargs={INVITE_KEY_URLARG: invite.invitekey},
                                _external=True)
         actionitemurl = page_url_for('admin.myactionitems', interest=g.interest, _external=True)
 

@@ -88,6 +88,7 @@ def nav_menu():
     # create context help menu items for views which can't be navigated to from the main menu
     if g.interest:
         meetings_member_view.nomenu_help('My Status Report', 'admin.memberstatusreport', interest=g.interest)
+        meetings_member_view.nomenu_help('RSVP', 'admin.rsvp', interest=g.interest)
         meetings_admin_view.nomenu_help('Meeting', 'admin.meeting', interest=g.interest)
         meetings_admin_view.nomenu_help('Meeting Status', 'admin.meetingstatus', interest=g.interest)
 

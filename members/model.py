@@ -457,10 +457,12 @@ class MeetingType(Base):
         'version_id_col': version_id
     }
 
+INVITE_KEY_URLARG = 'invitekey'
+
 INVITE_RESPONSE_NO_RESPONSE = 'response pending'
 INVITE_RESPONSE_ATTENDING = 'attending'
 INVITE_RESPONSE_NOT_ATTENDING = 'not attending'
-invite_response_all = (INVITE_RESPONSE_NO_RESPONSE, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NOT_ATTENDING)
+invite_response_all = [INVITE_RESPONSE_NO_RESPONSE, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NOT_ATTENDING]
 
 class Invite(Base):
     __tablename__ = 'invite'
@@ -626,6 +628,9 @@ class Motion(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+
+# used for url argument
+MOTIONVOTE_KEY_URLARG = 'motionvotekey'
 
 MOTIONVOTE_STATUS_APPROVED = 'approved'
 MOTIONVOTE_STATUS_REJECTED = 'rejected'

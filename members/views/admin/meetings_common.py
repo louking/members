@@ -24,8 +24,7 @@ from ...model import db
 from ...model import LocalInterest, LocalUser, Position, Invite, Meeting, AgendaItem, ActionItem, MotionVote, Motion, MeetingType
 from ...model import DiscussionItem
 from ...model import action_all, motion_all, motionvote_all
-from ...model import MOTION_STATUS_OPEN
-from ...model import ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED
+from ...model import MOTION_STATUS_OPEN, ACTION_STATUS_OPEN, ACTION_STATUS_CLOSED, INVITE_KEY_URLARG
 from ...model import localinterest_query_params
 from ...model import MemberStatusReport, StatusReport
 from ...model import INVITE_RESPONSE_NO_RESPONSE, MEETING_OPTION_SEPARATOR
@@ -63,7 +62,7 @@ def custom_statusreport():
     return meeting.meetingtype.statusreportwording
 
 def invite_statusreport():
-    invitekey = request.args.get('invitekey', None)
+    invitekey = request.args.get(INVITE_KEY_URLARG, None)
     meeting_id = request.args.get('meeting_id', None)
     if invitekey:
         meeting = Invite.query.filter_by(invitekey=invitekey).one().meeting
@@ -122,7 +121,7 @@ class MemberDiscussionsView(DbCrudApiInterestsRolePermissions):
         '''
         permitted = super().permission()
         if permitted:
-            invitekey = request.args.get('invitekey', None)
+            invitekey = request.args.get(INVITE_KEY_URLARG, None)
             localuser_id = Invite.query.filter_by(invitekey=invitekey).one().user.id if invitekey else user2localuser(current_user).id
             localuser = LocalUser.query.filter_by(id=localuser_id).one()
             self.theuser = localuser2user(localuser)
@@ -325,10 +324,10 @@ def meeting_has_button(meeting, button):
     return button in meeting.meetingtype.buttonoptions.split(MEETING_OPTION_SEPARATOR)
 
 def memberstatusreport_buttons():
-    invitekey = request.args.get('invitekey', None)
+    invitekey = request.args.get(INVITE_KEY_URLARG, None)
     rsvpclass = ''
     if invitekey:
-        invite = Invite.query.filter_by(invitekey=request.args['invitekey']).one()
+        invite = Invite.query.filter_by(invitekey=request.args[INVITE_KEY_URLARG]).one()
         meeting = invite.meeting
         today = date.today()
         if invite.response == INVITE_RESPONSE_NO_RESPONSE:
@@ -365,7 +364,7 @@ def memberstatusreport_buttons():
 def memberstatusreport_childrowoptions():
     # we need to skip looking at request.args on initialization, but the request will be picked up when the page is loaded
     if has_request_context():
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         meeting_id = request.args.get('meeting_id', None)
         if meeting_id:
             meeting = Meeting.query.filter_by(id=meeting_id).one()
@@ -525,7 +524,7 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
         return edoptions
 
     def get_meeting(self):
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         if invitekey:
             invite = Invite.query.filter_by(invitekey=invitekey).one()
             meeting = invite.meeting

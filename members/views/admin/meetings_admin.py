@@ -33,7 +33,7 @@ from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEE
 from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
 from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION, MEETING_OPTION_HASMOTIONS
 from ...model import MEETING_RENEW_COPYAGENDADISCUSSION, MEETING_RENEW_COPYAGENDASUMMARY, MEETING_RENEW_RESETACTIONDATE
-from ...model import MEETING_RENEW_COPYINVITEEMAIL, MEETING_RENEW_COPYREMINDEREMAIL
+from ...model import MEETING_RENEW_COPYINVITEEMAIL, MEETING_RENEW_COPYREMINDEREMAIL, INVITE_KEY_URLARG
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, adminguide
 from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, invite_statusreport
@@ -1149,7 +1149,7 @@ meeting_view.register()
 
 class TheirStatusReportView(MemberStatusReportBase):
     def permission(self):
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         meeting_id = request.args.get('meeting_id', None)
         if not invitekey and not meeting_id:
             return False
@@ -1157,7 +1157,7 @@ class TheirStatusReportView(MemberStatusReportBase):
 
     def beforequery(self):
         super().beforequery()
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         meeting_id = request.args.get('meeting_id', None)
         self.theuser = None
         # set user based on invite key
@@ -1169,7 +1169,7 @@ class TheirStatusReportView(MemberStatusReportBase):
         # if no invitekey, there's no query. See self.open()
 
     def get_invite(self):
-        invitekey = request.args.get('invitekey')
+        invitekey = request.args.get(INVITE_KEY_URLARG)
         invite = Invite.query.filter_by(invitekey=invitekey).one()
         return invite
 
@@ -1177,7 +1177,7 @@ class TheirStatusReportView(MemberStatusReportBase):
         # for some reason self.theuser doesn't exist within this instance when called, maybe because of the way
         # pluggable views works. Recalculate theuser
         theuser = None
-        invitekey = request.args.get('invitekey', None)
+        invitekey = request.args.get(INVITE_KEY_URLARG, None)
         if invitekey:
             invite = Invite.query.filter_by(invitekey=invitekey).one()
             theuser = invite.user

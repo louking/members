@@ -6,7 +6,7 @@ meeting_evotes - support for meeting motion evote management
 from flask import render_template, g
 
 # homegrown
-from .model import Motion, MotionVote
+from .model import Motion, MotionVote, MOTIONVOTE_KEY_URLARG
 from .views.admin.viewhelpers import localuser2user, localinterest
 from .helpers import members_active
 from loutilities.tables import page_url_for
@@ -30,8 +30,8 @@ def send_evote_req(motion, localuser, from_addr, subject, message):
         raise ParameterError('motion vote for motion {}, user {} not found'.format(motion.id, localuser.email))
 
     evoteurl = page_url_for('admin.motionvote', interest=g.interest,
-                           urlargs={'motionvotekey': evote.motionvotekey},
-                           _external=True)
+                            urlargs={MOTIONVOTE_KEY_URLARG: evote.motionvotekey},
+                            _external=True)
 
     context = {
         'motion': motion,

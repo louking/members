@@ -209,6 +209,23 @@ If an item about this report needs to be added to the :term:`meeting` :term:`age
 * add the :term:`discussion item` as described in :ref:`add discussion item`
 
 
+.. _RSVP view:
+
+RSVP view
+==============
+**Navigation:** Meetings > My Meetings > [select meeting] > **My Status Report** (or via the link in the emailed
+:term:`invitation <invite>`)
+
+This view is for :term:`meetings <meeting>` which require an :term:`rsvp` but do not have :term:`status reports <status
+report>`
+
+* next to **RSVP** select your response, one of *attending*, *not attending*
+* click **Submit**
+
+.. image:: images/rsvp-edit.*
+    :align: center
+
+
 .. _My Action Items view:
 
 My Action Items view
