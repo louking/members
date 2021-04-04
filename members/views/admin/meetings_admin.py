@@ -2262,6 +2262,8 @@ class MeetingRenewDataApi(DbPermissionsMethodViewApi):
             response[f'{key}.id'] = thisfield['id']
         if MEETING_RENEW_RESETACTIONDATE in renewoptions:
             response['show_actions_since'] = dtrender.dt2asc(renewmeeting.date)
+        # force date to be entered
+        response['date'] = ''
         return jsonify(response)
 
 meetingrenewdataapi_view = MeetingRenewDataApi(
