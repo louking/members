@@ -533,6 +533,9 @@ class StatusReport(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+    # combo meeting_id, position_id must be unique (https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/table_config.html)
+    # note interest_id shouldn't be needed because meeting, invite, content should all be within same interest
+    __table_args__ = (UniqueConstraint('meeting_id', 'position_id', name='uq_statusreport_meeting_position_1'),)
 
 class MemberStatusReport(Base):
     __tablename__ = 'memberstatusreport'
@@ -551,6 +554,9 @@ class MemberStatusReport(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+    # combo meeting_id, invite_id, content_id must be unique (https://docs.sqlalchemy.org/en/13/orm/extensions/declarative/table_config.html)
+    # note interest_id shouldn't be needed because meeting, invite, content should all be within same interest
+    __table_args__ = (UniqueConstraint('meeting_id', 'invite_id', 'content_id', name='uq_memberstatusreport_meeting_invite_content_1'),)
 
 # also accessed from "DiscussionItem" > "StatusReport"
 class AgendaItem(Base):

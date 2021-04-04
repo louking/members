@@ -8,10 +8,11 @@ from copy import deepcopy
 from uuid import uuid4
 
 # pypi
-from flask import request, g, has_request_context
+from flask import request, g, has_request_context, current_app
 from flask_security import current_user
 from sqlalchemy.orm import aliased
-from sqlalchemy import func, or_, and_, any_
+from sqlalchemy import func, or_, and_
+from sqlalchemy.exc import IntegrityError
 from dominate.tags import div, ol, li, p, em, strong, a, i, script
 from dominate.util import text, raw
 from slugify import slugify
@@ -568,22 +569,46 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
                     statusquery = {'interest': localinterest(), 'meeting': self.meeting, 'position': position}
                     statusreport = StatusReport.query.filter_by(**statusquery).one_or_none()
                     if not statusreport:
-                        statusreport = StatusReport(
-                            title='{} Status Report'.format(position.position),
+                        # http://rachbelaid.com/handling-race-condition-insert-with-sqlalchemy/
+                        try:
+                            # this does commit here to match begin_nested()
+                            self.db.session.begin_nested()
+                            statusreport = StatusReport(
+                                title='{} Status Report'.format(position.position),
+                                interest=localinterest(),
+                                meeting=self.meeting,
+                                position=position
+                            )
+                            self.db.session.add(statusreport)
+                            self.db.session.commit()
+                        except IntegrityError:
+                            # it already exists -- there was some race condition -- pick up the existing one
+                            self.db.session.rollback()
+                            statusreport = StatusReport.query.filter_by(**statusquery).one()
+                            current_app.logger.info(
+                                f'unique constraint error detected/recovered: statusreport meeting/position '
+                                f'{self.meeting.id}/{position.id}')
+
+                    # there's always a new memberstatusreport if it didn't exist before
+                    # http://rachbelaid.com/handling-race-condition-insert-with-sqlalchemy/
+                    try:
+                        # this does commit here to match begin_nested()
+                        self.db.session.begin_nested()
+                        memberstatusreport = MemberStatusReport(
                             interest=localinterest(),
                             meeting=self.meeting,
-                            position=position
+                            invite=invite,
+                            content=statusreport,
+                            order=order,
                         )
-                        db.session.add(statusreport)
-                    # there's always a new memberstatusreport if it didn't exist before
-                    memberstatusreport = MemberStatusReport(
-                        interest=localinterest(),
-                        meeting=self.meeting,
-                        invite=invite,
-                        content=statusreport,
-                        order=order,
-                    )
-                    db.session.add(memberstatusreport)
+                        self.db.session.add(memberstatusreport)
+                        self.db.session.commit()
+                    except IntegrityError:
+                        # it already exists -- there was some race condition -- ignore
+                        self.db.session.rollback()
+                        current_app.logger.info(f'unique constraint error detected/ignored: memberstatusreport meeting/invite/content '
+                                                f'{self.meeting.id}/{invite.id}/{statusreport.id}')
+
                     order += 1
 
         db.session.flush()
