@@ -28,7 +28,7 @@
 {# editor display is determined in the ChildRow javascript #}
 <div class="childrow-display">
     {% for table in tables %}
-        <div class="DTE_Label">{{ table.label }}</div>
+        <div class="DTE_Label childrow-table-label">{{ table.label }}</div>
         <table id="childrow-table-{{ table.tableid }}"></table>
     {% endfor %}
 </div>

@@ -100,7 +100,7 @@ frame.set("loop.revindex0", t_6 - t_5 - 1);
 frame.set("loop.first", t_5 === 0);
 frame.set("loop.last", t_5 === t_6 - 1);
 frame.set("loop.length", t_6);
-output += "\r\n        <div class=\"DTE_Label\">";
+output += "\r\n        <div class=\"DTE_Label childrow-table-label\">";
 output += runtime.suppressValue(runtime.memberLookup((t_8),"label"), env.opts.autoescape);
 output += "</div>\r\n        <table id=\"childrow-table-";
 output += runtime.suppressValue(runtime.memberLookup((t_8),"tableid"), env.opts.autoescape);

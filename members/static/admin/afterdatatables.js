@@ -389,6 +389,51 @@ function afterdatatables() {
             _dt_table.draw();
         });
 
+        /**
+         * on draw event, check if table has any rows, and hide the table if no rows
+         *
+         * @param dt - table to check
+         */
+        function childrow_check_hide_table(dt, ed) {
+            // see https://datatables.net/forums/discussion/comment/84133/#Comment_84133
+            dt._cr_redrawing = false;
+            dt.on('draw', function(e, settings) {
+                // prevent infinite loop
+                if (dt._cr_redrawing) return;
+
+                // no rows in table? hide it
+                if (dt.rows().count() == 0) {
+                    // don't show table, search box, or header
+                    $(dt.table().node()).css('display', 'none');
+                    $(dt.table().container()).find('.dataTables_filter').css('display', 'none');
+                    $(dt.table().header()).css('display', 'none');
+                    // don't show table label if not in editor
+                    if (!ed) {
+                        $(dt.table().container()).prev('.childrow-table-label').css('display', 'none')
+                    }
+
+                // some rows in table? show it
+                } else {
+                    // show table, search box, and header
+                    $(dt.table().node()).css('display', 'block');
+                    $(dt.table().container()).find('.dataTables_filter').css('display', 'block');
+                    $(dt.table().header()).css('display', '');
+                    $(dt.table().container()).prev('.childrow-table-label').css('display', 'block')
+                    // need to adjust column sizes and redraw; dt._cr_redrawing prevents infinite draw event loop
+                    dt._cr_redrawing = true;
+                    dt.columns.adjust().draw();
+                    dt._cr_redrawing = false;
+                }
+            });
+        };
+        // hide table when empty for actionitems, motions in childrow
+        childrow_add_postcreate_hook('actionitems', function(dt, ed) {
+            childrow_check_hide_table(dt, ed);
+        });
+        childrow_add_postcreate_hook('motions', function(dt, ed) {
+            childrow_check_hide_table(dt, ed);
+        });
+
     // special processing for meetingstatus
     } else if (location.pathname.includes('/meetingstatus')) {
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
