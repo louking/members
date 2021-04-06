@@ -57,6 +57,10 @@ Glossary
         :term:`members <member>` with this :term:`security role` serve in a supervisory position and
         can create and manage :term:`meetings <meeting>`
 
+    meeting type
+        the meeting type defines the behavior of the :term:`meeting`, e.g., what user interace elements and buttons
+        are shown, the wording used for certain terms, defaults tags, etc.
+
     member
         a club member that serves in a volunteer position that requires specific and trackable training
         and orientation
