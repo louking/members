@@ -9,10 +9,19 @@ from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 from flask import current_app
 
-
 # pypi
+from flask_security import current_user
 
 # homegrown
+
+class MailFormatter(Formatter):
+    # https://flask.palletsprojects.com/en/1.1.x/logging/#injecting-request-information
+    def format(self, record):
+        if current_user.is_authenticated:
+            record.user_email = current_user.email
+        else:
+            record.user_email = 'anonymous'
+        return super().format(record)
 
 # ----------------------------------------------------------------------
 def setlogging():
@@ -31,7 +40,8 @@ def setlogging():
     # werkzeug_logger.setLevel(logging.INFO)
 
     # set up logging
-    ADMINS = ['lou.king@steeplechasers.org']
+    ADMINS = current_app.config['EXCEPTION_EMAIL']
+    application = current_app.config['APP_LOUTILITY']
     if not current_app.debug:
         if 'MAIL_SERVER' in current_app.config and 'MAIL_PORT' in current_app.config:
             mailhost = (current_app.config['MAIL_SERVER'], current_app.config['MAIL_PORT'])
@@ -41,22 +51,23 @@ def setlogging():
             mailhost = 'localhost'
         mail_handler = SMTPHandler(mailhost,
                                    'noreply@steeplechasers.org',
-                                   ADMINS, 'members exception encountered')
+                                   ADMINS, f'{application} exception encountered')
         if 'LOGGING_LEVEL_MAIL' in current_app.config:
             mailloglevel = current_app.config['LOGGING_LEVEL_MAIL']
         else:
             mailloglevel = logging.ERROR
         mail_handler.setLevel(mailloglevel)
-        mail_handler.setFormatter(Formatter('''
-        Message type:       %(levelname)s
-        Location:           %(pathname)s:%(lineno)d
-        Module:             %(module)s
-        Function:           %(funcName)s
-        Time:               %(asctime)s
+        mail_handler.setFormatter(MailFormatter('''
+Message type:       %(levelname)s
+Location:           %(pathname)s:%(lineno)d
+Module:             %(module)s
+Function:           %(funcName)s
+Time:               %(asctime)s
+User:               %(user_email)s
 
-        Message:
+Message:
 
-        %(message)s
+%(message)s
         '''))
         current_app.logger.addHandler(mail_handler)
         current_app.config['LOGGING_MAIL_HANDLER'] = mail_handler
@@ -76,8 +87,8 @@ def setlogging():
             current_app.logger.addHandler(file_handler)
             current_app.config['LOGGING_FILE_HANDLER'] = file_handler
 
-            file_handler.setFormatter(Formatter(
-                '%(asctime)s %(levelname)s: %(message)s '
+            file_handler.setFormatter(MailFormatter(
+                '%(asctime)s %(user_email)s %(levelname)s: %(message)s '
                 '[in %(pathname)s:%(lineno)d]'
             ))
 
