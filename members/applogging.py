@@ -88,7 +88,7 @@ Message:
             current_app.config['LOGGING_FILE_HANDLER'] = file_handler
 
             file_handler.setFormatter(MailFormatter(
-                '%(asctime)s %(user_email)s %(levelname)s: %(message)s '
+                '%(asctime)s %(levelname)s: %(user_email)s %(message)s '
                 '[in %(pathname)s:%(lineno)d]'
             ))
 
