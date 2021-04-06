@@ -33,7 +33,7 @@ MarkupSafe==1.1.1
 packaging==20.3
 passlib==1.7.2
 pycparser==2.20
-Pygments==2.6.1
+Pygments==2.8.1
 pyparsing==2.4.7
 python-dateutil==2.8.1
 python-slugify==4.0.0
