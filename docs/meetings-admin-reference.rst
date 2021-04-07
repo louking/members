@@ -411,6 +411,11 @@ and these navigation buttons
         this allows the :term:`meeting admin` to :term:`RSVP <rsvp>` and enter :term:`status reports <status report>`
         on behalf of another :term:`member`. This brings up :ref:`Their Status Report view`
 
+The view has the following filters:
+
+    :Meeting Types:
+        :term:`meeting types <meeting type>` of interest
+
 .. image:: images/meetings-view.*
     :align: center
 

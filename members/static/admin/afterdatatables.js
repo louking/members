@@ -617,6 +617,10 @@ function afterdatatables() {
             // this gets shown when renew button is used
             .hide('renewoptions');
 
+        // // initialize all the filters [only required for persistent filters]
+        // fltr_register('meetings-external-filter-membertype', null, true);
+        // fltr_init();
+
     // special processing for meetingtypes
     } else if (pathname == `/admin/${interest}/meetingtypes`) {
         editor.on('submitSuccess', function(e, json, data, action) {

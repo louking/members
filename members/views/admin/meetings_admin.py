@@ -242,6 +242,21 @@ def meetings_validate(action, formdata):
 
     return results
 
+def meetings_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # meeting header
+        meetings_filters = filtercontainerdiv()
+        with meetings_filters:
+            filterdiv('meetings-external-filter-meetingtype', 'Meeting Types')
+
+    return pretablehtml.render()
+
+meetings_yadcf_options = [
+    yadcfoption('meetingtype.meetingtype:name', 'meetings-external-filter-meetingtype', 'multi_select',
+                placeholder='Select Meeting Types', width='300px'),
+]
+
 meetings_view = MeetingsView(
     roles_accepted=[ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN],
     local_interest_model=LocalInterest,
@@ -251,6 +266,8 @@ meetings_view = MeetingsView(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': adminguide},
+    pretablehtml=meetings_pretablehtml,
+    yadcfoptions=meetings_yadcf_options,
     pagename='Meetings',
     endpoint='admin.meetings',
     endpointvalues={'interest': '<interest>'},
