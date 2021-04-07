@@ -701,6 +701,9 @@ class MemberStatusReportBase(DbCrudApiInterestsRolePermissions):
 
             row['tables'] = tables
 
+        # set custom wording for status report
+        row['statusreport_text'] = invite_statusreport().title()
+
         # set DT_RowClass based on accumulated classes
         row['DT_RowClass'] = ' '.join(rowclasses)
 

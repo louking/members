@@ -261,7 +261,9 @@ var colno = 3;
 var output = "";
 try {
 var frame = frame.push(true);
-output += "\r\n    <div class=\"DTE_Label\"><b>Status Report</b></div>\r\n    <div class=\"DTE_Field_Input\">";
+output += "\r\n    <div class=\"DTE_Label\"><b>";
+output += runtime.suppressValue(runtime.contextOrFrameLookup(context, frame, "statusreport_text"), env.opts.autoescape);
+output += "</b></div>\r\n    <div class=\"DTE_Field_Input\">";
 output += runtime.suppressValue(env.getFilter("safe").call(context, runtime.contextOrFrameLookup(context, frame, "statusreport")), env.opts.autoescape);
 output += "</div>\r\n";
 cb(null, output);

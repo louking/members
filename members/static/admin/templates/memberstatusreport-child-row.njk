@@ -1,6 +1,6 @@
 {% extends "child-row-base.njk" %}
 {% block displayfields %}
-    <div class="DTE_Label"><b>Status Report</b></div>
+    <div class="DTE_Label"><b>{{ statusreport_text }}</b></div>
     <div class="DTE_Field_Input">{{ statusreport | safe }}</div>
 {% endblock %}
 
