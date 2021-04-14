@@ -145,3 +145,14 @@ node_modules/
 # Editor-1.7.4/
 # FieldType-Selectize/
 /test-scratch/
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+**/.history
