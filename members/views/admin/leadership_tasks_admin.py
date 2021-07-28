@@ -306,6 +306,7 @@ taskfield_view = TaskFieldCrud(
                              }
                          },
                          },
+                        # see taskfield_formmapping and afterdatatables.js editor.on('initEdit', ...
                         {'data': 'fieldoptions', 'name': 'fieldoptions', 'label': 'Options',
                          'type': 'select2', 'separator':SEPARATOR,
                          'options': [],

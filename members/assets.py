@@ -177,7 +177,7 @@ asset_bundles = {
         Bundle('layout.js', filters='jsmin'),
 
         # must be before datatables
-        Bundle('editor-saeditor.js', filters='jsmin'),
+        Bundle('editor-saeditor.js', filters='jsmin'),                   # from loutilities
         Bundle('js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver), filters='jsmin'),
         Bundle('admin/nunjucks/templates.js', filters='jsmin'),
         Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities

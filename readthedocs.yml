@@ -13,3 +13,9 @@ python:
    version: 3
    install:
       - requirements: docs/rtd-requirements.txt
+
+# https://docs.readthedocs.io/en/stable/downloadable-documentation.html
+# Build PDF & ePub
+formats:
+  - epub
+  - pdf
