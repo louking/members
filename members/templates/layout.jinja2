@@ -37,11 +37,11 @@
           {% else %}
             <a href={{ config.DEFAULT_ADMIN_GUIDE }} target="_blank" class="ui-button">Admin Guide</a>
           {% endif %}
-          {% if current_user.name %}
-            <a href="{{ url_for('security.logout') }}" class="ui-button">log out</a>
-          {% else %}
-            <a href="{{ url_for('security.login') }}" class="ui-button">log in</a>
-          {% endif %}
+      {% endif %}
+      {% if current_user.name %}
+        <a href="{{ url_for('security.logout') }}" class="ui-button">log out</a>
+      {% else %}
+        <a href="{{ url_for('security.login') }}" class="ui-button">log in</a>
       {% endif %}
     </div>
 {% endblock %}

@@ -186,6 +186,11 @@ def nav_menu():
         else:
             navbar.items.append(View('My Account', 'security.change_password'))
 
+    else:
+        navbar.items.append(View('Home', 'frontend.home', interest=g.interest))
+        if g.interest:
+            navbar.items.append(View('Members', 'frontend.members', interest=g.interest))
+
     # common items
     if g.interest:
         pass

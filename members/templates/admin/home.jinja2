@@ -1,0 +1,51 @@
+{# home.jinja2 allows user to choose 'interest'
+#}
+
+{% extends "layout.jinja2" %}
+{% block pagename %}
+    {{ pagename }}
+{% endblock %}
+{% block css %}
+<style>
+dl {
+    margin-left: 12px;
+    margin-bottom: 24px;
+}
+dl dt {
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+dl dd {
+    margin: 0 0 12px 24px;
+    line-height: 24px;
+}
+</style>
+{% endblock %}
+{% block scripts %}
+{% endblock %}
+{% block body %}
+    <h1>Welcome to {{_productname|safe}} <span style='font-size: 40%'><span class="brand-all">a loutilities product</span></span></h1>
+    
+    <p>{{_productname|safe}} brings together tools for club leadership and club member support.</p>
+    
+    <dl class="simple">
+
+    <dt>Organization Module</dt>
+    <dd><p>Define positions within the organization and associate members to positions.</p></dd>
+
+    <dt>Meetings Module</dt>
+    <dd><p>Define meetings, collect status reports, set agenda, track action items, record motions and votes on motions. 
+    Create status reports, agenda, and minutes documents.</p></dd>
+
+    <dt>Task Module</dt>
+    <dd><p>Define tasks and task groups which must be done by the members on a scheduled basis.</p></dd>
+
+    <dt>Membership Module</dt>
+    <dd><p>Show administrative details about RunSignUp club membership.</p></dd>
+
+    </dl>
+
+    <p>Select Interest above</p>
+    
+    <p>Problems? Contact <a href="mailto:technology@steeplechasers.org">technology@steeplechasers.org</a></p>
+{% endblock %}

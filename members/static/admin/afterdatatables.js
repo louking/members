@@ -130,6 +130,10 @@ function set_effective_date(effective_date_id, todays_date_id) {
        var urlparams = allUrlParams();
        urlparams.ondate = ondate;
        resturl = window.location.pathname + '/rest?' + setParams(urlparams);
+       _dt_table.one('draw', function(e, settings) {
+            $( '#spinner' ).hide();
+       });
+       $( '#spinner' ).show();
        refresh_table_data(_dt_table, resturl);
     });
 
@@ -628,5 +632,9 @@ function afterdatatables() {
            resturl = window.location.pathname + '/rest?' + setParams(urlparams);
            refresh_table_data(_dt_table, resturl);
         });
+
+    // special processing for members
+    } else if (pathname == `/${interest}/members`) {
+        set_effective_date('#effective-date', '#todays-date-button');
     }
 }

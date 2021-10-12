@@ -6,8 +6,22 @@
 Welcome to membertility's documentation!
 ========================================
 
-**membertility** brings together tools for club leadership and club member support. Modules
-will be added over time.
+**membertility** brings together tools for club leadership and club member support. 
+
+:doc:`organization-module`
+   Define :term:`positions <position>` within the organization and associate :term:`members <member>` to positions.
+
+:doc:`meetings-module`
+   Define :term:`meetings <meeting>`, collect :term:`status reports <status report>`, set :term:`agenda`, track 
+   :term:`action items <action item>`, record :term:`motions <motion>` and :term:`votes <vote>` on motions. 
+   Create :term:`status report`, :term:`agenda`, and :term:`minutes` documents.
+
+:doc:`leadership-task-module`
+   Define :term:`tasks <task>` and :term:`task groups <task group>` which must be done by the :term:`members <member>` 
+   on a scheduled basis.
+
+:doc:`membership-module`
+   Show administrative details about RunSignUp club membership.
 
 .. toctree::
    :maxdepth: 4

@@ -1,11 +1,6 @@
 '''
 home - administrative views
 =================================
-      Date            Author          Reason
-      ----            ------          ------
-      03/09/20        Lou King        Create
-
-  Copyright 2020 Lou King.  All rights reserved
 '''
 
 # pypi
@@ -21,7 +16,7 @@ class AdminHome(MethodView):
     decorators = [auth_required()]
 
     def get(self):
-        return render_template('admin.jinja2',
+        return render_template('home.jinja2',
                                pagename='Admin Home',
                                # causes redirect to current interest if bare url used
                                url_rule='/admin/<interest>',

@@ -14,11 +14,11 @@ from flask import request, render_template, jsonify, current_app
 from flask.views import MethodView
 from werkzeug.utils import secure_filename
 from googleapiclient.http import MediaFileUpload
+from loutilities.googleauth import GoogleAuthService
+from loutilities.flask_helpers.mailer import sendmail
 
 # homegrown
 from . import bp
-from loutilities.googleauth import GoogleAuthService
-from loutilities.flask_helpers.mailer import sendmail
 
 def allowed_file(filename):
     return True
