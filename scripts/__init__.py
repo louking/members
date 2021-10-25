@@ -25,6 +25,7 @@ def catch_errors(f):
 # homegrown
 ## put all top level command groups here, also update Members class
 from scripts.meetings_cli import meetings
+from scripts.membership_cli import membership
 
 class Members():
     # adapted from flask-migrate.Migrate
@@ -32,3 +33,10 @@ class Members():
 
         # need this for each command group
         app.cli.add_command(meetings)
+
+class Membership():
+    # adapted from flask-migrate.Migrate
+    def __init__(self, app, db):
+
+        # need this for each command group
+        app.cli.add_command(membership)

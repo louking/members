@@ -161,6 +161,7 @@ def nav_menu():
                 membershipadmin = Subgroup('Membership')
                 navbar.items.append(membershipadmin)
                 membership_admin_view(membershipadmin, 'Club Members', 'admin.clubmembers', interest=g.interest)
+                membership_admin_view(membershipadmin, 'Memberships', 'admin.memberships', interest=g.interest)
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):

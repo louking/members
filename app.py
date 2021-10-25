@@ -15,7 +15,7 @@ from members import create_app
 from members.settings import Production
 from members.model import db
 from members.applogging import setlogging
-from scripts import Members
+from scripts import Members, Membership
 
 abspath = os.path.abspath(__file__)
 configpath = os.path.join(os.path.dirname(abspath), 'config', 'members.cfg')
@@ -38,5 +38,6 @@ with app.app_context():
 
 migrate = Migrate(app, db, compare_type=True)
 members = Members(app, db)
+membership = Membership(app, db)
 
 

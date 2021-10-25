@@ -126,15 +126,26 @@ function set_effective_date(effective_date_id, todays_date_id) {
 
     // handle change of effective date by setting column filters appropriately
     effectivedate.change(function(e) {
-       var ondate = effectivedate.val();
-       var urlparams = allUrlParams();
-       urlparams.ondate = ondate;
-       resturl = window.location.pathname + '/rest?' + setParams(urlparams);
-       _dt_table.one('draw', function(e, settings) {
-            $( '#spinner' ).hide();
-       });
-       $( '#spinner' ).show();
-       refresh_table_data(_dt_table, resturl);
+        var ondate = effectivedate.val();
+        var urlparams = allUrlParams();
+        urlparams.ondate = ondate;
+        resturl = window.location.pathname + '/rest?' + setParams(urlparams);
+        _dt_table.one('draw.dt', function(e, settings) {
+             $( '#spinner' ).hide();
+        });
+        $( '#spinner' ).show();
+        // WARNING: nonstandard/nonpublic use of settings information
+        var serverSide = _dt_table.settings()[0]['oFeatures']['bServerSide'];
+        if (serverSide) {
+            // add updated urlparams (with ondate) before sending the ajax request
+            _dt_table.one('preXhr.dt', function(e, settings, data) {
+                Object.assign(data, urlparams);
+            });
+            _dt_table.ajax.reload();
+        } else {
+            refresh_table_data(_dt_table, resturl);
+        }
+       
     });
 
     // reset the effective date
@@ -635,6 +646,8 @@ function afterdatatables() {
 
     // special processing for members
     } else if (pathname == `/${interest}/members`) {
+        set_effective_date('#effective-date', '#todays-date-button');
+    } else if (pathname == `/admin/${interest}/members`) {
         set_effective_date('#effective-date', '#todays-date-button');
     }
 }

@@ -3,22 +3,30 @@ membership_admin - membership administrative handling
 ===========================================
 '''
 # standard
+from datetime import datetime
+from operator import and_
 
 # pypi
 from flask import g, url_for, current_app, request
 from flask_security import current_user
-
-# homegrown
-from . import bp
+from dominate.tags import div, span, i, button, input
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
+from loutilities.timeu import asctime
+from sqlalchemy import func
+
+# homegrown
+from . import bp
 from ...model import db, LocalInterest, LocalUser, CLUB_SERVICE_RUNSIGNUP
+from ...model import Member, Membership
 from ...version import __docversion__
 from .viewhelpers import localinterest
 from running.runsignup import RunSignUp, ClubMemberships
 
 class parameterError(Exception): pass
+
+ymd = asctime('%Y-%m-%d')
 
 adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
@@ -26,48 +34,38 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-gu
 # members endpoint
 ###########################################################################################
 
-clubmembers_dbattrs = 'id,membership_id,club_membership_level_name,first_name,last_name,email,membership_start,membership_end,primary_member,zipcode'.split(',')
-clubmembers_formfields = 'rowid,membership_id,club_membership_level_name,first_name,last_name,email,membership_start,membership_end,primary_member,zipcode'.split(',')
+clubmembers_dbattrs = 'id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
+clubmembers_formfields = 'rowid,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
 clubmembers_dbmapping = dict(zip(clubmembers_dbattrs, clubmembers_formfields))
 clubmembers_formmapping = dict(zip(clubmembers_formfields, clubmembers_dbattrs))
 
 class ClubMembers(DbCrudApiInterestsRolePermissions):
-    def open(self):
-        linterest = localinterest()
-        if linterest.club_service == CLUB_SERVICE_RUNSIGNUP:
-            # get all data from RunSignUp
-            with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
-                allmemberships = rsu.members(linterest.service_id, current_members_only='F')
-            mships = ClubMemberships(allmemberships)
+    def beforequery(self):
+        '''
+        add update query parameters based on ondate
+        '''
+        self.queryfilters = []
+        super().beforequery()
+        ondate = request.args.get('ondate', ymd.dt2asc(datetime.now()))
+        ondatedt = ymd.asc2dt(ondate)
+        self.queryfilters += [Member.start_date <= ondatedt, Member.end_date >= ondatedt]
 
-            # flatten some attributes
-            members = [m for m in mships.members()]
-            for member in members:
-                # memberships (mships) are in order most recent to least recent
-                latest = member.mships[0]
-                earliest = member.mships[-1]
-                member.id = latest.membership_id
-                member.membership_id = latest.membership_id
-                member.membership_start = earliest.membership_start
-                member.membership_end = latest.membership_end
-                member.club_membership_level_name = latest.club_membership_level_name
-                member.zipcode = latest.zipcode
-
-        # didn't find club service
-        else:
-            raise parameterError("Interest Attributes data error: could not find club service '{}'".format(linterest.club_service))
-
-        self.rows = iter(members)
-
-clubmembers_filters = filtercontainerdiv()
-clubmembers_filters += filterdiv('members-external-filter-membership_start', 'Start')
-clubmembers_filters += filterdiv('members-external-filter-membership_end', 'End')
-clubmembers_filters += filterdiv('members-external-filter-level', 'Levels')
+def clubmembers_filters():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            datefilter = filterdiv('fsrcmembers-external-filter-asof', 'As Of')
+            with datefilter:
+                with span(id='spinner', style='display:none;'):
+                    i(cls='fas fa-spinner fa-spin')
+                input(type='text', id='effective-date', name='effective-date' )
+                button('Today', id='todays-date-button')
+            # filterdiv('members-external-filter-level', 'Levels')
+    return pretablehtml.render()
 
 clubmembers_yadcf_options = [
-    yadcfoption('membership_start:name', 'members-external-filter-membership_start', 'range_date'),
-    yadcfoption('membership_end:name', 'members-external-filter-membership_end', 'range_date'),
-    yadcfoption('club_membership_level_name:name', 'members-external-filter-level', 'multi_select', placeholder='Select levels', width='200px'),
+    # yadcfoption('club_membership_level_name:name', 'members-external-filter-level', 'multi_select', placeholder='Select levels', width='200px'),
 ]
 
 clubmembers_view = ClubMembers(
@@ -75,10 +73,10 @@ clubmembers_view = ClubMembers(
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
-                    model = LocalUser,
+                    model = Member,
                     template = 'datatables.jinja2',
                     templateargs={'adminguide': adminguide},
-                    pretablehtml = clubmembers_filters.render(),
+                    pretablehtml = clubmembers_filters,
                     yadcfoptions = clubmembers_yadcf_options,
                     pagename = 'Club Members',
                     endpoint = 'admin.clubmembers',
@@ -88,34 +86,38 @@ clubmembers_view = ClubMembers(
                     formmapping = clubmembers_formmapping,
                     checkrequired = True,
                     clientcolumns = [
-                        {'data': 'last_name', 'name': 'last_name', 'label': 'Last Name',
+                        {'data': 'family_name', 'name': 'family_name', 'label': 'Last Name',
                          'type':'readonly',
                          },
-                        {'data': 'first_name', 'name': 'first_name', 'label': 'First Name',
+                        {'data': 'given_name', 'name': 'given_name', 'label': 'First Name',
                          'type': 'readonly',
                          },
-                        {'data': 'email', 'name': 'email', 'label': 'email',
+                        {'data': 'gender', 'name': 'gender', 'label': 'Gender',
                          'type': 'readonly',
                          },
-                        {'data': 'membership_id', 'name': 'membership_id', 'label': 'Membership ID',
-                         'class': 'TextCenter',
-                         'type':'readonly',
+                        {'data': 'dob', 'name': 'dob', 'label': 'DOB',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Member.dob, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
-                        {'data': 'club_membership_level_name', 'name': 'club_membership_level_name', 'label': 'Level',
+                        {'data': 'email', 'name': 'email', 'label': 'Email',
                          'type': 'readonly',
                          },
-                        {'data': 'membership_start', 'name': 'membership_start', 'label': 'Start',
+                        {'data': 'hometown', 'name': 'hometown', 'label': 'Hometown',
                          'type': 'readonly',
                          },
-                        {'data': 'membership_end', 'name': 'membership_end', 'label': 'End',
+                        {'data': 'start_date', 'name': 'start_date', 'label': 'Start',
                          'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Member.start_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
-                        {'data': 'primary_member', 'name': 'primary_member', 'label': 'Primary',
-                         'class': 'TextCenter',
+                        {'data': 'end_date', 'name': 'end_date', 'label': 'End',
                          'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Member.end_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
                     ],
-                    servercolumns = None,  # not server side
+                    serverside = True,
                     idSrc = 'rowid', 
                     buttons=[
                         {
@@ -136,4 +138,110 @@ clubmembers_view = ClubMembers(
 clubmembers_view.register()
 
 
+##########################################################################################
+# memberships endpoint
+###########################################################################################
+
+memberships_dbattrs = 'id,svc_membership_id,membershiptype,member.given_name,member.family_name,member.gender,member.dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
+memberships_formfields = 'rowid,svc_membership_id,membershiptype,given_name,family_name,gender,dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
+memberships_dbmapping = dict(zip(memberships_dbattrs, memberships_formfields))
+memberships_formmapping = dict(zip(memberships_formfields, memberships_dbattrs))
+
+class MembershipsView(DbCrudApiInterestsRolePermissions):
+    def open(self):
+        linterest = localinterest()
+        return super().open()
+
+def memberships_pretablehtml():
+    pretablehtml = div()
+    return pretablehtml.render()
+
+memberships_view = MembershipsView(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = Membership,
+                    template = 'datatables.jinja2',
+                    templateargs={'adminguide': adminguide},
+                    pretablehtml = memberships_pretablehtml,
+                    pagename = 'Memberships',
+                    endpoint = 'admin.memberships',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/memberships',
+                    dbmapping = memberships_dbmapping,
+                    formmapping = memberships_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'family_name', 'name': 'family_name', 'label': 'Last Name',
+                         'type':'readonly',
+                         },
+                        {'data': 'given_name', 'name': 'given_name', 'label': 'First Name',
+                         'type': 'readonly',
+                         },
+                        {'data': 'gender', 'name': 'gender', 'label': 'Gender',
+                         'type': 'readonly',
+                         },
+                        {'data': 'dob', 'name': 'dob', 'label': 'DOB',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Member.dob, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                         },
+                        {'data': 'hometown', 'name': 'hometown', 'label': 'Hometown',
+                         'type': 'readonly',
+                         },
+                        {'data': 'email', 'name': 'email', 'label': 'Email',
+                         'type': 'readonly',
+                         },
+                        {'data': 'svc_membership_id', 'name': 'svc_membership_id', 'label': 'Membership ID',
+                         'type': 'readonly',
+                         },
+                        {'data': 'membershiptype', 'name': 'membershiptype', 'label': 'Membership Type',
+                         'class': 'TextCenter',
+                         'type':'readonly',
+                         },
+                        {'data': 'primary', 'name': 'primary', 'label': 'Primary',
+                         'class': 'TextCenter',
+                         'type': 'readonly',
+                         },
+                        {'data': 'start_date', 'name': 'start_date', 'label': 'Start',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Membership.start_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                         },
+                        {'data': 'end_date', 'name': 'end_date', 'label': 'End',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Membership.end_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                         },
+                        {'data': 'last_modified', 'name': 'last_modified', 'label': 'Last Updated',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': func.date_format(Membership.last_modified, '%Y-%m-%d %H:%i:%S'), 'search_method': 'yadcf_range_date'},
+                         },
+                    ],
+                    serverside=True,
+                    idSrc = 'rowid', 
+                    buttons=[
+                        {
+                            'extend': 'csv',
+                            'exportOptions': {
+                                'columns': ':visible'
+                            }
+                        },
+                    ],
+
+                    dtoptions = {
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': True,
+                        'order': [
+                            ['family_name:name', 'asc'],
+                            ['given_name:name', 'asc'],
+                            ['end_date:name', 'asc'],
+                        ]
+                    },
+                    )
+memberships_view.register()
 

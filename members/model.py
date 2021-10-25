@@ -17,6 +17,7 @@ from loutilities.user.tablefiles import FilesMixin
 
 # set up database - SQLAlchemy() must be done after app.config SQLALCHEMY_* assignments
 Table = db.Table
+Index = db.Index
 Column = db.Column
 Integer = db.Integer
 Float = db.Float
@@ -58,6 +59,9 @@ TITLE_LEN=128
 TAG_LEN = 32
 INVITE_KEY_LEN = 32 #uuid4.hex
 TIME_LEN = 8
+NAME_LEN = 128
+GENDER_LEN = 16
+MEMBERSHIP_LEN = 24
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -764,6 +768,75 @@ class Email(Base):
     __mapper_args__ = {
         'version_id_col' : version_id
     }
+
+class Member(Base):
+    __tablename__ =  'member'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('members'))
+    family_name         = Column(String(NAME_LEN))
+    given_name          = Column(String(NAME_LEN))
+    middle_name         = Column(Text)
+    gender              = Column(String(GENDER_LEN))
+    dob                 = Column(Date)
+    hometown            = Column(Text)
+    email               = Column(Text)   
+    # start_date / end_date tracks contiguous memberships
+    start_date          = Column(Date)
+    end_date            = Column(Date)
+
+    # lookups by family_name, given_name, gender, dob need to be fast
+    # note length is required for family_name, given_name, gender in order to create index
+    __tableargs__ = (Index('member_name_gender_dob_idx', family_name, given_name, gender, dob), )
+
+    # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time         = Column(DateTime,
+                                 default=datetime.now,
+                                 onupdate=datetime.now
+                                 )
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
+class Membership(Base):
+    __tablename__ =  'membership'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('memberships'))
+    member_id           = Column(Integer, ForeignKey('member.id'))
+    member              = relationship('Member', backref=backref('memberships'))
+    svc_member_id       = Column(Text)
+    svc_membership_id   = Column(String(MEMBERSHIP_LEN))
+    membershiptype      = Column(Text)
+    hometown            = Column(Text)
+    email               = Column(Text)   
+    start_date          = Column(Date)
+    end_date            = Column(Date)
+    primary             = Column(Boolean)
+    last_modified       = Column(DateTime) # last time modified at service
+
+    # lookups by svc_membership_id need to be fast
+    # note length is required for svc_membership_id in order to create index
+    __tableargs__ = (Index('membership_svc_membership_id_idx', svc_membership_id), )
+
+    # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time         = Column(DateTime,
+                                 default=datetime.now,
+                                 onupdate=datetime.now
+                                 )
+    version_id          = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
+class TableUpdateTime(Base):
+    __tablename__ = 'tableupdatetime'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('tableupdatetimes'))
+    tablename           = Column(Text)
+    lastchecked         = Column(DateTime)
 
 # supporting functions
 def update_local_tables():
