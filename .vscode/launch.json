@@ -42,7 +42,7 @@
                 "update",
                 "fsrc",
                 // "--membershipfile",
-                // "C:\\Users\\lking\\Documents\\Lou's Software\\operational\\fsrc\\membercache\\membercache-test.csv",
+                // "C:\\Users\\lking\\Documents\\Lou's Software\\operational\\fsrc\\membercache\\membercache.csv",
             ],
             "jinja": true
         },

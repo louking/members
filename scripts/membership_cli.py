@@ -3,9 +3,11 @@ membership_cli - cli tasks needed for memberhip management
 """
 
 # standard
-from logging import basicConfig, DEBUG, ERROR, INFO, getLogger
+from logging import basicConfig, DEBUG, INFO, getLogger
 from csv import DictReader
-from datetime import datetime, timedelta
+from datetime import timedelta
+from os import mkdir
+from os.path import join, exists
 
 # pypi
 from flask import g, current_app
@@ -21,6 +23,8 @@ from sortedcontainers import SortedList
 from scripts import catch_errors, ParameterError
 from members.model import db, Member, Membership
 from members.views.admin.viewhelpers import localinterest
+from members.applogging import timenow
+from members.views.membership_common import analyzemembership
 
 # set up database date formatter
 isodate = asctime('%Y-%m-%d')
@@ -28,9 +32,6 @@ rsudt = asctime('%Y-%m-%d %H:%M:%S')
 
 # set up logging
 basicConfig()
-
-def timenow():
-    return asctime('%H:%M:%S.%f').dt2asc(datetime.now())
 
 # debug
 debug = False
@@ -98,10 +99,6 @@ def update(interest, membershipfile):
             # get current members from RunSignUp, and put into common format
             rawmemberships = rsu.members(club_id)
             memberships = [doxform(ms) for ms in rawmemberships]
-            # for ms in rawmemberships:
-            #     membership = {}
-            #     xform.transform(ms, membership)
-            #     memberships.append(membership)
 
     # membershipfile supplied
     else:
@@ -115,19 +112,21 @@ def update(interest, membershipfile):
 
     # set up member, membership transforms to create db records
     memxform = Transform({
-        'family_name':  'FamilyName',
-        'given_name':   'GivenName',
-        'middle_name':  'MiddleName',
-        'gender':       'Gender',
-        'dob':          lambda m: isodate.asc2dt(m['DOB']).date(),
-        'hometown':     lambda m: f'{m["City"]}, {m["State"]}' if 'City' in m and 'State' in m else '',
-        'email':        'Email',
-        'start_date':   lambda m: isodate.asc2dt(m['JoinDate']).date(),
-        'end_date':     lambda m: isodate.asc2dt(m['ExpirationDate']).date(),
+        'family_name':      'FamilyName',
+        'given_name':       'GivenName',
+        'middle_name':      'MiddleName',
+        'gender':           'Gender',
+        'svc_member_id':    'MemberID',
+        'dob':              lambda m: isodate.asc2dt(m['DOB']).date(),
+        'hometown':         lambda m: f'{m["City"]}, {m["State"]}' if 'City' in m and 'State' in m else '',
+        'email':            'Email',
+        'start_date':       lambda m: isodate.asc2dt(m['JoinDate']).date(),
+        'end_date':         lambda m: isodate.asc2dt(m['ExpirationDate']).date(),
     }, sourceattr=False, targetattr=True)
     memupdate = Transform({
-        'hometown':     'hometown',
-        'email':        'email',
+        'svc_member_id':    'svc_member_id',
+        'hometown':         'hometown',
+        'email':            'email',
     }, sourceattr=True, targetattr=True)
     mshipxform = Transform({
         'svc_member_id':        'MemberID',
@@ -153,10 +152,12 @@ def update(interest, membershipfile):
             'dob':         isodate.asc2dt(m['DOB'])
         }
 
-        # get all the memberships for this member
+        # get all the member records for this member
         # note there may currently be more than one member record, as the memberships may be discontiguous
-        thesemembers = SortedList(key=lambda m: m.end_date)
+        thesemembers = SortedList(key=lambda member: member.end_date)
         thesemembers.update(Member.query.filter_by(**filtermember).all())
+
+        byidmships = Membership.query.filter_by(svc_membership_id=m['MembershipID']).all()
 
         # if member doesn't exist, create member and membership records
         if len(thesemembers) == 0:
@@ -233,10 +234,14 @@ def update(interest, membershipfile):
                 mship = dbmships[mshipid]
                 for nextmndx in range(len(thesemembers)):
                     thismember = thesemembers[nextmndx]
+                    lastmember = thesemembers[nextmndx-1] if nextmndx != 0 else None
 
-                    # mship causes new member record before this one or after end of thesemembers
+                    # mship causes new member record before this one 
+                    #   or after end of thesemembers
+                    #   or wholy between thesemembers
                     if (mship.end_date + timedelta(1) < thismember.start_date or
-                            (nextmndx == len(thesemembers)-1) and mship.start_date > thismember.end_date + timedelta(1)):
+                            (nextmndx == len(thesemembers)-1) and mship.start_date > thismember.end_date + timedelta(1) or
+                            lastmember and mship.start_date > lastmember.end_date + timedelta(1) and mship.end_date < thismember.start_date):
                         newmember = Member(interest=localinterest())
                         # flush so thismember can be referenced in mship, and can be found in later processing
                         db.session.flush()
@@ -259,9 +264,17 @@ def update(interest, membershipfile):
                         break
 
                     # mship end date was changed
-                    if (mship.start_date >=thismember.start_date and mship.start_date <= thismember.end_date 
+                    if (mship.start_date >= thismember.start_date and mship.start_date <= thismember.end_date 
                             and mship.end_date != thismember.end_date):
                         thismember.end_date = mship.end_date
+                        mship.member = thismember
+                        memupdate.transform(mship, thismember)
+                        break
+
+                    # mship start date was changed
+                    if (mship.end_date >= thismember.start_date and mship.end_date <= thismember.end_date 
+                            and mship.start_date != thismember.start_date):
+                        thismember.start_date = mship.start_date
                         mship.member = thismember
                         memupdate.transform(mship, thismember)
                         break
@@ -300,6 +313,13 @@ def update(interest, membershipfile):
                 db.session.delete(delmember)
             if len(delmembers) > 0:
                 db.session.flush()
+
+    # save statistics file
+    groupfolder = join(current_app.config['APP_FILE_FOLDER'], interest)
+    if not exists(groupfolder):
+        mkdir(groupfolder, mode=0o770)
+    statspath = join(groupfolder, current_app.config['APP_STATS_FILENAME'])
+    analyzemembership(statsfile=statspath)
 
     # make sure we remember everything we did
     db.session.commit()

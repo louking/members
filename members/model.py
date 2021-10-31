@@ -61,7 +61,8 @@ INVITE_KEY_LEN = 32 #uuid4.hex
 TIME_LEN = 8
 NAME_LEN = 128
 GENDER_LEN = 16
-MEMBERSHIP_LEN = 24
+MEMBERSHIP_ID_LEN = 24
+MEMBER_ID_LEN = 24
 
 usertaskgroup_table = Table('user_taskgroup', Base.metadata,
                        Column('user_id', Integer, ForeignKey('localuser.id')),
@@ -774,6 +775,7 @@ class Member(Base):
     id                  = Column( Integer, primary_key=True )
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('members'))
+    svc_member_id       = Column(String(MEMBER_ID_LEN))
     family_name         = Column(String(NAME_LEN))
     given_name          = Column(String(NAME_LEN))
     middle_name         = Column(Text)
@@ -787,7 +789,9 @@ class Member(Base):
 
     # lookups by family_name, given_name, gender, dob need to be fast
     # note length is required for family_name, given_name, gender in order to create index
-    __tableargs__ = (Index('member_name_gender_dob_idx', family_name, given_name, gender, dob), )
+    __tableargs__ = (Index('member_name_gender_dob_idx', family_name, given_name, gender, dob), 
+                     Index('member_member_id', svc_member_id),
+                    )
 
     # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
     update_time         = Column(DateTime,
@@ -807,7 +811,7 @@ class Membership(Base):
     member_id           = Column(Integer, ForeignKey('member.id'))
     member              = relationship('Member', backref=backref('memberships'))
     svc_member_id       = Column(Text)
-    svc_membership_id   = Column(String(MEMBERSHIP_LEN))
+    svc_membership_id   = Column(String(MEMBERSHIP_ID_LEN))
     membershiptype      = Column(Text)
     hometown            = Column(Text)
     email               = Column(Text)   

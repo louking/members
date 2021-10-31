@@ -4,15 +4,14 @@ membership_frontend - views handling membership data
 '''
 
 # standard
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from traceback import format_exc
 import time
-from os.path import getmtime
-from csv import DictWriter
+from os.path import join, getmtime
+from platform import system
 
 # pypi
-from flask import json, request, jsonify, current_app
+from flask import json, request, jsonify, current_app, g
 from flask.views import MethodView
 from loutilities.timeu import epoch2dt, age, asctime
 from loutilities.transform import Transform
@@ -22,13 +21,20 @@ from loutilities.filters import filtercontainerdiv, filterdiv
 from running.runsignup import RunSignUp
 from dominate.tags import div, button, input, span, i
 
+class parameterError(): pass
+
 # homegrown
 from ..admin.viewhelpers import localinterest
 from . import bp
 
 ymd = asctime('%Y-%m-%d')
 mdy = asctime('%m/%d/%Y')
-cachet = asctime('%-m/%-d/%Y %-I:%M %p')
+
+# https://stackoverflow.com/questions/49674902/datetime-object-without-leading-zero
+if system() != 'Windows':
+    cachet = asctime('%-m/%-d/%Y %-I:%M %p')
+else:
+    cachet = asctime('%#m/%#d/%Y %#I:%M %p')
 
 def _getdivision(member):
     '''
@@ -206,17 +212,17 @@ frontendmembersview = FrontendMembersView(
 )
 frontendmembersview.register()
 
-class AjaxMemberStats(MethodView):
+class MemberStatsApi(MethodView):
     
     def get(self):
         try:
             # get the club and cache
-            memberstatsfile = bp.config['RSU_STATSFILE']
+            memberstatsfile = join(current_app.config['APP_FILE_FOLDER'], g.interest, current_app.config['APP_STATS_FILENAME'])
 
             # get the summarized statistics, and time file was created
-            with open(memberstatsfile, 'rb') as stats:
+            with open(memberstatsfile, 'r') as stats:
                 memberstats_str = stats.read()
-            mtime = getmtime(memberstatsfile) - time.timezone;
+            mtime = getmtime(memberstatsfile) + time.localtime().tm_gmtoff
             cachetime = cachet.epoch2asc(mtime)
 
             # convert json
@@ -228,7 +234,7 @@ class AjaxMemberStats(MethodView):
         except Exception as e:
             # er, not so good
             cause = format_exc()
-            bp.logger.error(format_exc())
+            current_app.logger.error(format_exc())
             return jsonify(success=False, cause=cause)
 
-bp.add_url_rule('/_memberstats',view_func=AjaxMemberStats.as_view('_memberstats'),methods=['GET'])
+bp.add_url_rule('/<interest>/_memberstats',view_func=MemberStatsApi.as_view('_memberstats'),methods=['GET'])

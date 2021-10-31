@@ -34,8 +34,8 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-gu
 # members endpoint
 ###########################################################################################
 
-clubmembers_dbattrs = 'id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
-clubmembers_formfields = 'rowid,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
+clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
+clubmembers_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
 clubmembers_dbmapping = dict(zip(clubmembers_dbattrs, clubmembers_formfields))
 clubmembers_formmapping = dict(zip(clubmembers_formfields, clubmembers_dbattrs))
 
@@ -100,6 +100,9 @@ clubmembers_view = ClubMembers(
                          '_ColumnDT_args' :
                              {'sqla_expr': func.date_format(Member.dob, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
+                        {'data': 'svc_member_id', 'name': 'svc_member_id', 'label': 'Member ID',
+                         'type': 'readonly',
+                         },
                         {'data': 'email', 'name': 'email', 'label': 'Email',
                          'type': 'readonly',
                          },
@@ -142,8 +145,8 @@ clubmembers_view.register()
 # memberships endpoint
 ###########################################################################################
 
-memberships_dbattrs = 'id,svc_membership_id,membershiptype,member.given_name,member.family_name,member.gender,member.dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
-memberships_formfields = 'rowid,svc_membership_id,membershiptype,given_name,family_name,gender,dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
+memberships_dbattrs = 'id,svc_membership_id,svc_member_id,membershiptype,member.given_name,member.family_name,member.gender,member.dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
+memberships_formfields = 'rowid,svc_membership_id,svc_member_id,membershiptype,given_name,family_name,gender,dob,hometown,email,start_date,end_date,primary,last_modified'.split(',')
 memberships_dbmapping = dict(zip(memberships_dbattrs, memberships_formfields))
 memberships_formmapping = dict(zip(memberships_formfields, memberships_dbattrs))
 
@@ -196,6 +199,9 @@ memberships_view = MembershipsView(
                         {'data': 'svc_membership_id', 'name': 'svc_membership_id', 'label': 'Membership ID',
                          'type': 'readonly',
                          },
+                        {'data': 'svc_member_id', 'name': 'svc_member_id', 'label': 'Member ID',
+                         'type': 'readonly',
+                         },
                         {'data': 'membershiptype', 'name': 'membershiptype', 'label': 'Membership Type',
                          'class': 'TextCenter',
                          'type':'readonly',
@@ -223,6 +229,7 @@ memberships_view = MembershipsView(
                     serverside=True,
                     idSrc = 'rowid', 
                     buttons=[
+                        # 'remove',
                         {
                             'extend': 'csv',
                             'exportOptions': {
