@@ -26,7 +26,7 @@ idna==2.9
 imagesize==1.2.0
 itsdangerous==1.1.0
 Jinja2==2.11.3
-jsmin==2.2.2
+jsmin==3.0.0
 loutilities==3.4.3.0
 Mako==1.1.2
 Markdown==3.2.1
