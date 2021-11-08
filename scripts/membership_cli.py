@@ -67,7 +67,7 @@ def update(interest, membershipfile):
         if not (linterest.club_service == 'runsignup' and club_id):
             raise ParameterError('interest Club Service must be runsignup, and Service ID must be defined')
         
-        # transform from RunSignUp to membershipfile format
+        # transform: membership "file" format from RunSignUp API
         xform = Transform( {
                             'MemberID'       : lambda mem: mem['user']['user_id'],
                             'MembershipID'   : 'membership_id',
@@ -111,6 +111,7 @@ def update(interest, membershipfile):
     memberships.sort(key=lambda m: (m['FamilyName'], m['GivenName'], m['Gender'], m['DOB'], m['ExpirationDate']))
 
     # set up member, membership transforms to create db records
+    # transform: member record from membership "file" format
     memxform = Transform({
         'family_name':      'FamilyName',
         'given_name':       'GivenName',
@@ -123,11 +124,13 @@ def update(interest, membershipfile):
         'start_date':       lambda m: isodate.asc2dt(m['JoinDate']).date(),
         'end_date':         lambda m: isodate.asc2dt(m['ExpirationDate']).date(),
     }, sourceattr=False, targetattr=True)
+    # transform: update member record from membership record
     memupdate = Transform({
         'svc_member_id':    'svc_member_id',
         'hometown':         'hometown',
         'email':            'email',
     }, sourceattr=True, targetattr=True)
+    # transform: membership record from membership "file" format
     mshipxform = Transform({
         'svc_member_id':        'MemberID',
         'svc_membership_id':    'MembershipID',
@@ -156,8 +159,6 @@ def update(interest, membershipfile):
         # note there may currently be more than one member record, as the memberships may be discontiguous
         thesemembers = SortedList(key=lambda member: member.end_date)
         thesemembers.update(Member.query.filter_by(**filtermember).all())
-
-        byidmships = Membership.query.filter_by(svc_membership_id=m['MembershipID']).all()
 
         # if member doesn't exist, create member and membership records
         if len(thesemembers) == 0:
@@ -196,12 +197,7 @@ def update(interest, membershipfile):
             # update existing membership
             else:
                 newmship = False
-                thismship = dbmships[mshipid]
-                # # weirdness if the new membership isn't the same membership id
-                # if thismship.svc_membership_id != m.svc_membership_id:
-                #     thislogger.error(f"{m['GivenName']} {m['FamilyName']} {m['DOB']} new membership {m['MembershipID']} with same \
-                #                      end date but different membership id from {thismship.svc_membership_id}")
-            
+                thismship = dbmships[mshipid]            
 
             # merge the new membership record into the database record
             mshipxform.transform(m, thismship)

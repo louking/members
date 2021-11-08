@@ -3,7 +3,7 @@ membership_admin - membership administrative handling
 ===========================================
 '''
 # standard
-from datetime import datetime
+from datetime import datetime, timedelta
 from operator import and_
 
 # pypi
@@ -25,8 +25,10 @@ from .viewhelpers import localinterest
 from running.runsignup import RunSignUp, ClubMemberships
 
 class parameterError(Exception): pass
+class dataError(Exception): pass
 
 ymd = asctime('%Y-%m-%d')
+isodate = asctime('%Y-%m-%d')
 
 adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
@@ -155,6 +157,65 @@ class MembershipsView(DbCrudApiInterestsRolePermissions):
         linterest = localinterest()
         return super().open()
 
+    def deleterow(self, thisid):
+        membership = Membership.query.filter_by(id=thisid).one()
+
+        # update member record(s) by recalculating contiguous membership dates
+        if membership.member:
+            member = membership.member
+
+            # this membership will be deleted, so remove member association 
+            # NOTE: this also removes membership from member.memberships
+            membership.member = None
+
+            # if membership is not wholly contained within member, there was some data error, probably in membership_cli
+            if membership.start_date < member.start_date or membership.end_date > member.end_date:
+                raise dataError(f'membership {membership.id} references member {member.id} but extent of membership goes beyond that of member')
+
+            # if membership extent is same as member, this membership must have been the only membership referenced by member
+            # NOTE: this membership was removed from member.memberships above, so checking against 0
+            if membership.start_date == member.start_date and membership.end_date == member.end_date and len(member.memberships) != 0:
+                raise dataError(f'member {member.id} has same extent as membership {membership.id} but has multiple memberships')
+
+            # if membership extent is same as member, delete the member record
+            if membership.start_date == member.start_date and membership.end_date == member.end_date:
+                db.session.delete(member)
+            
+            # if membership extent starts member dates, change start of member to beyond the membership dates
+            elif membership.start_date == member.start_date:
+                member.start_date = membership.end_date + timedelta(1)
+            
+            # if membership extent finishes member dates, change end of member to before the membership dates
+            elif membership.end_date == member.end_date:
+                member.end_date = membership.start_date - timedelta(1)
+            
+            # otherwise membership extent must be in the middle, so create a new member record and update memberships to point to it
+            else:
+                # create new member record by copying data in member
+                cols = [k for k in Member.__table__.columns.keys() if k != 'id']
+                memberdata = {c: getattr(member, c) for c in cols}
+                newmember = Member(**memberdata)
+                db.session.add(newmember)
+                member.end_date = membership.start_date - timedelta(1)
+                newmember.start_date = membership.end_date + timedelta(1)
+
+                # copy memberships as we'll be changing the list during the loop
+                thesememberships = member.memberships[:]
+                for mship in thesememberships:
+                    if mship.start_date >= newmember.start_date and mship.end_date <= newmember.end_date:
+                        mship.member = newmember
+                
+                # for completeness, update member record's hometown, email from latest membership record
+                thesememberships = member.memberships[:]
+                thesememberships.sort(key=lambda m: m.start_date)
+                lastmship = thesememberships[-1]
+                member.hometown = lastmship.hometown
+                member.email = lastmship.email
+
+
+        # use inherited class to delete the Membership instance
+        return super().deleterow(thisid)
+
 def memberships_pretablehtml():
     pretablehtml = div()
     return pretablehtml.render()
@@ -229,7 +290,7 @@ memberships_view = MembershipsView(
                     serverside=True,
                     idSrc = 'rowid', 
                     buttons=[
-                        # 'remove',
+                        'remove',
                         {
                             'extend': 'csv',
                             'exportOptions': {
