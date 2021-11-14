@@ -43,7 +43,7 @@ yadcf_ver = '0.9.4.beta.45+lk-date_custom_func'
 
 moment_ver = '2.24.0'       # moment.js (see https://momentjs.com/)
 lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)
-d3_ver = '5.14.2'           # d3js.org (see https://d3js.org/)
+d3_ver = '7.1.1'            # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
@@ -55,6 +55,8 @@ frontend_common_js = Bundle(
     'js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver),
 
     'js/lodash-{ver}/lodash.js'.format(ver=lodash_ver),
+
+    'js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver),
 
     # datatables / yadcf
     'js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver),
@@ -79,9 +81,11 @@ frontend_common_js = Bundle(
     'js/moment-{ver}/moment.js'.format(ver=moment_ver),
 
     # d3
-    'js/d3-{ver}/d3.v5.js'.format(ver=d3_ver),
+    'js/d3-{ver}/d3.js'.format(ver=d3_ver),
     'js/d3-tip-{ver}/d3-tip.js'.format(ver=d3_tip_ver),
 
+    'frontend/beforedatatables.js',
+    'admin/layout.js',  # TODO: smartmenus initialization, should be moved to layout.js
     'layout.js',
 
     'utils.js', # from loutilities
@@ -93,13 +97,15 @@ frontend_common_js = Bundle(
     'editor.buttons.editrefresh.js',        # from loutilities
     'editor.buttons.editchildrowrefresh.js',# from loutilities
     'filters.js',                           # from loutilities
+    'user/admin/groups.js',                 # from loutilities
 
     filters='jsmin',
     output='gen/frontendcommon.js',
 )
 
 frontend_members = Bundle(
-
+    'frontend/membership-stats.js',
+    
     filters='jsmin',
     output='gen/frontendmembers.js',
 )
@@ -107,9 +113,14 @@ frontend_members = Bundle(
 
 asset_bundles = {
 
+    'frontend_js': Bundle(
+        frontend_common_js,
+    ),
+    
     'frontendmembers_js': Bundle(
         frontend_common_js,
-        ),
+        frontend_members,
+    ),
 
     'frontend_css': Bundle(
         'js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver),
@@ -129,7 +140,11 @@ asset_bundles = {
         'filters.css',  # from loutilities
         'branding.css',  # from loutilities
 
+        'js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver),
+        'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
+
         'style.css',
+        'admin/style.css',      # TODO: some of this is for smartmenus, should be in style.css
 
         output='gen/frontend.css',
         # cssrewrite helps find image files when ASSETS_DEBUG = False
@@ -168,7 +183,7 @@ asset_bundles = {
         Bundle('js/moment-{ver}/moment.js'.format(ver=moment_ver), filters='jsmin'),
 
         # d3
-        Bundle('js/d3-{ver}/d3.v5.js'.format(ver=d3_ver), filters='jsmin'),
+        Bundle('js/d3-{ver}/d3.js'.format(ver=d3_ver), filters='jsmin'),
 
         # ckeditor (note this is already minimized, and filter through jsmin causes problems)
         'js/ckeditor5-build-{type}-{ver}/build/ckeditor.js'.format(ver=cke_ver, type=cke_type),

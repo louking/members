@@ -1,0 +1,27 @@
+{% extends "layout.jinja2" %}
+{% block pagename %}
+    {{ pagename }}
+{% endblock %}
+{% block css %}
+<style>
+.stats-container {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+.stats-item {
+    align-self: flex-start;
+}
+</style>
+{% endblock %}
+{% block scripts %}
+{% endblock %}
+{% block body %}
+    <div class="stats-container">
+        <div class="membership-stats stats-item">
+        </div>
+        <div class="membership-stats-table stats-item">
+        </div>
+    </div>
+{% endblock %}
