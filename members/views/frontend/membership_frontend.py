@@ -11,7 +11,7 @@ from os.path import join, getmtime
 from platform import system
 
 # pypi
-from flask import json, request, jsonify, current_app, g
+from flask import json, request, jsonify, current_app, g, render_template
 from flask.views import MethodView
 from loutilities.timeu import epoch2dt, age, asctime
 from loutilities.transform import Transform
@@ -177,7 +177,11 @@ frontendmembersview = FrontendMembersView(
         'dom': '<"clear">lBfrtip',
     },
     idSrc='rowId',
-    templateargs={'frontend_page': True},
+    templateargs={
+        'frontend_page': True, 
+        'assets_js': 'frontend_js', 
+        'assets_css': 'frontend_css'
+    },
     clientcolumns=[
         # {'data': '',  # needs to be '' else get exception converting options from meetings render_template
         #  # TypeError: '<' not supported between instances of 'str' and 'NoneType'
@@ -238,3 +242,17 @@ class MemberStatsApi(MethodView):
             return jsonify(success=False, cause=cause)
 
 bp.add_url_rule('/<interest>/_memberstats',view_func=MemberStatsApi.as_view('_memberstats'),methods=['GET'])
+
+class MembershipStats(MethodView):
+
+    def get(self):
+        return render_template(
+            'membership-stats.jinja2',
+            pagename='membership stats',
+            frontend_page=True, 
+            assets_js='frontendmembers_js', 
+            assets_css='frontend_css'
+        )
+
+bp.add_url_rule('/<interest>/membershipstats', view_func=MembershipStats.as_view('membershipstats'),methods=['GET'])
+ 
