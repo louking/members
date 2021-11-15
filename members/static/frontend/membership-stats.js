@@ -35,26 +35,13 @@ $( function () {
   var entry_content = d3.select(".membership-stats")
 
   var svg = entry_content
+    // for responsive solution see https://stackoverflow.com/questions/49034455/d3-chart-grows-but-wont-shrink-inside-a-flex-div#comment85075458_49034455
+    // don't use width and height attributes!
     .append("svg")
       .attr("class", "chart")
-      .attr("width", viewbox_width)
-      .attr("height", viewbox_height)
       .attr("viewBox", "0 0 " + viewbox_width + " " + viewbox_height)
-      .attr("preserveAspectRation", "xMidYMid")
     .append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  // make responsive, fit within parent
-  var aspect = viewbox_width / viewbox_height,
-      chart = d3.select(".chart"),
-      entrycontent = d3.select(".membership-stats");
-  window.onresize = function() {
-      var targetWidth = parseFloat(entrycontent.style("width"));  // assumes width in px
-      // console.log(`targetWidth=${targetWidth}`);
-      // console.log(`window.innerWidth=${window.innerWidth}`);
-      chart.attr("width", targetWidth);
-      chart.attr("height", targetWidth / aspect);
-  };
 
   var mouseoverlay = svg.append("rect")
       .attr("class", "overlay")

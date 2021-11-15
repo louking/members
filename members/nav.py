@@ -162,6 +162,7 @@ def nav_menu():
                 navbar.items.append(membershipadmin)
                 membership_admin_view(membershipadmin, 'Club Members', 'admin.clubmembers', interest=g.interest)
                 membership_admin_view(membershipadmin, 'Memberships', 'admin.memberships', interest=g.interest)
+                membershipadmin.items.append(View('Membership Stats', 'frontend.membershipstats', interest=g.interest))
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
@@ -190,7 +191,10 @@ def nav_menu():
     else:
         navbar.items.append(View('Home', 'frontend.home', interest=g.interest))
         if g.interest:
-            navbar.items.append(View('Members', 'frontend.members', interest=g.interest))
+            usermemberssviews = Subgroup('Membership')
+            navbar.items.append(usermemberssviews)
+            usermemberssviews.items.append(View('Registered Members', 'frontend.members', interest=g.interest))
+            usermemberssviews.items.append(View('Membership Stats', 'frontend.membershipstats', interest=g.interest))
 
     # common items
     if g.interest:
