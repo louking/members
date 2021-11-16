@@ -43,15 +43,6 @@ $( function () {
     .append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  var mouseoverlay = svg.append("rect")
-      .attr("class", "overlay")
-      .attr("width", width + margin.right)
-      // .attr("width", margin.left + width + margin.right)
-      // .attr("transform", "translate(" + -margin.left + ", 0)")
-      .attr("height", height)
-      .style("fill", "none")
-      .style("pointer-events", "all");
-
   var formatDate = d3.timeFormat("%m/%d"); 
   var parseDate = d3.timeParse("%m-%d"),
       jan1 = parseDate("01-01"),
@@ -193,7 +184,25 @@ $( function () {
         .text(d => d)
         .attr("class", (d, i) => i == 0 ? "date" : "count TextCenter");
       
-      // handle mouse movement
+      // needs to be after paths are created, otherwise the mouse movement over the path looks like mouseout --
+      // not sure why as z-index 9999 for mouseoverlay didn't help
+      var mouseoverlay = svg.append("rect")
+        .attr("class", "overlay")
+        .attr("width", width + margin.right)
+        .attr("height", height)
+        .style("fill", "none")
+        .style("pointer-events", "all");
+  
+      // margin overlay shows jan 1 values
+      var marginoverlay = svg.append("rect")
+        .attr("class", "overlay")
+        .attr("width", margin.left)
+        .attr("height", height)
+        .attr("transform", "translate(" + -margin.left + ", 0)")
+        .style("fill", "none")
+        .style("pointer-events", "all");
+
+        // handle mouse movement
       var allfocus = d3.selectAll(".focus");
       mouseoverlay
         .on("mouseover", function() { allfocus.style("display", null); })
@@ -224,7 +233,25 @@ $( function () {
           d3.select(`.year-${year} .count`).text(d.count)
         }
       }
-    })
+      marginoverlay
+        .on("mouseover", function() { allfocus.style("display", null); })
+        .on("mouseout", function() { allfocus.style("display", "none"); })
+        .on("mousemove", marginmove);
+      function marginmove(event) {
+        for (i=0; i<data.length; i++) {
+          var year = data[i].year;
+          // use d0, d1 if in range
+          var d = data[i].counts[0];
+          // follows mouse
+          var thisfocus = d3.select("#focus"+i);
+          thisfocus.attr("transform", "translate(" + x(d.date) + "," + y(d.count) + ")");
+          thisfocus.select("text").text(formatDate(d.date) + " " + d.count);
+          // update table
+          d3.select(`.year-${year} .date`).text(`${formatDate(d.date)}/${year}`)
+          d3.select(`.year-${year} .count`).text(d.count)
+        }
+      }
+      })
     .catch((error) => {
       throw error;
     });
