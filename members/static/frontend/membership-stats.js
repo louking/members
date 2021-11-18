@@ -49,16 +49,86 @@ $( function () {
       dec31 = parseDate("12-31");
   x.domain([jan1, dec31]);
 
+  let MAX_NUM_YEARS = 9;
+  let data, 
+      allyears=[];
+  let numyearselect = '<select id="membership-numyear-select" name="numyear">\n';
+  let numyearsoptions = [{val:'-1', text:'all'}]
+  for (let i=MAX_NUM_YEARS; i>=1; i--) {
+    numyearsoptions.push({val: i, text: i})
+  }
+  for (let i=0; i<numyearsoptions.length; i++) {
+    numyear = numyearsoptions[i];
+    numyearselect += '   <option value="' + numyear.val + '">' + numyear.text + '</option>\n';
+  }
+  numyearselect += '</select>';
+  $( numyearselect ).appendTo('#membership-numyears');
+  $( '#membership-numyear-select' ).select2({
+                                      minimumResultsForSearch: Infinity,
+                                      width: '75px',
+                                  });
+  $( '#membership-numyear-select' ).on('change', function(event) {
+      membership_setshowlabels( $( '#membership-numyear-select' ).val() );
+  });
+
+  /**
+   * show persistent elements based on numyears
+   * 
+   * @param {int} numyears - number of years, -1 means 'all'
+   */
+  function membership_setshowlabels( numyears ) {
+    var alllabels = ['line', 'legend'];
+    for (let labelndx=0; labelndx<alllabels.length; labelndx++) {
+        let label = alllabels[labelndx];
+        if (numyears == -1) {
+            $( `.${label}-all` ).show();
+        } else {
+            $( `.${label}-all` ).hide();
+            for (let yearndx=0; yearndx<numyears; yearndx++) {
+                $( `.${label}-${allyears[yearndx]}` ).show();
+            }    
+        }
+    }
+  }
+
+  /**
+   * show or hide focus elements
+   * 
+   * @param {int} numyears - number of years, -1 means 'all'
+   * @param {boolean} show - true if elements are to be shown, false to hide
+   */
+  function focus_showhide( numyears, show ) {
+    if (show) {
+        $( ".yeartable" ).show();
+        let allfocuses = ['focus', 'tablerow'];
+        for (let focusndx=0; focusndx<allfocuses.length; focusndx++) {
+            let label = allfocuses[focusndx];
+            if (numyears == -1) {
+                $( `.${label}-all` ).show();
+            } else {
+                $( `.${label}-all` ).hide();
+                for (let yearndx=0; yearndx<numyears; yearndx++) {
+                    $( `.${label}-${allyears[yearndx]}` ).show();
+                }   
+            }
+        }
+    } else {
+        $( ".yeartable" ).hide();
+        $( ".focus-all" ).hide();
+    }
+  }
+
   var interest = get_group_val();
   d3.json('/' + interest + '/_memberstats')
     .then((contents) => {
       if (!contents.success) throw "error response from api";
 
+      // data is page global for membership_setshowlabels()
       data = contents.data;
-      cachetime = contents.cachetime;
+      var cachetime = contents.cachetime;
 
       // do this before parsing all the dates
-      // NOTE: this code assumes contents.data[] is sorted by year
+      // NOTE: this code assumes contents.data[] is initially sorted by year
       var lastyearcounts = data[data.length-1]
           lastyear = lastyearcounts.year,
           lastcounts = lastyearcounts.counts;
@@ -69,9 +139,10 @@ $( function () {
       // data is [{year:year, counts: {['date':date, 'count':count}, ... ]}, ... ]
       // alldata is concatenation of all years' data for y.domain(d3.extent)
       alldata = [];
-      for (i=0; i<data.length; i++) {
+      for (let i=0; i<data.length; i++) {
         data[i].counts.forEach(function(d) {
           d.date = parseDate(d.date);
+          // convert d.count to integer
           d.count = +d.count;
         });
         alldata = alldata.concat(data[i].counts);
@@ -107,20 +178,21 @@ $( function () {
           .text("year on year member count as of " + cachetime);
 
       colormap = [];
-      for (i=0; i<data.length; i++) {
-        year = data[i].year
+      for (let i=0; i<data.length; i++) {
+        let year = data[i].year
         colormap.push({'year': year, 'color': colorcycle[i % colorcycle.length]});
+        allyears.push(year);
 
         svg.append("path")
             .style("stroke", colormap[i].color)
             .datum(data[i].counts)
-            .attr("class", "line")
+            .attr("class", "line line-all " + "line-" + year)
             .attr("d", line)
             .style("fill", "none")
             .style("stroke-width", "2px");
 
         var thisfocus = svg.append("g")
-            .attr("class", "focus")
+            .attr("class", "focus focus-all " + "focus-" + year)
             .attr("id","focus"+i)
             .style("display", "none");
 
@@ -139,7 +211,7 @@ $( function () {
       var legend = svg.selectAll(".legend")
           .data(colormap)
         .enter().append("g")
-          .attr("class", "legend")
+          .attr("class", function(d, i) {return "legend legend-all "  + "legend-" + data[i].year})
           .attr("transform", function(d, i) { return "translate(" + i * 90 + ",0)"; });
 
       legend.append("rect")
@@ -160,7 +232,7 @@ $( function () {
       // see http://bl.ocks.org/yan2014/c9dd6919658991d33b87
       var statscontainer = d3.selectAll(".membership-stats-table");
       var statstable = statscontainer.append("table")
-        .attr("class", "focus")
+        .attr("class", "focus yeartable")
         .style("display", "none");
       var statstablehdr = statstable.append("thead").append("tr");
       statstablehdr
@@ -175,7 +247,7 @@ $( function () {
         .data(data)
         .enter()
         .append("tr")
-        .attr("class", d => `year-${d.year}`);
+        .attr("class", d => `tablerow-all tablerow-${d.year}`);
       var statstablecells = statstablerows.selectAll("td")
         // start with first date of year
         .data((d) => [`${formatDate(d.counts[0].date)}/${d.year}`, d.counts[0].count])
@@ -185,7 +257,7 @@ $( function () {
         .attr("class", (d, i) => i == 0 ? "date" : "count TextCenter");
       
       // needs to be after paths are created, otherwise the mouse movement over the path looks like mouseout --
-      // not sure why as z-index 9999 for mouseoverlay didn't help
+      // see https://developer.mozilla.org/en-US/docs/Web/CSS/pointer-events for proper way to do this (path style="pointer-events: none;")
       var mouseoverlay = svg.append("rect")
         .attr("class", "overlay")
         .attr("width", width + margin.right)
@@ -193,7 +265,7 @@ $( function () {
         .style("fill", "none")
         .style("pointer-events", "all");
   
-      // margin overlay shows jan 1 values
+      // margin overlay shows first values
       var marginoverlay = svg.append("rect")
         .attr("class", "overlay")
         .attr("width", margin.left)
@@ -203,10 +275,13 @@ $( function () {
         .style("pointer-events", "all");
 
         // handle mouse movement
-      var allfocus = d3.selectAll(".focus");
       mouseoverlay
-        .on("mouseover", function() { allfocus.style("display", null); })
-        .on("mouseout", function() { allfocus.style("display", "none"); })
+        .on("mouseover", function() { 
+            focus_showhide( $( '#membership-numyear-select' ).val(), true );
+         })
+        .on("mouseout", function() { 
+            focus_showhide( $( '#membership-numyear-select' ).val(), false );
+         })
         .on("mousemove", mousemove);
 
       function mousemove(event) {
@@ -229,13 +304,17 @@ $( function () {
           thisfocus.attr("transform", "translate(" + x(d.date) + "," + y(d.count) + ")");
           thisfocus.select("text").text(formatDate(d.date) + " " + d.count);
           // update table
-          d3.select(`.year-${year} .date`).text(`${formatDate(d.date)}/${year}`)
-          d3.select(`.year-${year} .count`).text(d.count)
+          d3.select(`.tablerow-${year} .date`).text(`${formatDate(d.date)}/${year}`)
+          d3.select(`.tablerow-${year} .count`).text(d.count)
         }
       }
       marginoverlay
-        .on("mouseover", function() { allfocus.style("display", null); })
-        .on("mouseout", function() { allfocus.style("display", "none"); })
+        .on("mouseover", function() { 
+            focus_showhide( $( '#membership-numyear-select' ).val(), true );
+        })
+        .on("mouseout", function() { 
+            focus_showhide( $( '#membership-numyear-select' ).val(), false );
+        })
         .on("mousemove", marginmove);
       function marginmove(event) {
         for (i=0; i<data.length; i++) {
@@ -247,8 +326,8 @@ $( function () {
           thisfocus.attr("transform", "translate(" + x(d.date) + "," + y(d.count) + ")");
           thisfocus.select("text").text(formatDate(d.date) + " " + d.count);
           // update table
-          d3.select(`.year-${year} .date`).text(`${formatDate(d.date)}/${year}`)
-          d3.select(`.year-${year} .count`).text(d.count)
+          d3.select(`.tablerow-${year} .date`).text(`${formatDate(d.date)}/${year}`)
+          d3.select(`.tablerow-${year} .count`).text(d.count)
         }
       }
       })
