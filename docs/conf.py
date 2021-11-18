@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'membertility'
-copyright = '2020, Lou King'
+copyright = '2021, loutilities (Lou King)'
 author = 'Lou King'
 
 # The full version, including alpha/beta/rc tags

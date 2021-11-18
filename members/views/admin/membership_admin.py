@@ -134,11 +134,12 @@ clubmembers_view = ClubMembers(
                     ],
 
                     dtoptions = {
-                                        'scrollCollapse': True,
-                                        'scrollX': True,
-                                        'scrollXInner': "100%",
-                                        'scrollY': True,
-                                  },
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': '55vh',
+                        'lengthMenu': [ [10, 25, 50, 100, -1], [10, 25, 50, 100, 'All'] ],
+                    },
                     )
 clubmembers_view.register()
 
@@ -303,7 +304,8 @@ memberships_view = MembershipsView(
                         'scrollCollapse': True,
                         'scrollX': True,
                         'scrollXInner': "100%",
-                        'scrollY': True,
+                        'scrollY': '55vh',
+                        'lengthMenu': [ [10, 25, 50, 100, -1], [10, 25, 50, 100, 'All'] ],
                         'order': [
                             ['family_name:name', 'asc'],
                             ['given_name:name', 'asc'],

@@ -9,35 +9,60 @@ The club’s membership committee needs access to certain club-related data in o
 
 Club Members view
 ====================
-The Club Members view can be used to view or download club member records. There are filters available to view a
-subset of the member records.
 
-To show the members as of a particular date, set the Start To date, and the End From date to the date of interest,
-and leave the other fields blank.
+The Club Members view can be used to view or download club member records. Separate club member records are 
+maintained for contiguous membership records (see :ref:`Memberships view`).
 
-To show a subset of recent members, set From and To of the End filter.
+To show the members as of a particular date, set the **As Of** date.
 
 To download the filtered spreadsheet of members, click the **CSV** button.
 
 .. note::
-    The Club Membership view shows the earliest start date and the latest end date for a club member, regardless
-    of any gaps in their membership.
-
-    Data collected for this view only goes back as far as when the club started using RunSignUp
-    for membership management. This may be improved in a future release.
+    To download all of the members with the **CSV** button, you need to set **Show** to *all*.
 
 The view has the following filters:
 
-    :Start:
-        chooses range of membership start dates to show
-
-    :End:
-        chooses range of membership end dates to show
-
-    :Levels:
-        chooses membership levels to show
+    :As Of:
+        chooses the date for which memberships are shown
 
 
 .. image:: images/club-members-view.*
     :align: center
 
+
+.. _Memberships view:
+
+Memberships view
+====================
+
+The Memberships view can be used to view or download membership records. A membership record is created by the registration provider 
+(e.g., RunSignUp) each time a member renews their membership. This is typically every year, but there are also multiyear memberships 
+available. This view shows these individual memberships.
+
+To download the filtered spreadsheet of memberships, click the **CSV** button.
+
+.. note::
+    To download all of the memberships with the **CSV** button, you need to set **Show** to *all*. This can take a while to
+    load.
+
+.. image:: images/memberships-view.*
+    :align: center
+
+
+.. _Membership Stats view:
+
+Membership Stats view
+==========================
+
+The Membership Stats view gives a graphic view of year on year membership numbers. Hover the mouse over the chart (or if using a phone or tablet, touch the 
+chart) to see the counts on a particular date.
+
+This view is publicly available.
+
+The view has the following filters:
+
+    :Num Years:
+        choose the number of years of data to show, or *all*
+
+.. image:: images/membership-stats-view.*
+    :align: center
