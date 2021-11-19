@@ -99,6 +99,8 @@ frontend_common_js = Bundle(
     'filters.js',                           # from loutilities
     'user/admin/groups.js',                 # from loutilities
 
+    'admin/afterdatatables.js',             # TODO: should move common bits up a level and pieces to frontend/afterdatatables
+
     filters='jsmin',
     output='gen/frontendcommon.js',
 )
@@ -134,6 +136,9 @@ asset_bundles = {
         'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
         'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
         'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
+
+        'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), 
+        'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), 
 
         'datatables.css',  # from loutilities
         'editor.css',  # from loutilities
