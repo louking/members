@@ -285,7 +285,8 @@ def send_meeting_email(meeting_id, subject, message):
         'meeting_text': meeting.meetingtype.meetingwording,
         'statusreport_text': meeting.meetingtype.statusreportwording,
         'invitation_text': meeting.meetingtype.invitewording,
-        'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording)
+        'aninvitation_text': inflect_engine.a(meeting.meetingtype.invitewording),
+        'future_meeting': meeting.date >= datetime.today().date(),
     }
     for meetingoption in MEETING_OPTIONS:
         context[meetingoption] = meeting_has_option(meeting, meetingoption)
