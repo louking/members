@@ -276,7 +276,7 @@ def send_meeting_email(meeting_id, subject, message):
     tolist = ['{} <{}>'.format(i.user.name, i.user.email) for i in invites]
 
     # use from address configured for email
-    email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_INVITE_EMAIL, interest=localinterest()).one()
+    email = Email.query.filter_by(meeting_id=meeting_id, type=MEETING_EMAIL, interest=localinterest()).one()
     fromaddr = email.from_email
 
     context = {
