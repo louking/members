@@ -1,5 +1,5 @@
 $( function () {
-  var margin = {top: 40, right: 80, bottom: 45, left: 50},
+  var margin = {top: 10, right: 80, bottom: 45, left: 50},
       width = 960 - margin.left - margin.right,
       height = 500 - margin.top - margin.bottom,
       viewbox_width = width + margin.left + margin.right,
@@ -169,13 +169,6 @@ $( function () {
           .attr("dy", ".71em")
           .style("text-anchor", "end")
           .text("Num Members");
-
-      svg.append("g")
-          .attr("class", "heading")
-        .append("text")
-          .attr("transform", "translate(" + width/2 + ",-10)")
-          .style("text-anchor", "middle")
-          .text("year on year member count as of " + cachetime);
 
       colormap = [];
       for (let i=0; i<data.length; i++) {

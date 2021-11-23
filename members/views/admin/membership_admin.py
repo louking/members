@@ -5,24 +5,23 @@ membership_admin - membership administrative handling
 # standard
 from datetime import datetime, timedelta
 from operator import and_
+from platform import system
 
 # pypi
-from flask import g, url_for, current_app, request
-from flask_security import current_user
+from flask import request
 from dominate.tags import div, span, i, button, input
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
-from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
+from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
 from loutilities.timeu import asctime
 from sqlalchemy import func
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, CLUB_SERVICE_RUNSIGNUP
-from ...model import Member, Membership
+from ...model import db, LocalInterest
+from ...model import Member, Membership, TableUpdateTime
 from ...version import __docversion__
 from .viewhelpers import localinterest
-from running.runsignup import RunSignUp, ClubMemberships
 
 class parameterError(Exception): pass
 class dataError(Exception): pass
@@ -30,11 +29,17 @@ class dataError(Exception): pass
 ymd = asctime('%Y-%m-%d')
 isodate = asctime('%Y-%m-%d')
 
+# https://stackoverflow.com/questions/49674902/datetime-object-without-leading-zero
+if system() != 'Windows':
+    cachet = asctime('%-m/%-d/%Y %-I:%M %p')
+else:
+    cachet = asctime('%#m/%#d/%Y %#I:%M %p')
+    
 adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
 # members endpoint
-###########################################################################################
+##########################################################################################
 
 clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
 clubmembers_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
@@ -63,6 +68,8 @@ def clubmembers_filters():
                     i(cls='fas fa-spinner fa-spin')
                 input(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
+                cachetime = TableUpdateTime.query.filter_by(interest=localinterest(), tablename='member').one().lastchecked
+                span(f'(last update time {cachet.dt2asc(cachetime)})')
             # filterdiv('members-external-filter-level', 'Levels')
     return pretablehtml.render()
 
@@ -219,6 +226,11 @@ class MembershipsView(DbCrudApiInterestsRolePermissions):
 
 def memberships_pretablehtml():
     pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            cachetime = TableUpdateTime.query.filter_by(interest=localinterest(), tablename='member').one().lastchecked
+            span(f'(last update time {cachet.dt2asc(cachetime)})')
     return pretablehtml.render()
 
 memberships_view = MembershipsView(

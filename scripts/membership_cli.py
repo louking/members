@@ -5,7 +5,7 @@ membership_cli - cli tasks needed for memberhip management
 # standard
 from logging import basicConfig, DEBUG, INFO, getLogger
 from csv import DictReader
-from datetime import timedelta
+from datetime import timedelta, datetime
 from os import mkdir
 from os.path import join, exists
 
@@ -18,10 +18,11 @@ from loutilities.transform import Transform
 from running.runsignup import RunSignUp
 from sortedcollections import ItemSortedDict
 from sortedcontainers import SortedList
+from sqlalchemy import or_, and_, func
 
 # homegrown
 from scripts import catch_errors, ParameterError
-from members.model import db, Member, Membership
+from members.model import db, Member, Membership, TableUpdateTime
 from members.views.admin.viewhelpers import localinterest
 from members.applogging import timenow
 from members.views.membership_common import analyzemembership
@@ -60,6 +61,13 @@ def update(interest, membershipfile):
     g.interest = interest
     linterest = localinterest()
 
+    # assume update will complete ok
+    tableupdatetime = TableUpdateTime.query.filter_by(interest=linterest, tablename='member').one_or_none()
+    if not tableupdatetime:
+        tableupdatetime = TableUpdateTime(interest=linterest, tablename='member')
+        db.session.add(tableupdatetime)
+    tableupdatetime.lastchecked = datetime.today()
+    
     # normal case is download from RunSignUp service
     if not membershipfile:
         # get, check club id
@@ -74,7 +82,7 @@ def update(interest, membershipfile):
                             'MembershipType' : 'club_membership_level_name',
                             'FamilyName'     : lambda mem: mem['user']['last_name'],
                             'GivenName'      : lambda mem: mem['user']['first_name'],
-                            'MiddleName'     : lambda mem: mem['user']['middle_name'],
+                            'MiddleName'     : lambda mem: mem['user']['middle_name'] if mem['user']['middle_name'] else '',
                             'Gender'         : lambda mem: 'Female' if mem['user']['gender'] == 'F' else 'Male',
                             'DOB'            : lambda mem: mem['user']['dob'],
                             'City'           : lambda mem: mem['user']['address']['city'],
@@ -148,17 +156,15 @@ def update(interest, membershipfile):
         # need MembershipId to be string for comparison with database key
         m['MembershipID'] = str(m['MembershipID'])
 
-        filtermember ={
-            'family_name': m['FamilyName'],
-            'given_name':  m['GivenName'],
-            'gender':      m['Gender'],
-            'dob':         isodate.asc2dt(m['DOB'])
-        }
+        filternamedob = and_(Member.family_name == m['FamilyName'], Member.given_name == m['GivenName'], Member.gender == m['Gender'], Member.dob == isodate.asc2dt(m['DOB']))
+        # func.binary forces case sensitive comparison. see https://stackoverflow.com/a/31788828/799921
+        filtermemberid = Member.svc_member_id == func.binary(m['MemberID'])
+        filtermember = or_(filternamedob, filtermemberid)
 
         # get all the member records for this member
         # note there may currently be more than one member record, as the memberships may be discontiguous
         thesemembers = SortedList(key=lambda member: member.end_date)
-        thesemembers.update(Member.query.filter_by(**filtermember).all())
+        thesemembers.update(Member.query.filter(filtermember).all())
 
         # if member doesn't exist, create member and membership records
         if len(thesemembers) == 0:
@@ -232,6 +238,15 @@ def update(interest, membershipfile):
                     thismember = thesemembers[nextmndx]
                     lastmember = thesemembers[nextmndx-1] if nextmndx != 0 else None
 
+                    # TODO: use Transform for these next four entries
+                    # corner case: someone changed their birthdate
+                    thismember.dob = isodate.asc2dt(m['DOB']).date()
+                    
+                    # prefer last name found
+                    thismember.given_name = m['GivenName']
+                    thismember.family_name = m['FamilyName']
+                    thismember.middle_name = m['MiddleName'] if m['MiddleName'] else ''
+                    
                     # mship causes new member record before this one 
                     #   or after end of thesemembers
                     #   or wholy between thesemembers
