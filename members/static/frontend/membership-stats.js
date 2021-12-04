@@ -279,7 +279,7 @@ $( function () {
 
       function mousemove(event) {
         var x0 = x.invert(d3.pointer(event)[0]);
-        // console.log(`x0=${x0}`)
+        // console.log(`x0=${x0}`);
         for (i=0; i<data.length; i++) {
           var year = data[i].year;
           var j = bisectDate(data[i].counts, x0, 1);
@@ -297,8 +297,13 @@ $( function () {
           thisfocus.attr("transform", "translate(" + x(d.date) + "," + y(d.count) + ")");
           thisfocus.select("text").text(formatDate(d.date) + " " + d.count);
           // update table
-          d3.select(`.tablerow-${year} .date`).text(`${formatDate(d.date)}/${year}`)
-          d3.select(`.tablerow-${year} .count`).text(d.count)
+          // NOTE: would prefer `.tablerow-${year} .date` and `.tablerow-${year} .count` but
+          // jsmin doesn't handle space before .date/.count correctly for backtick literal
+          // see https://github.com/douglascrockford/JSMin/issues/22
+          var dateselect = '.tablerow-' + year + ' .date';
+          var countselect = '.tablerow-' + year + ' .count';
+          d3.select(dateselect).text(`${formatDate(d.date)}/${year}`);
+          d3.select(countselect).text(d.count);
         }
       }
       marginoverlay
@@ -319,8 +324,13 @@ $( function () {
           thisfocus.attr("transform", "translate(" + x(d.date) + "," + y(d.count) + ")");
           thisfocus.select("text").text(formatDate(d.date) + " " + d.count);
           // update table
-          d3.select(`.tablerow-${year} .date`).text(`${formatDate(d.date)}/${year}`)
-          d3.select(`.tablerow-${year} .count`).text(d.count)
+          // NOTE: would prefer `.tablerow-${year} .date` and `.tablerow-${year} .count` but
+          // jsmin doesn't handle space before .date/.count correctly for backtick literal
+          // see https://github.com/douglascrockford/JSMin/issues/22
+          var dateselect = '.tablerow-' + year + ' .date';
+          var countselect = '.tablerow-' + year + ' .count';
+          d3.select(dateselect).text(`${formatDate(d.date)}/${year}`);
+          d3.select(countselect).text(d.count);
         }
       }
       })
