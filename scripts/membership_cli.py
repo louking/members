@@ -104,9 +104,10 @@ def update(interest, membershipfile):
             return membership
 
         with rsu:
-            # get current members from RunSignUp, and put into common format
-            rawmemberships = rsu.members(club_id)
-            memberships = [doxform(ms) for ms in rawmemberships]
+            # get current and future members from RunSignUp, and put into common format
+            rawmemberships = rsu.members(club_id, current_members_only='F')
+            currfuturememberships = [m for m in rawmemberships if m['membership_end'] >= datetime.today().date().isoformat()]
+            memberships = [doxform(ms) for ms in currfuturememberships]
 
     # membershipfile supplied
     else:
