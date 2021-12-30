@@ -564,6 +564,9 @@ function afterdatatables() {
                 {name: 'effective', data: 'effective', label: 'Effective Date', type: 'datetime',
                  fieldInfo: 'select the date you want to view / have changes be effective'
                 },
+                {name: 'qualifier', data:'qualifier', label: 'Qualifier', 
+                 fieldInfo: 'normally not needed, but can qualify the position -- e.g., interim'
+                },
                 {name: 'members', data: 'members', label: 'Members', type: 'select2',
                  fieldInfo: 'pick the members you want in this position on the Effective Date',
                  onFocus: 'focus',

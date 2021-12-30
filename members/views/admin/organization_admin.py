@@ -17,7 +17,8 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition, Position, Tag
 from ...model import localinterest_query_params, localinterest_viafilter
-from ...helpers import members_active, all_active_members, member_position_active, member_positions, positions_active
+from ...helpers import members_active, member_qualifiers_active, memberqualifierstr, all_active_members
+from ...helpers import member_position_active, member_positions, positions_active, members_active_currfuture
 from .viewhelpers import dtrender, localinterest
 from ...version import __docversion__
 
@@ -45,7 +46,7 @@ def position_members(position):
     ondate = request.args.get('ondate', None)
     if not ondate:
         ondate = date.today()
-    names = [m.name for m in members_active(position, ondate)]
+    names = [memberqualifierstr(m) for m in member_qualifiers_active(position, ondate)]
     names.sort()
     return ', '.join(names)
 
@@ -165,8 +166,8 @@ position_view.register()
 # positiondates endpoint
 ###########################################################################################
 
-positiondate_dbattrs = 'id,interest_id,user,position,user.taskgroups,user.tags,startdate,finishdate'.split(',')
-positiondate_formfields = 'rowid,interest_id,user,position,taskgroups,tags,startdate,finishdate'.split(',')
+positiondate_dbattrs = 'id,interest_id,user,position,user.taskgroups,user.tags,startdate,finishdate,qualifier'.split(',')
+positiondate_formfields = 'rowid,interest_id,user,position,taskgroups,tags,startdate,finishdate,qualifier'.split(',')
 positiondate_dbmapping = dict(zip(positiondate_dbattrs, positiondate_formfields))
 positiondate_formmapping = dict(zip(positiondate_formfields, positiondate_dbattrs))
 # see https://github.com/DataTables/Plugins/commit/eb06604fdc9d5
@@ -256,6 +257,8 @@ positiondate_view = PositionDateView(
                               'searchbox': True,
                               'queryparams': localinterest_query_params,
                               }}
+         },
+        {'data': 'qualifier', 'name': 'qualifier', 'label': 'Qualifier',
          },
         {'data': 'startdate', 'name': 'startdate', 'label': 'Start Date',
          'type': 'datetime',
@@ -412,14 +415,22 @@ class PositionWizardApi(MethodView):
                 allmembers.sort(key=lambda i: i['label'])
 
                 # get members who hold this position on effective date
-                posmembers = [m.id for m in members_active(self.position, effectivedate)]
+                membersqualifiers = member_qualifiers_active(self.position, effectivedate)
+                posmembers = [m['member'].id for m in membersqualifiers]
+                
+                # for case where there's only one member, there may be a qualifier
+                # NOTE: there could potentially be a qualifier if there's more than one member, 
+                #       but there's no way to display it
+                qualifier = ''
+                if len(membersqualifiers) == 1 and membersqualifiers[0]['qualifier']:
+                    qualifier = membersqualifiers[0]['qualifier']
 
             # no effective date yet, leave select empty
             else:
                 allmembers = []
                 posmembers = []
 
-            return jsonify(options={'members':allmembers}, values={'members': posmembers})
+            return jsonify(options={'members':allmembers}, values={'members': posmembers, 'qualifier': qualifier})
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
@@ -444,6 +455,13 @@ class PositionWizardApi(MethodView):
             effectivedatedt = dtrender.asc2dt(effectivedate).date()
             currmembers = members_active(self.position, effectivedate)
 
+            # there may be a qualifier for this position, e.g., "interim"; 
+            # normally blank so set to None if so for backwards compatibility with the database after 
+            # initial conversion to include qualifier
+            qualifier = requestdata['keyless']['qualifier']
+            if not qualifier:
+                qualifier = None
+            
             # get the members which admin wants to be in the position on the effective date
             # separator must match afterdatatables.js else if (location.pathname.includes('/positions'))
             # (if empty string is returned, there were no memberids, so use empty list)
@@ -452,42 +470,109 @@ class PositionWizardApi(MethodView):
                 resultmemberids = requestdata['keyless']['members'].split(', ')
             resultmembers = [LocalUser.query.filter_by(id=id).one() for id in resultmemberids]
 
+            # terminate all future user/positions in this position as we're basing our update on effectivedate assertion by admin
+            # delete all of these which are strictly in the future
+            currfuturemembers = members_active_currfuture(self.position, onorafter=effectivedate)
+            for member in currfuturemembers:
+                ups = member_positions(member, self.position, onorafter=effectivedate)
+                for up in ups:
+                    if up.startdate > effectivedatedt:
+                        current_app.logger.debug(f'organization_admin.PositionWizardApi.post: deleting {up.user.name} {up.position.position} {up.startdate}')
+                        db.session.delete(up)
+            db.session.flush()
+
+            # get current members who previously held position on effective date
+            currmembers = members_active(self.position, effectivedate)
+
             # terminate all current members in this position who should not remain in the result set
             # use date one day before effective date for new finish date
             previousdatedt = dtrender.asc2dt(effectivedate).date() - timedelta(1)
             for currmember in currmembers:
+                ups = member_position_active(currmember, self.position, effectivedate)
+                # more than one returned implies data error, needs to be fixed externally
+                if len(ups) > 1:
+                    db.session.rollback()
+                    cause = 'existing position "{}" date overlap detected for {} on {}. Use ' \
+                            '<a href="{}" target=_blank>Position Dates view</a> ' \
+                            'to fix before proceeding'.format(self.position.position, currmember.name, effectivedate,
+                                                                page_url_for('admin.positiondates', interest=g.interest))
+                    return jsonify(error=cause)
+
+                # also if none were returned there is some logic error, should not happen because currmembers pulled
+                # in current records
+                if not ups:
+                    db.session.rollback()
+                    cause = f'logic error: {currmember.name} not found for {self.position.position} on {effectivedate}. Please report to administrator'
+                    return jsonify(error=cause)
+                    
+                currup = ups[0]
+                
+                # if the current member isn't one of the members in the position starting effective date,
                 if currmember not in resultmembers:
-                    ups = member_position_active(currmember, self.position, effectivedate)
-                    # more than one returned implies data error, needs to be fixed externally
-                    if len(ups) > 1:
-                        db.session.rollback()
-                        cause = 'existing position "{}" date overlap detected for {} on {}. Use ' \
-                                '<a href="{}" target=_blank>Position Dates view</a> ' \
-                                'to fix before proceeding'.format(self.position.position, currmember.name, effectivedate,
-                                                                  page_url_for('admin.positiondates', interest=g.interest))
-                        return jsonify(error=cause)
                     # overwrite finishdate -- maybe this was empty or maybe it had a date in it, either way now finished
                     # day before effective date
-                    ups[0].finishdate = previousdatedt
-                    # note if none were returned there is some logic error, should not happen because currmembers pulled
-                    # in current records, so let exception handling play through
+                    currup.finishdate = previousdatedt
+                    
+                    # if the finish date is now before the start date, we can delete this record, to be tidy
+                    if currup.finishdate < currup.startdate:
+                        db.session.delete(currup)
+                        db.session.flush()
 
-            # create new record for all resultmembers not already in the position
-            # if the new member has a future record, back date the start
+            # loop through all members who are to be in the position as of effective date
             for resultmember in resultmembers:
-                if not resultmember in currmembers:
-                    ups = member_positions(resultmember, self.position, onorafter=effectivedate)
-                    # normal case is no future records, so create a new one
-                    if len(ups) == 0:
-                        thisups = UserPosition(interest=localinterest(),
-                                               user=resultmember, position=self.position, startdate=effectivedatedt)
-                        db.session.add(thisups)
-                    # if a future record exists for this member/position, update the start date of the earliest one
-                    # to merge the position/user term
-                    else:
-                        thisups = ups[0]
-                        thisups.startdate = effectivedatedt
+                # check user/positions for this member on or after effective date
+                ups = member_positions(resultmember, self.position, onorafter=effectivedate)
 
+                # create new record for all resultmembers not already in the position
+                # if the new member has a future record, move date the start of the future record to the effective date
+                if resultmember not in currmembers:
+                    # normal case is no future records, so create a new record as of effectivedate
+                    if len(ups) == 0:
+                        thisups = UserPosition(
+                            interest=localinterest(),
+                            user=resultmember, 
+                            position=self.position, 
+                            startdate=effectivedatedt,
+                            qualifier=qualifier,
+                        )
+                        db.session.add(thisups)
+                        
+                # if resultmember is in currmembers, but the qualifier has changed
+                # NOTE: ups[0] is the user/position which is active on the effective date
+                elif ups and ups[0].qualifier != qualifier:
+                    currup = ups[0]
+                    if len(ups) > 1:
+                        # logic prevents use of futureup if not defined
+                        futureup = ups[1]
+                        
+                    # overwrite finishdate -- maybe this was empty or maybe it had a date in it, either way now finished
+                    # day before effective date
+                    finishdate = currup.finishdate
+                    currup.finishdate = previousdatedt
+                    
+                    # if the finish date is now before the start date, we can delete this record, to be tidy
+                    if currup.finishdate < currup.startdate:
+                        db.session.delete(currup)
+                        db.session.flush()
+                    
+                    # normal case there's only one current or future user/position, so create new one to follow this one
+                    if len(ups) == 1:
+                        thisups = UserPosition(
+                            interest=localinterest(),
+                            user=resultmember, 
+                            position=self.position, 
+                            startdate=effectivedatedt,
+                            finishdate=None,
+                            qualifier=qualifier,
+                        )
+                        db.session.add(thisups)
+                        
+                    # if there's a future user/position, and it was right after the current, the qualifier has most likely changed
+                    # assuming the qualifer of the future user/position is the new qualifier, move the start date of the future record
+                    # NOTE: there should be no future records at this point, so this clause should not get executed
+                    elif futureup.qualifier == qualifier and futureup.startdate == finishdate + timedelta(1):
+                        futureup.startdate = previousdatedt + timedelta(1)
+                
             # commit all the changes and return success
             # NOTE: in afterdatatables.js else if (location.pathname.includes('/positions'))
             # table is redrawn on submitComplete in case this action caused visible changes

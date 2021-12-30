@@ -258,6 +258,7 @@ class UserPosition(Base):
     position            = relationship('Position', back_populates='userpositions')
     startdate           = Column(Date)
     finishdate          = Column(Date)
+    qualifier           = Column(Text)  # e.g., interim
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id

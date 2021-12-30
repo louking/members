@@ -8,6 +8,7 @@ from datetime import date
 
 # pypi
 from flask import g
+from sqlalchemy import inspect
 
 # homegrown
 from .model import LocalUser, LocalInterest
@@ -67,7 +68,8 @@ def is_userposition_active(userposition, thisdate):
 
     is_active = False
     if ((userposition.startdate == None or thisdate >= userposition.startdate)
-            and (userposition.finishdate == None or thisdate <= userposition.finishdate)):
+            and (userposition.finishdate == None or thisdate <= userposition.finishdate)
+            and not inspect(userposition).deleted):
         is_active = True
 
     return is_active
@@ -105,7 +107,7 @@ def member_position_active(member, position, thisdate):
 
 def member_positions(member, position, onorafter='1970-01-01'):
     '''
-    return list of userposition records for this member/position, optionally on or after a date
+    return list of userposition records for this member/position, on or after a date
 
     ..note::
         should have single record, but allowing for more in case of data error
@@ -118,13 +120,13 @@ def member_positions(member, position, onorafter='1970-01-01'):
     onorafter = to_date(onorafter)
 
     # get all userposition records for member / position
-    allups = [up for up in member.userpositions if up.position == position]
+    # special case for deleted but not committed due to (at least) use within organization_admin.PositionWizardApi.post()
+    allups = [up for up in member.userpositions if up.position == position and not inspect(up).deleted]
 
     # filter out any from before onorafter
     ups = []
     for up in allups:
-        if ((up.startdate == None or onorafter <= up.startdate)
-                and (up.finishdate == None or onorafter <= up.finishdate)):
+        if up.finishdate == None or up.finishdate >= onorafter:
             ups.append(up)
 
     # sort by startdate, empty start date is equivalent to 1 Jan 1970
@@ -144,6 +146,48 @@ def members_active(position, thisdate):
         if is_userposition_active(userposition, thisdate):
             members.add(userposition.user)
     return list(members)
+
+def members_active_currfuture(position, onorafter='1970-01-01'):
+    '''
+    return the list of current and future active members for a given position on a specified date
+
+    :param position: Position instance
+    :param onorafter: date to check if user is in position or will be in this position (datetime.date or ISO date string)
+    :return: [member, member, ...]
+    '''
+    onorafter = to_date(onorafter)
+    members = set()
+    for up in position.userpositions:
+        if (up.finishdate == None or up.finishdate >= onorafter) and not inspect(up).deleted:
+            members.add(up.user)
+    return list(members)
+
+def member_qualifiers_active(position, thisdate):
+    '''
+    return the list of currently active members for a given position on a specified date, with qualifier
+
+    :param position: Position instance
+    :param thisdate: date to check if user was actively in position (datetime.date or ISO date string)
+    :return: [{'member': member, 'qualifier': qualifier}, {'member': member, 'qualifier': qualifier}, ...]
+    '''
+    memberqualifiers = []
+    for userposition in position.userpositions:
+        memberqualifier = {'member': userposition.user, 'qualifier': userposition.qualifier}
+        if is_userposition_active(userposition, thisdate) and memberqualifier not in memberqualifiers:
+            memberqualifiers.append(memberqualifier)
+    return memberqualifiers
+
+def memberqualifierstr(member_qualifier):
+    '''
+    turn member_qualifier into string for display
+    
+    :param member_qualifier: item in list returned by member_qualifiers_active()
+    :rtype: "name (qualifier)" if qualifier, else "name"
+    '''
+    name = member_qualifier['member'].name
+    if member_qualifier['qualifier']:
+        name += f' ({member_qualifier["qualifier"]})'
+    return name
 
 def all_active_members():
     '''
