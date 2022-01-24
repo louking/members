@@ -843,6 +843,130 @@ class TableUpdateTime(Base):
     tablename           = Column(Text)
     lastchecked         = Column(DateTime)
 
+rt_config_openbehaviors = 'auto,open,closed'.split(',')
+RT_CONFIG_OPEN_AUTO = 'auto'
+class RacingTeamConfig(Base):
+    __tablename__ = 'rt_config'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_configs'))
+    openbehavior        = Column(Enum(*rt_config_openbehaviors))
+    fromemail           = Column(Text)
+    infoccemail         = Column(Text)
+    applnccemail        = Column(Text)
+    dateranges          = relationship("RacingTeamDateRange", back_populates="config")
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+    
+monthname = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Nov,Dec'.split(',')
+monthnum = range(1,13)
+month2num = dict(zip(monthname, monthnum))
+monthmaxdate = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+month2maxdate = dict(zip(monthname,monthmaxdate))
+class RacingTeamDateRange(Base):
+    __tablename__ = 'rt_daterange'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_dateranges'))
+    rangename           = Column(Text)
+    start_month         = Column(Enum(*monthname))
+    start_date          = Column(Integer)
+    end_month           = Column(Enum(*monthname))
+    end_date            = Column(Integer)
+    config_id           = Column(Integer, ForeignKey('rt_config.id'))
+    config              = relationship("RacingTeamConfig", back_populates="dateranges")
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class RacingTeamMember(Base):
+    __tablename__ = 'rt_member'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_members'))
+    name                = Column(Text)
+    gender              = Column(Text)
+    dateofbirth         = Column(Date)
+    email               = Column(Text)
+    active              = Column(Boolean)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class RacingTeamApplication(Base):
+    __tablename__ = 'rt_application'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_applications'))
+    name                = Column(Text)
+    gender              = Column(Text)
+    dateofbirth         = Column(Date)
+    email               = Column(Text)
+    date                = Column(Date)
+    type                = Column(Text)
+    comments            = Column(Text)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class RacingTeamInfo(Base):
+    __tablename__ = 'rt_info'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_infos'))
+    member_id           = Column(Integer, ForeignKey('rt_member.id'))
+    member              = relationship('RacingTeamMember', backref=backref('racinginfos'))
+    logtime             = Column(DateTime)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class RacingTeamResult(Base):
+    __tablename__ = 'rt_result'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_results'))
+    info_id             = Column(Integer, ForeignKey('rt_info.id'))
+    info                = relationship('RacingTeamInfo', backref=backref('rt_result'), uselist=False)
+    application_id      = Column(Integer, ForeignKey('rt_application.id'))
+    application         = relationship('RacingTeamApplication', backref=backref('rt_results'))
+    eventdate           = Column(Date)
+    eventname           = Column(Text)
+    location            = Column(Text)
+    url                 = Column(Text)
+    distance            = Column(Float)
+    units               = Column(Enum('miles', 'km'))
+    time                = Column(Text)
+    age                 = Column(Integer)
+    agegrade            = Column(Float)
+    awards              = Column(Text)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+    
+class RacingTeamVolunteer(Base):
+    __tablename__ = 'rt_volunteer'
+    id                  = Column( Integer, primary_key=True )
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rt_volunteers'))
+    info_id             = Column(Integer, ForeignKey('rt_info.id'))
+    info                = relationship('RacingTeamInfo', backref=backref('rt_volunteer'), uselist=False)
+    eventdate           = Column(Date)
+    eventname           = Column(Text)
+    hours               = Column(Float)
+    comment             = Column(Text)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+    
 # supporting functions
 def update_local_tables():
     '''

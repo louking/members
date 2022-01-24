@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    
+    <!-- http://materializecss.com/getting-started.html, https://github.com/dogfalo/materialize/ -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    {#<link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css" media="screen,projection">#}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    {% if assets_css %}
+      {% assets assets_css %}
+          <link type="text/css" rel="stylesheet" href="{{ ASSET_URL }}">
+      {% endassets %}
+    <link type="text/css" rel="stylesheet" href="/static/frontend/racingteaminfo.css" media="screen,projection">
+    {% endif %}
+
+    <link rel="stylesheet" href="/static/frontend/racingteaminfo.css">
+  </head>
+  {% if assets_js %}
+    {% assets assets_js %}
+        <script type="text/javascript" src="{{ ASSET_URL }}"></script>
+    {% endassets %}
+  {% endif %}
+
+  <body>
+    
+    <form class="main" id="form" novalidate="novalidate" style="max-width: 480px;margin: 40px auto;" method="post">
+      <div id="data" class="input">
+        <div class="row">
+          <div class="col s12">
+            <h5 class="center-align steeps-blue-text">Frederick Steeplechasers<br/>Racing Team Information Form</h5>
+            <p>Please complete the form below, so that we can keep track of the racing performance and volunteer hours for each member of the Frederick Steeplechasers Running Club racing team.</p>
+            <p>If you have multiple races or volunteering to report, please submit each event separately.</p>            
+          </div>
+        </div>
+      
+        <div class="row">
+          <div class="input-field col s12">
+            <select id="common_name" name="common_name" class="common validate" required aria-required="true" onchange="setAgeAndAgeGrade()">
+              <option value="" required disabled selected>select name</option>
+              {% for name in names %}
+                <option value="{{ name }}">{{ name }}</option>
+              {% endfor %}
+            </select>
+            <label>Name *</label>
+          </div>
+        </div>
+       
+        <div class="row">
+          {# <div class="col s12">
+          </div> #}
+          <div class="input-field col s12">
+            <input id="common_eventname" type="text" class="common" name="common_eventname" required aria-required="true" 
+             placeholder="Name of the race you ran or what you volunteered at">
+            <label for="common_eventname">Event Name *</label>
+          </div>
+        </div>
+             
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="common_eventdate" type="date" name="common_eventdate" class="common datepicker" onchange="setAgeAndAgeGrade()">
+            <label for="common_eventdate">Event Date *</label>
+          </div>
+        </div>
+             
+        <div class="row">
+          <div class="input-field col s12">
+            <select id="common_infotype" name="common_infotype" class="common validate" required  onchange='showRaceOrVolunteer()'>
+              <option value="" required disabled selected>Choose type of submission</option>
+              <option value="raceresult">Race Result</option>
+              <option value="volunteer">Volunteer Info</option>
+            </select>
+            <label>Submission Type *</label>
+          </div>
+        </div>
+                        
+        <div id="raceresult" class="input all-questions raceresult-wrapper" style="display:none">
+            
+          <div class="row">
+            <div class="input-field col s6">
+              <input id="raceresult_distance" type="number" step="any" required class="raceresult validate" name="raceresult_distance" onchange="setAgeGrade()" required aria-required="true">
+              <label for="raceresult_distance">Distance *</label>
+            </div>
+            <div class="input-field col s4">
+              <select id="raceresult_units" name="raceresult_units" class="raceresult validate" required  onchange="setAgeGrade()">
+                <option value="" required disabled selected>miles / km *</option>
+                <option value="miles">miles</option>
+                <option value="km">km</option>
+              </select>
+            </div>
+            <div class="input-field col s2">
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="input-field col s6">
+              <input id="raceresult_time" type="text" required class="raceresult validate" name="raceresult_time" 
+                    onchange="checkTimeAndSetAgeGrade()" required aria-required="true"
+                    pattern="((([0-1]?[0-9]|2[0-4]):)?([0-5]?[0-9]):)?([0-5][0-9])(.[0-9]*)?" placeholder="HH:MM:SS, MM:SS or SS">
+              <label for="raceresult_time">Official Time (hh:mm:ss) *</label>
+            </div>
+
+            <div class="input-field col s3">
+              <input readonly value="Calculated" id="raceresult_age" class="raceresult" type="text" name="raceresult_age" >
+              <label for="raceresult_age">Age (Race Date)</label>
+            </div>
+
+            <div class="input-field col s3">
+              <input readonly value="Calculated" id="raceresult_agegrade" class="raceresult" type="text" name="raceresult_agegrade" >
+              <label for="raceresult_agegrade">Age Grade</label>
+            </div>
+          </div>
+    
+          <div class="row">
+            <div class="input-field col s12">
+              <label for="raceresult_awards">Awards</label>
+              <input id="raceresult_awards" class="raceresult" name="raceresult_awards" type="text" placeholder="Indicate awards in race, e.g., 1st overall, 2nd division, etc.">
+            </div>
+          </div>
+         
+        </div> <!-- raceresult-wrapper -->
+        
+        <div class="input all-questions volunteer-wrapper" style="display:none">
+
+          <div class="row">
+            <div class="input-field col s12">
+              <input value="" id="volunteer_hours" class="raceresult" type="number" name="volunteer_hours" placeholder="Round to nearest whole hour">
+              <label for="volunteer_hours">How Many Hours</label>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input-field col s12">
+              <textarea id="volunteer_comments" name="volunteer_comments" class="materialize-textarea" placeholder="Use this to describe the nature of the volunteer work. If it is recurring specify the duration and average hours/week"></textarea>
+              <label for="volunteer_comments">Comments</label>
+            </div>
+          </div>
+
+        </div> <!-- volunteer-wrapper -->
+
+        <div class="row">
+          <div class="input-field col s12 left-align">
+            <button id="next-button" class="waves-effect waves-light btn submit-btn steeps-blue-background" type="submit">NEXT</button>
+          </div>   
+        </div>
+
+      </div> <!-- data -->
+      
+      <div id="confirmation" class="input" style='display:none'>
+        <div class="row">
+          <div class="col s12">
+            <h5 class="center-align steeps-blue-text">Frederick Steeplechasers<br/>Racing Team Information Form</h5>
+            <p>If all the information below is correct, 
+            click SUBMIT to submit your application,
+            otherwise, click BACK to make corrections</p>
+          </div>       
+        </div>
+          
+        <div id="confirmation-fields">
+        </div>
+
+        <div class="row">
+          <div class="input-field col s12 left-align">
+            <button class="waves-effect waves-light btn submit-btn steeps-blue-background" type="button" onclick="backPage();">BACK</button>
+            <!-- text of next button is changed to WAIT... when clicked and reset to SUBMIT when back button clicked -->
+            <button class="waves-effect waves-light btn submit-btn steeps-blue-background nopaypal" type="submit">SUBMIT</button>
+          </div>   
+        </div>
+
+      </div> <!-- confirmation -->
+      
+      <div id="submit-wait" class="input" style="display:none">
+        <h5 class="center-align steeps-blue-text">Frederick Steeplechasers<br/>Racing Team Information Form</h5>
+        <p>Thank you. We are submitting your racing team information. Please wait for confirmation that the application has been submitted successfully.
+        If you do not see the success page in 30 seconds, please send email to <a href="mailto:racingteam@steeplechasers.org">racingteam@steeplechasers.org</a></p>
+        
+        <div id="error-notification" style="display:none; color:red">
+          <p>Oops, an error occurred. </p>
+          <p>We don't want to lose track of your desire to join the racing team -- please send email to 
+          <a href="mailto:racingteam@steeplechasers.org">racingteam@steeplechasers.org</a>, and we will get the problem sorted out.</p>
+        </div>
+      </div> <!-- submit-wait -->
+
+      <div id="footer" class="input">
+        <div class="row">
+         <p class="small-text">
+         If you have any problems submitting this form, or questions on how to use this form, 
+         send email to 
+         <a href="mailto:racingteam@steeplechasers.org?subject=[Racing Team Application Form - Help] problem or question on application form">racingteam@steeplechasers.org</a>
+         </p>
+        </div>
+      </div> <!-- footer -->
+      
+      
+      <div id="success" style="display:none">
+        <h5 class="center-align steeps-blue-text">Frederick Steeplechasers<br/>Racing Team Information</h5>
+        <p>Thank you. Your racing team information has been successfully submitted. You should receive an email confirmation.</p>
+        <p>If you have any questions, please send email to <a href="mailto:racingteam@steeplechasers.org">racingteam@steeplechasers.org</a>.</p>
+        <p><a href="#" onclick="location.reload();">Click here to submit another</a></p>
+      </div> <!-- success -->
+    </form>
+    
+    {#
+    <!-- http://materializecss.com/getting-started.html, https://github.com/dogfalo/materialize/ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    
+    <!-- https://jqueryvalidation.org/ -->
+    <script src="https://ajax.aspnetcdn.com/ajax/jquery.validate/1.15.0/jquery.validate.min.js"></script>
+    #}
+    
+    <script>    
+    // pass config to javascript
+    var config = {{ config }};
+
+  </script>
+  <script src="/static/frontend/racingteaminfo.js"></script>    
+
+  </body>
+</html>

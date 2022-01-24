@@ -19,6 +19,7 @@ from flask_assets import Bundle, Environment
 # jquery
 jq_ver = '3.5.1'
 jq_ui_ver = '1.12.1'
+jq_validate_ver = '1.19.3'
 
 # dataTables
 dt_buttons_ver = '1.6.5' # also used for colvis and html5
@@ -49,6 +50,8 @@ fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
 cke_type='classic'           # https://ckeditor.com/ckeditor-5/
 cke_ver='26.0.0-members-414' # https://ckeditor.com/ckeditor-5/
+materialize_ver='1.0.0'     # https://materializecss.com/
+pickadate_ver = '3.6.4'     # https://amsul.ca/pickadate.js/
 
 frontend_common_js = Bundle(
     'js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver),
@@ -97,12 +100,59 @@ frontend_common_js = Bundle(
     'editor.buttons.editrefresh.js',        # from loutilities
     'editor.buttons.editchildrowrefresh.js',# from loutilities
     'filters.js',                           # from loutilities
+    'utils.js',                             # from loutilities
     'user/admin/groups.js',                 # from loutilities
 
     'admin/afterdatatables.js',             # TODO: should move common bits up a level and pieces to frontend/afterdatatables
 
     filters='jsmin',
     output='gen/frontendcommon.js',
+)
+
+frontend_materialize_js = Bundle(
+    f'https://cdnjs.cloudflare.com/ajax/libs/materialize/{materialize_ver}/js/materialize.js',
+    f'https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/{jq_validate_ver}/jquery.validate.js',
+    
+    filters='jsmin',
+    output='gen/frontendmaterialize.js',
+)
+
+frontend_common_css = Bundle(
+    'js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver),
+    'js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver),
+    'js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver),
+    'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
+    'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
+    'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
+    'js/Responsive-{ver}/css/responsive.dataTables.css'.format(ver=dt_responsive_ver),
+    'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
+    'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
+    'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
+    'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
+
+    'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), 
+    'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), 
+
+    'datatables.css',  # from loutilities
+    'editor.css',  # from loutilities
+    'filters.css',  # from loutilities
+    'branding.css',  # from loutilities
+
+    'js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver),
+    'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
+
+    'style.css',
+    'admin/style.css',      # TODO: some of this is for smartmenus, should be in style.css
+
+    filters=['cssrewrite', 'cssmin'],
+    output='gen/frontendcommon.css',
+)
+
+frontend_materialize_css = Bundle(
+    f'https://cdnjs.cloudflare.com/ajax/libs/materialize/{materialize_ver}/css/materialize.css',
+
+    filters='jsmin',
+    output='gen/frontendmaterialize.css',
 )
 
 frontend_members = Bundle(
@@ -123,38 +173,25 @@ asset_bundles = {
         frontend_common_js,
         frontend_members,
     ),
+    
+    'frontendmaterialize_js': Bundle(
+        frontend_common_js,
+        frontend_materialize_js,
+       
+    ),
 
     'frontend_css': Bundle(
-        'js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver),
-        'js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver),
-        'js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver),
-        'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
-        'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
-        'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
-        'js/Responsive-{ver}/css/responsive.dataTables.css'.format(ver=dt_responsive_ver),
-        'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
-        'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
-        'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
-        'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
-
-        'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), 
-        'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), 
-
-        'datatables.css',  # from loutilities
-        'editor.css',  # from loutilities
-        'filters.css',  # from loutilities
-        'branding.css',  # from loutilities
-
-        'js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver),
-        'js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver),
-
-        'style.css',
-        'admin/style.css',      # TODO: some of this is for smartmenus, should be in style.css
-
+        frontend_common_css,
+        
         output='gen/frontend.css',
         # cssrewrite helps find image files when ASSETS_DEBUG = False
         filters=['cssrewrite', 'cssmin'],
         ),
+
+    'frontendmaterialize_css': Bundle(
+        frontend_common_css,
+        frontend_materialize_css,
+    ),
 
     'admin_js': Bundle(
         Bundle('js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='jsmin'),
