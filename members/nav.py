@@ -30,6 +30,7 @@ from .version import __docversion__
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
+from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN
 
 thisnav = Nav()
 
@@ -84,6 +85,7 @@ def nav_menu():
     membership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html#')
     meetings_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-admin-reference.html#')
     meetings_member_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html#')
+    racingteam_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/racingteam-admin-reference.html#')
 
     # create context help menu items for views which can't be navigated to from the main menu
     if g.interest:
@@ -163,6 +165,16 @@ def nav_menu():
                 membership_admin_view(membershipadmin, 'Club Members', 'admin.clubmembers', interest=g.interest)
                 membership_admin_view(membershipadmin, 'Memberships', 'admin.memberships', interest=g.interest)
                 membershipadmin.items.append(View('Membership Stats', 'frontend.membershipstats', interest=g.interest))
+
+            # racingteam admin stuff
+            if current_user.has_role(ROLE_RACINGTEAM_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                racingteamadmin = Subgroup('Racing Team')
+                navbar.items.append(racingteamadmin)
+                racingteam_admin_view(racingteamadmin, 'Members', 'admin.rt_members', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Info Results', 'admin.rt_inforesults', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Info Volunteer', 'admin.rt_infovol', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Date Range', 'admin.rt_daterange', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Config', 'admin.rt_config', interest=g.interest)
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
