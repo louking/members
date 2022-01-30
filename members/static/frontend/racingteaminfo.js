@@ -38,7 +38,7 @@ function nextOrSubmitPage(form) {
 
   console.log('nextOrSubmitPage()');
   
-  // send email if at the confirmation page
+  // post form if at the confirmation page
   if (getCurrentPage() == 'confirmation') {
     // * https://www.w3docs.com/snippets/javascript/how-to-create-ajax-submit-form-using-jquery.html
     let post_url = window.location.pathname;
@@ -364,11 +364,10 @@ function checkDate(dateid) {
 
 $(function() {
   // set up date field
-  today = new Date();
-  curryear = today.getFullYear();
-  prevyear = curryear - 1;
+  var today = new Date();
+  var curryear = today.getFullYear();
   $('#common_eventdate').datepicker({
-    yearRange: [prevyear, curryear],       // Creates a dropdown of 2 years to control year
+    yearRange: [curryear-1, curryear],       // Creates a dropdown of 2 years to control year
     maxDate: today,          // today
     format: 'yyyy-mm-dd',
     autoClose: true,

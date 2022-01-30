@@ -25,7 +25,8 @@
             "request": "launch",
             "type": "pwa-chrome",
             "url": "http://dev.localhost:5000/",
-            "webRoot": "${workspaceFolder}/members"
+            "webRoot": "${workspaceFolder}/members",
+            "justMyCode": false,
         },
         {
             "name": "Python: flask membership update fsrc",

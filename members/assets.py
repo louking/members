@@ -110,8 +110,8 @@ frontend_common_js = Bundle(
 )
 
 frontend_materialize_js = Bundle(
-    f'https://cdnjs.cloudflare.com/ajax/libs/materialize/{materialize_ver}/js/materialize.js',
-    f'https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/{jq_validate_ver}/jquery.validate.js',
+    f'js/materialize-v{materialize_ver}/materialize/js/materialize.js',
+    f'js/jquery-validate-{jq_validate_ver}/jquery.validate.js',
     
     filters='jsmin',
     output='gen/frontendmaterialize.js',
@@ -149,9 +149,9 @@ frontend_common_css = Bundle(
 )
 
 frontend_materialize_css = Bundle(
-    f'https://cdnjs.cloudflare.com/ajax/libs/materialize/{materialize_ver}/css/materialize.css',
+    f'js/materialize-v{materialize_ver}/materialize/css/materialize.css',
 
-    filters='jsmin',
+    filters=['cssrewrite', 'cssmin'],
     output='gen/frontendmaterialize.css',
 )
 

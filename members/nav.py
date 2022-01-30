@@ -173,6 +173,8 @@ def nav_menu():
                 racingteam_admin_view(racingteamadmin, 'Members', 'admin.rt_members', interest=g.interest)
                 racingteam_admin_view(racingteamadmin, 'Info Results', 'admin.rt_inforesults', interest=g.interest)
                 racingteam_admin_view(racingteamadmin, 'Info Volunteer', 'admin.rt_infovol', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Applications', 'admin.rt_applns', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Application Results', 'admin.rt_applnresults', interest=g.interest)
                 racingteam_admin_view(racingteamadmin, 'Date Range', 'admin.rt_daterange', interest=g.interest)
                 racingteam_admin_view(racingteamadmin, 'Config', 'admin.rt_config', interest=g.interest)
 

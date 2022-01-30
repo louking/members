@@ -10,6 +10,8 @@ from formencode.schema import Schema
 from formencode.validators import Email, DateConverter, Number, OneOf, StringBool, NotEmpty
 from loutilities.tables import DteFormValidate, TimeOptHoursConverter
 from loutilities.timeu import asctime
+from loutilities.transform import Transform
+from sortedcontainers import SortedKeyList
 
 # homegrown
 from . import bp
@@ -20,7 +22,7 @@ from ...model import localinterest_query_params
 from ...version import __docversion__
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
-from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN, ROLE_LEADERSHIP_ADMIN
+from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
 class ParameterError(Exception): pass
@@ -29,7 +31,7 @@ debug = False
 isodate = asctime('%Y-%m-%d')
 timestamp = asctime('%Y-%m-%d %H:%M')
 
-racingteam_roles = [ROLE_SUPER_ADMIN, ROLE_RACINGTEAM_ADMIN, ROLE_LEADERSHIP_ADMIN]
+racingteam_roles = [ROLE_SUPER_ADMIN, ROLE_RACINGTEAM_ADMIN]
 adminguide = 'https://members.readthedocs.io/en/{docversion}/racingteam-admin-guide.html'.format(
     docversion=__docversion__)
 
@@ -50,7 +52,7 @@ class RacingTeamMembersValidator(Schema):
     gender = OneOf(['M', 'F'])
     email = Email()
     active = StringBool()
-    
+
 rt_members_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=racingteam_roles,
     local_interest_model=LocalInterest,
@@ -128,12 +130,12 @@ class RacingTeamInfoResultsValidator(Schema):
     units = OneOf(['miles', 'km'])
     time = TimeOptHoursConverter()
     agegrade = Number(min=0, max=100)
-    
+
 class RacingTeamInfoResultsView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
         super().beforequery()
         self.queryfilters.append(RacingTeamResult.info != None)
-    
+
     def validate_form(self, action, formdata):
         val = DteFormValidate(RacingTeamInfoResultsValidator(allow_extra_fields=True))
         results = val.validate(formdata)
@@ -209,12 +211,12 @@ class RacingTeamInfoVolValidator(Schema):
     units = OneOf(['miles', 'km'])
     time = TimeOptHoursConverter()
     agegrade = Number(min=0, max=100)
-    
+
 class RacingTeamInfoVolView(DbCrudApiInterestsRolePermissions):
     def beforequery(self):
         super().beforequery()
         self.queryfilters.append(RacingTeamResult.info != None)
-    
+
     def validate_form(self, action, formdata):
         val = DteFormValidate(RacingTeamInfoVolValidator(allow_extra_fields=True))
         results = val.validate(formdata)
@@ -265,6 +267,181 @@ rt_infovols_view = RacingTeamInfoVolView(
     },
 )
 rt_infovols_view.register()
+
+##########################################################################################
+# rt_applnresults endpoint
+###########################################################################################
+
+rt_applnresult_dbattrs = 'id,interest_id,application.logtime,application.name,application.email,application.comments,eventdate,eventname,location,distance,units,time,agegrade,age,url'.split(',')
+rt_applnresult_formfields = 'rowid,interest_id,logtime,name,email,comments,eventdate,eventname,location,distance,units,time,agegrade,age,url'.split(',')
+rt_applnresult_dbmapping = dict(zip(rt_applnresult_dbattrs, rt_applnresult_formfields))
+rt_applnresult_formmapping = dict(zip(rt_applnresult_formfields, rt_applnresult_dbattrs))
+
+class RacingTeamApplnResultsValidator(Schema):
+    name = NotEmpty()
+    eventdate = DateConverter(month_style='iso')
+    eventname = NotEmpty()
+    distance = Number(min=0, max=200)
+    units = OneOf(['miles', 'km'])
+    time = TimeOptHoursConverter()
+    agegrade = Number(min=0, max=100)
+
+class RacingTeamApplnResultsView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        super().beforequery()
+        self.queryfilters.append(RacingTeamResult.application != None)
+
+rt_applnresults_view = RacingTeamApplnResultsView(
+    roles_accepted=racingteam_roles,
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=RacingTeamResult,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': adminguide},
+    pagename='Racing Team Application Results',
+    endpoint='admin.rt_applnresults',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/rt_applnresults',
+    dbmapping=rt_applnresult_dbmapping,
+    formmapping=rt_applnresult_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'logtime', 'name': 'logtime', 'label': 'Timestamp',
+         'render': { 'eval': '$.fn.dataTable.render.moment("ddd, DD MMM YYYY HH:mm:ss [GMT]", "YYYY-MM-DD HH:mm")' }
+         },
+        {'data': 'name', 'name': 'name', 'label': 'Name',
+         },
+        {'data': 'email', 'name': 'email', 'label': 'Email',
+         },
+        {'data': 'eventdate', 'name': 'eventdate', 'label': 'Event Date',
+         'render': { 'eval': '$.fn.dataTable.render.moment("ddd, DD MMM YYYY HH:mm:ss [GMT]", "YYYY-MM-DD")' }
+         },
+        {'data': 'age', 'name': 'age', 'label': 'Age',
+         },
+        {'data': 'eventname', 'name': 'eventname', 'label': 'Event Name',
+         },
+        {'data': 'location', 'name': 'location', 'label': 'Location',
+         },
+        {'data': 'distance', 'name': 'distance', 'label': 'Dist',
+         },
+        {'data': 'units', 'name': 'units', 'label': 'Units',
+         },
+        {'data': 'agegrade', 'name': 'agegrade', 'label': 'Age Grade',
+         },
+        {'data': 'url', 'name': 'url', 'label': 'Results Link',
+         },
+      ],
+    serverside=True,
+    idSrc='rowid',
+    # readonly
+    buttons=['csv'],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'order': [
+            ['logtime:name', 'desc'],
+            ['eventdate:name', 'desc'],
+        ],
+    },
+)
+rt_applnresults_view.register()
+
+##########################################################################################
+# rt_applns endpoint
+###########################################################################################
+
+rt_appln_dbattrs = 'id,interest_id,logtime,name,gender,dateofbirth,email,type,comments'.split(',')
+rt_appln_formfields = 'rowid,interest_id,logtime,name,gender,dateofbirth,email,type,comments'.split(',')
+rt_appln_dbmapping = dict(zip(rt_appln_dbattrs, rt_appln_formfields))
+rt_appln_formmapping = dict(zip(rt_appln_formfields, rt_appln_dbattrs))
+rt_appln_formmapping['logtime'] = lambda dbrow: timestamp.dt2asc(dbrow.logtime)
+rt_appln_formmapping['dateofbirth'] = lambda dbrow: isodate.dt2asc(dbrow.dateofbirth)
+
+result_dbattrs = 'eventdate,eventname,location,url,distance,units,time,age,agegrade'.split(',')
+db2client = {}
+for ndx in [1, 2]:
+    result_clientfields = f'race{ndx}_eventdate,race{ndx}_eventname,race{ndx}_location,race{ndx}_resultslink,race{ndx}_distance,race{ndx}_units,' \
+        f'race{ndx}_time,race{ndx}_age,race{ndx}_agegrade'.split(',')
+    clientmapping = dict(zip(result_clientfields, result_dbattrs))
+    clientmapping[f'race{ndx}_eventdate'] = lambda dbrow: isodate.dt2asc(dbrow.eventdate)
+    db2client[ndx] = Transform(clientmapping, targetattr=False)
+
+class RacingTeamApplnsView(DbCrudApiInterestsRolePermissions):
+    def _result2client(self, result, raceid):
+        client = {}
+        db2client[raceid].transform(result, client)
+        return client
+
+    def nexttablerow(self):
+        dbrec = next(self.rows)
+        clientrec = self.dte.get_response_data(dbrec)
+        results = SortedKeyList(dbrec.rt_results, key=lambda a: a.eventdate)
+        for ndx in range(2):
+            clientrec.update(self._result2client(results[ndx], ndx+1))
+        return clientrec
+
+rt_applns_view = RacingTeamApplnsView(
+    roles_accepted=racingteam_roles,
+    local_interest_model=LocalInterest,
+    app=bp,  # use blueprint instead of app
+    db=db,
+    model=RacingTeamApplication,
+    version_id_col='version_id',  # optimistic concurrency control
+    template='datatables.jinja2',
+    templateargs={'adminguide': adminguide},
+    pagename='Racing Team Applications',
+    endpoint='admin.rt_applns',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/rt_applns',
+    dbmapping=rt_appln_dbmapping,
+    formmapping=rt_appln_formmapping,
+    checkrequired=True,
+    clientcolumns=[
+        {'data': 'logtime', 'name': 'logtime', 'label': 'Timestamp',
+         },
+        {'data': 'name', 'name': 'name', 'label': 'Name',
+         },
+        {'data': 'gender', 'name': 'gender', 'label': 'Gen',
+         },
+        {'data': 'dateofbirth', 'name': 'dateofbirth', 'label': 'DOB',
+         },
+        {'data': 'email', 'name': 'email', 'label': 'Email',
+         },
+        {'data': 'type', 'name': 'type', 'label': 'Type',
+         },
+        {'data': 'comments', 'name': 'comments', 'label': 'Comments',
+         'render': {'eval': '$.fn.dataTable.render.ellipsis( 20 )'},
+         },
+        {'data': 'race1_eventname', 'name': 'race1_eventname', 'label': 'Race 1',
+         },
+        {'data': 'race1_eventdate', 'name': 'race1_eventdate', 'label': 'R1 Date',
+         },
+        {'data': 'race1_agegrade', 'name': 'race1_agegrade', 'label': 'R1 AG',
+         },
+        {'data': 'race2_eventname', 'name': 'race2_eventname', 'label': 'Race 2',
+         },
+        {'data': 'race2_eventdate', 'name': 'race2_eventdate', 'label': 'R2 Date',
+         },
+        {'data': 'race2_agegrade', 'name': 'race2_agegrade', 'label': 'R2 AG',
+         },
+      ],
+    servercolumns=None,  # not server side
+    idSrc='rowid',
+    # readonly
+    buttons=['csv'],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+        'order': [['logtime:name', 'desc']],
+    },
+)
+rt_applns_view.register()
 
 ##########################################################################################
 # rt_configs endpoint

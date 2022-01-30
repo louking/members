@@ -15,15 +15,17 @@ from loutilities.user.model import Interest
 from loutilities.tables import DteFormValidate, TimeOptHoursConverter
 from loutilities.flask_helpers.mailer import sendmail
 from loutilities.timeu import age, asctime
+from loutilities.transform import Transform
 import requests
 from dominate.tags import div, p, table, tbody, tr, td, br
 from dominate.util import text
 from formencode.schema import Schema
-from formencode.validators import ByteString, Email, DateConverter, Number, OneOf, FancyValidator, NotEmpty
+from formencode.validators import ByteString, Email, DateConverter, Number, OneOf, FancyValidator, NotEmpty, URL
 
 # homegrown
-from ...model import RacingTeamResult, RacingTeamVolunteer, db, LocalInterest, RacingTeamInfo, localinterest_query_params
+from ...model import RacingTeamApplication, RacingTeamResult, RacingTeamVolunteer, db, LocalInterest, RacingTeamInfo, localinterest_query_params
 from ...model import RacingTeamConfig, RacingTeamMember
+from ...model import month2num, month2maxdate
 from ...helpers import localinterest
 
 from . import bp
@@ -196,6 +198,192 @@ class RacingTeamInfoView(MethodView):
             return jsonify({'status': 'error', 'error': escape(repr(e))})
 
 bp.add_url_rule('<interest>/racingteaminfo', view_func=RacingTeamInfoView.as_view('racingteaminfo'),
+                methods=['GET', 'POST'])
+
+
+class ApplnValidator(Schema):
+    name = ByteString(not_empty=True)
+    email = Email()
+    dob = DateConverter(month_style='iso')
+    gender = OneOf(['M', 'F'])
+    applntype = OneOf(['new', 'renewal'])
+    race1_name = ByteString(not_empty=True)
+    race1_location = ByteString(not_empty=True)
+    race1_date = DateConverter(month_style='iso')
+    race1_distance = Number(min=0, max=200)
+    race1_units = OneOf(['miles', 'km'])
+    race1_time = TimeOptHoursConverter()
+    race1_resultslink = URL()
+    race2_name = ByteString(not_empty=True)
+    race2_location = ByteString(not_empty=True)
+    race2_date = DateConverter(month_style='iso')
+    race2_distance = Number(min=0, max=200)
+    race2_units = OneOf(['miles', 'km'])
+    race2_time = TimeOptHoursConverter()
+    race2_resultslink = URL()
+
+class RacingTeamApplnView(MethodView):
+
+    def get(self):
+        config = RacingTeamConfig.query.filter_by(**localinterest_query_params()).one_or_none()
+        if not config:
+            raise ParameterError(f'racing team configuration needs to be created for interest \'{g.interest}\'')
+
+        configdict = {}
+        
+        class DateOfYear(object):
+            def __init__(self, month, date):
+                self.month = month
+                self.date = date
+            def __le__(self, other):
+                if (self.month, self.date) <= (other.month, other.date):
+                    return True
+                return False
+            
+        dateranges = [{'start': DateOfYear(month2num[r.start_month], r.start_date), 
+                       'end':   DateOfYear(month2num[r.end_month], r.end_date) } for r in config.dateranges]
+        today = datetime.now().date()
+        
+        # determine if applications are open, default to closed
+        openapplns = False
+
+        # applications are open if configured as such
+        if config.openbehavior == 'open':
+            openapplns = True
+        
+        # check date ranges if configured for automatic open
+        elif config.openbehavior == 'auto':
+            for daterange in dateranges:
+                start = daterange['start']
+                end = daterange['end']
+                thisyear = today.year
+                if start <= end:
+                    if (    today >= datetime(thisyear, start.month, start.date).date() and
+                            today <= datetime(thisyear, end.month, end.date).date()):
+                        openapplns = True
+                        break
+                # start > end, so have to deal with crossing year boundary
+                else:
+                    if (    today >= datetime(thisyear-1, start.month, start.date).date() and
+                            today <= datetime(thisyear, end.month, end.date).date()):
+                        openapplns = True
+                        break
+                    if (    today >= datetime(thisyear, start.month, start.date).date() and
+                            today <= datetime(thisyear+1, end.month, end.date).date()):
+                        openapplns = True
+                        break
+
+        # closed is the only other option, code here for completeness (openapplns already set to False)
+        else:
+            pass
+                    
+        # set configuration for javascript
+        configdict['open'] = 'yes' if openapplns else 'no'
+        configdict['agegenderapi'] = url_for('frontend._rt_getagegender', interest=g.interest)
+        configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
+        
+        # this generates a pull-down for racing team members
+        namesdb = RacingTeamMember.query.filter_by(active=True, **localinterest_query_params()).all()
+        names = [n.name for n in namesdb]
+
+        return render_template('racing-application.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
+
+    def post(self):
+        try:
+            val = DteFormValidate(ApplnValidator(allow_extra_fields=True))
+            results = val.validate(request.form)
+            if results['results']:
+                raise ParameterError(results['results'])
+            
+            formdata = results['python']
+            name = formdata['name']
+            config = RacingTeamConfig.query.filter_by(**localinterest_query_params()).one_or_none()
+            interest = Interest.query.filter_by(interest=g.interest).one()
+            if not config:
+                raise ParameterError('interest configuration needs to be created')
+            
+            # we're logging this now
+            logtime = datetime.now()
+            applnrec = RacingTeamApplication(interest=localinterest(), logtime=logtime)
+            applnformfields = 'name,email,dob,gender,applntype,comments'.split(',')
+            applndbfields   = 'name,email,dateofbirth,gender,type,comments'.split(',')
+            applnmapping = dict(zip(applndbfields, applnformfields))
+            form2appln = Transform(applnmapping, sourceattr=False)
+            form2appln.transform(request.form, applnrec)
+            db.session.add(applnrec)
+
+            # race result information
+            mailfields = OrderedDict([
+                ('name',              'Name'),
+                ('email',             'Email'),
+                ('dob',               'Birth Date'),
+                ('gender',            'Gender'),
+                ('race1_name',        'Race 1 - Name'),
+                ('race1_location',    'Race 1 - Location'),
+                ('race1_date',        'Race 1 - Date'),
+                ('race1_age',         'Race 1 - Age'),
+                ('race1_distance',    'Race 1 - Distance'),
+                ('race1_units',       ''),
+                ('race1_time',        'Race 1 - Official Time (hh:mm:ss)'),
+                ('race1_resultslink', 'Race 1 - Results Website'),
+                ('race1_agegrade',    'Race 1 - Age Grade'),
+                ('race2_name',        'Race 2 - Name'),
+                ('race2_location',    'Race 2 - Location'),
+                ('race2_date',        'Race 2 - Date'),
+                ('race2_age',         'Race 2 - Age'),
+                ('race2_distance',    'Race 2 - Distance'),
+                ('race2_units',       ''),
+                ('race2_time',        'Race 2 - Official Time (hh:mm:ss)'),
+                ('race2_resultslink', 'Race 2 - Results Website'),
+                ('race2_agegrade',    'Race 2 - Age Grade'),
+                ('comments',          'Comments'),
+            ])
+            
+            for ndx in [1, 2]:
+                resultsrec = RacingTeamResult(interest=localinterest())
+                resultsform = f'race{ndx}_name,race{ndx}_date,race{ndx}_location,race{ndx}_resultslink,race{ndx}_distance,race{ndx}_units,race{ndx}_time,race{ndx}_agegrade,race{ndx}_age'.split(',')
+                resultsdb = 'eventname,eventdate,location,url,distance,units,time,agegrade,age'.split(',')
+                resultsmapping = dict(zip(resultsdb, resultsform))
+                resultsxform = Transform(resultsmapping, sourceattr=False)
+                resultsxform.transform(request.form, resultsrec)
+                resultsrec.application = applnrec
+                db.session.add(resultsrec)
+            
+            # commit database changes
+            db.session.commit()
+                
+            # send confirmation email
+            subject = f"[racing-team-application] New racing team application from {name}"
+            body = div()
+            with body:
+                p('The following application for the racing team was submitted. If this is correct, '
+                f'no action is required. If you have any changes, please contact {config.fromemail}')
+                with table(), tbody():
+                    for field in mailfields:
+                        with tr():
+                            td(mailfields[field])
+                            td(request.form[field])
+                with p():
+                    text(f'Racing Team - {config.fromemail}')
+                    br()
+                    text(f'{interest.description}')
+
+            html = body.render()
+            tolist = formdata['email']
+            fromlist = config.fromemail
+            cclist = config.applnccemail
+            sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
+                
+            return jsonify({'status': 'OK'})
+
+        except Exception as e:
+            db.session.rollback()
+            exc_type, exc_value, exc_traceback = exc_info()
+            current_app.logger.error(''.join(format_tb(exc_traceback)))
+            error = format_exc()
+            return jsonify({'status': 'error', 'error': escape(repr(e))})
+
+bp.add_url_rule('<interest>/racingteamappln', view_func=RacingTeamApplnView.as_view('racingteamappln'),
                 methods=['GET', 'POST'])
 
 class RacingTeamAgeGenderApi(MethodView):
