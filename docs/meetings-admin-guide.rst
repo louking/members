@@ -117,7 +117,7 @@ If the **Meeting Type** has an **Automatic Agenda Item Title**, an :term:`agenda
 
 renew a meeting
 ---------------------------
-When a :term:`meeting` is being planned, the first thing to do is create it.
+If a previously held :term:`meeting` needs to be created again, an easy way is to renew it.
 
 * bring up :ref:`Meetings view`
 * click **Renew**
