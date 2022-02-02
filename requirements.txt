@@ -33,6 +33,7 @@ Flask-Reuploaded==0.5.0
 Flask-Security-Too==3.4.5
 Flask-SQLAlchemy==2.4.1
 Flask-WTF==0.14.3
+FormEncode==2.0.1
 google-api-core==1.22.2
 google-api-python-client==1.12.1
 google-auth==1.21.2
@@ -50,7 +51,7 @@ itsdangerous==1.1.0
 Jinja2==2.11.3
 jsmin==3.0.0
 lazy-object-proxy==1.4.3
-loutilities==3.4.6.2
+loutilities==3.5.0
 lxml==4.6.3
 Mako==1.1.2
 Markdown==3.2.1
