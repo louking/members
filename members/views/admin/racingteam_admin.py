@@ -15,14 +15,15 @@ from sortedcontainers import SortedKeyList
 
 # homegrown
 from . import bp
-from ...model import db
+from .viewhelpers import LocalUserPicker
+from ...model import LocalUser, db
 from ...model import LocalInterest, RacingTeamConfig, RacingTeamDateRange, RacingTeamApplication, RacingTeamMember, RacingTeamResult, RacingTeamVolunteer
 from ...model import rt_config_openbehaviors, RT_CONFIG_OPEN_AUTO, monthname
 from ...model import localinterest_query_params
 from ...version import __docversion__
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
-from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN
+from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN, ROLE_RACINGTEAM_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
 class ParameterError(Exception): pass
@@ -39,19 +40,16 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/racingteam-admin-gu
 # rt_members endpoint
 ###########################################################################################
 
-rt_member_dbattrs = 'id,interest_id,name,gender,dateofbirth,email,active'.split(',')
-rt_member_formfields = 'rowid,interest_id,name,gender,dateofbirth,email,active'.split(',')
+rt_member_dbattrs = 'id,interest_id,localuser,gender,dateofbirth'.split(',')
+rt_member_formfields = 'rowid,interest_id,localuser,gender,dateofbirth'.split(',')
 rt_member_dbmapping = dict(zip(rt_member_dbattrs, rt_member_formfields))
 rt_member_formmapping = dict(zip(rt_member_formfields, rt_member_dbattrs))
 rt_member_dbmapping['dateofbirth'] = lambda formrow: isodate.asc2dt(formrow['dateofbirth']).date()
 rt_member_formmapping['dateofbirth'] = lambda dbrow: isodate.dt2asc(dbrow.dateofbirth)
 
 class RacingTeamMembersValidator(Schema):
-    name = NotEmpty()
     dateofbirth = DateConverter(month_style='iso')
     gender = OneOf(['M', 'F'])
-    email = Email()
-    active = StringBool()
 
 rt_members_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=racingteam_roles,
@@ -71,8 +69,20 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
     checkrequired=True,
     formencode_validator=RacingTeamMembersValidator(allow_extra_fields=True),
     clientcolumns=[
-        {'data': 'name', 'name': 'name', 'label': 'Name',
+        {'data': 'localuser', 'name': 'localuser', 'label': 'Member',
          'className': 'field_req',
+         '_treatment': {
+             'relationship': 
+                 {'optionspicker': LocalUserPicker(
+                     active=True,
+                     rolenames=[ROLE_RACINGTEAM_MEMBER],
+                     **{'fieldmodel': LocalUser, 'labelfield': 'name',
+                     'formfield': 'localuser', 'dbfield': 'localuser',
+                     'searchbox': True,
+                     'uselist': False}
+                 )
+                 }
+         }
          },
         {'data': 'gender', 'name': 'gender', 'label': 'Gender',
          'className': 'field_req',
@@ -90,13 +100,6 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
              }
          }
          },
-        {'data': 'email', 'name': 'email', 'label': 'Email',
-         'className': 'field_req',
-         },
-        {'data': 'active', 'name': 'active', 'label': 'Active',
-            '_treatment': {'boolean': {'formfield': 'active', 'dbfield': 'active'}},
-            'ed': {'def': 'yes'},
-            },
     ],
     servercolumns=None,  # not server side
     idSrc='rowid',
@@ -114,11 +117,11 @@ rt_members_view.register()
 # rt_inforesults endpoint
 ###########################################################################################
 
-rt_inforesult_dbattrs = 'id,interest_id,info.logtime,info.member,eventdate,eventname,distance,units,time,agegrade,awards'.split(',')
-rt_inforesult_formfields = 'rowid,interest_id,logtime,name,eventdate,eventname,distance,units,time,agegrade,awards'.split(',')
+rt_inforesult_dbattrs = 'id,interest_id,info.logtime,info.member,eventdate,age,eventname,distance,units,time,agegrade,awards'.split(',')
+rt_inforesult_formfields = 'rowid,interest_id,logtime,name,eventdate,age,eventname,distance,units,time,agegrade,awards'.split(',')
 rt_inforesult_dbmapping = dict(zip(rt_inforesult_dbattrs, rt_inforesult_formfields))
 rt_inforesult_formmapping = dict(zip(rt_inforesult_formfields, rt_inforesult_dbattrs))
-rt_inforesult_formmapping['name'] = lambda dbrow: dbrow.info.member.name
+rt_inforesult_formmapping['name'] = lambda dbrow: dbrow.info.member.localuser.name
 rt_inforesult_formmapping['eventdate'] = lambda dbrow: isodate.dt2asc(dbrow.eventdate)
 rt_inforesult_formmapping['logtime'] = lambda dbrow: timestamp.dt2asc(dbrow.info.logtime)
 
@@ -166,6 +169,8 @@ rt_inforesults_view = RacingTeamInfoResultsView(
          },
         {'data': 'eventdate', 'name': 'eventdate', 'label': 'Event Date',
          },
+        {'data': 'age', 'name': 'age', 'label': 'Age',
+         },
         {'data': 'eventname', 'name': 'eventname', 'label': 'Event Name',
          },
         {'data': 'distance', 'name': 'distance', 'label': 'Dist',
@@ -199,7 +204,7 @@ rt_infovol_dbattrs = 'id,interest_id,info.logtime,info.member,eventdate,eventnam
 rt_infovol_formfields = 'rowid,interest_id,logtime,name,eventdate,eventname,hours,comment'.split(',')
 rt_infovol_dbmapping = dict(zip(rt_infovol_dbattrs, rt_infovol_formfields))
 rt_infovol_formmapping = dict(zip(rt_infovol_formfields, rt_infovol_dbattrs))
-rt_infovol_formmapping['name'] = lambda dbrow: dbrow.info.member.name
+rt_infovol_formmapping['name'] = lambda dbrow: dbrow.info.member.localuser.name
 rt_infovol_formmapping['eventdate'] = lambda dbrow: isodate.dt2asc(dbrow.eventdate)
 rt_infovol_formmapping['logtime'] = lambda dbrow: timestamp.dt2asc(dbrow.info.logtime)
 

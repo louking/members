@@ -23,7 +23,7 @@ from formencode.schema import Schema
 from formencode.validators import ByteString, Email, DateConverter, Number, OneOf, FancyValidator, NotEmpty, URL
 
 # homegrown
-from ...model import RacingTeamApplication, RacingTeamResult, RacingTeamVolunteer, db, LocalInterest, RacingTeamInfo, localinterest_query_params
+from ...model import LocalUser, RacingTeamApplication, RacingTeamResult, RacingTeamVolunteer, db, LocalInterest, RacingTeamInfo, localinterest_query_params
 from ...model import RacingTeamConfig, RacingTeamMember
 from ...model import month2num, month2maxdate
 from ...helpers import localinterest
@@ -81,8 +81,8 @@ class RacingTeamInfoView(MethodView):
         configdict['agegenderapi'] = url_for('frontend._rt_getagegender', interest=g.interest)
         configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
         
-        namesdb = RacingTeamMember.query.filter_by(active=True, **localinterest_query_params()).all()
-        names = [n.name for n in namesdb]
+        namesdb = RacingTeamMember.query.filter_by(**localinterest_query_params()).all()
+        names = [n.localuser.name for n in namesdb]
 
         return render_template('racing-info.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
 
@@ -95,7 +95,8 @@ class RacingTeamInfoView(MethodView):
             
             formdata = results['python']
             name = formdata['common_name']
-            member = RacingTeamMember.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             config = RacingTeamConfig.query.filter_by(**localinterest_query_params()).one_or_none()
             interest = Interest.query.filter_by(interest=g.interest).one()
             if not config:
@@ -183,7 +184,7 @@ class RacingTeamInfoView(MethodView):
                     text(f'{interest.description}')
 
             html = body.render()
-            tolist = member.email
+            tolist = member.localuser.email
             fromlist = config.fromemail
             cclist = config.infoccemail
             sendmail(subject, fromlist, tolist, html, ccaddr=cclist)
@@ -283,8 +284,8 @@ class RacingTeamApplnView(MethodView):
         configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
         
         # this generates a pull-down for racing team members
-        namesdb = RacingTeamMember.query.filter_by(active=True, **localinterest_query_params()).all()
-        names = [n.name for n in namesdb]
+        namesdb = RacingTeamMember.query.filter_by(**localinterest_query_params()).all()
+        names = [n.localuser.name for n in namesdb]
 
         return render_template('racing-application.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
 
@@ -390,7 +391,8 @@ class RacingTeamAgeGenderApi(MethodView):
     def get(self):
         try:
             name = request.args['name']
-            member = RacingTeamMember.query.filter_by(name=name, **localinterest_query_params()).one()
+            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             racedatedt = isodate.asc2dt(request.args['racedate'])
             memberage = age(racedatedt, member.dateofbirth)
             return jsonify(status='success', age=memberage, gender=member.gender)
@@ -408,14 +410,13 @@ class RacingTeamAgeGradeApi(MethodView):
     def get(self):
         try:
             name = request.args['name']
-            member = RacingTeamMember.query.filter_by(name=name, **localinterest_query_params()).one()
+            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             racedatedt = isodate.asc2dt(request.args['racedate'])
             memberage = age(racedatedt, member.dateofbirth)
             dist = request.args['dist']
             units = request.args['units']
             time = request.args['time']
-            member = RacingTeamMember.query.filter_by(name=name, **localinterest_query_params()).one()
-            # return jsonify(status='success', age=member.age, gender=member.gender)
 
             # convert marathon and half marathon to exact miles
             if (dist == 26.2 and units == 'miles') or (dist == 42.2 and units == 'km'):

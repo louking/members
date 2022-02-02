@@ -887,11 +887,10 @@ class RacingTeamMember(Base):
     id                  = Column( Integer, primary_key=True )
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('rt_members'))
-    name                = Column(Text)
+    localuser_id        = Column(Integer, ForeignKey('localuser.id'))
+    localuser           = relationship('LocalUser', backref=backref('rt_members'))
     gender              = Column(Text)
     dateofbirth         = Column(Date)
-    email               = Column(Text)
-    active              = Column(Boolean)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
