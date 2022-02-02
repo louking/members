@@ -6,17 +6,17 @@ viewhelpers - helpers for admin views
 from datetime import datetime, date
 
 # pypi
+from loutilities.user.model import User, Interest, Role
+from loutilities.tables import DteDbRelationship, SEPARATOR
 from flask import g, current_app, url_for
 from dateutil.relativedelta import relativedelta
 from markdown import markdown
 from dominate.tags import a
 
 # homegrown
-from members.model import TaskCompletion, LocalUser, LocalInterest
-from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD
+from ...model import TaskCompletion, LocalUser, LocalInterest
+from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD, localinterest_query_params
 from ...helpers import positions_active, members_active, localinterest
-from loutilities.user.model import User, Interest
-from loutilities.tables import SEPARATOR
 
 from loutilities.timeu import asctime
 
@@ -36,6 +36,44 @@ STATUS_UP_TO_DATE = 'up to date'
 STATUS_DISPLAYORDER = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
 
 debug = False
+
+class ParameterError(Exception): pass
+
+class LocalUserPicker(DteDbRelationship):
+    '''
+    define user picker for users who have specific roles
+    
+    :param rolenames: set or list of role names. users who have any of these roles are included
+    :param active: (optional) if only active (or inactive) users should be included, set this to True (or False)
+    :param **kwargs: DteDbRelationship arguments
+    '''
+    def __init__(self, rolenames=set(), active=None, **kwargs):
+        super().__init__(**kwargs)
+        
+        self.active = active
+        self.rolenames = rolenames
+
+        if not rolenames:
+            raise ParameterError('LocalUserPicker rolenames parameter needs to be set')        
+
+    def options(self):
+        roles = set()
+        for rolename in self.rolenames:
+            role = Role.query.filter_by(name=rolename).one()
+            roles.add(role)
+
+        interest = Interest.query.filter_by(interest=g.interest).one()
+        users = [u for u in User.query.all() if interest in u.interests]
+        users.sort(key=lambda l: l.name.lower())
+        # only offer localuser as option if user has at least one of the requested roles
+        localusers = [LocalUser.query.filter_by(user_id=user.id, **localinterest_query_params()).one() for user in users if roles & set(user.roles)]
+
+        if self.active != None:
+            localusers = [lu for lu in localusers if lu.active == self.active]
+
+        options = [{'label': lu.name, 'value': lu.id} for lu in localusers]
+        return options
+
 
 def get_task_completion(task, user):
     localuser = user2localuser(user)
