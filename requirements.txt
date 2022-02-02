@@ -52,7 +52,7 @@ Jinja2==2.11.3
 jsmin==3.0.0
 lazy-object-proxy==1.4.3
 loutilities==3.5.0
-lxml==4.6.3
+lxml==4.7.1
 Mako==1.1.2
 Markdown==3.2.1
 MarkupSafe==1.1.1
