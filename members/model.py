@@ -37,7 +37,6 @@ backref = db.backref
 object_mapper = db.object_mapper
 Base = db.Model
 
-TASK_LEN = 64
 TASKTYPE_LEN = 64
 POSITION_LEN = 64
 TASKGROUP_LEN = 64
@@ -148,8 +147,8 @@ class Task(Base):
     id                  = Column(Integer(), primary_key=True)
     interest_id         = Column(Integer, ForeignKey('localinterest.id'))
     interest            = relationship('LocalInterest', backref=backref('tasks'))
-    task                = Column(String(TASK_LEN))
-    description         = Column(String(DESCR_LEN))
+    task                = Column(Text)
+    description         = Column(Text)
     priority            = Column(Float)
     expirysoon          = Column(Integer)
     expirysoon_units    = Column(Enum(*date_unit_all), nullable=True)
