@@ -10,12 +10,16 @@ Use cases
 
 These sections describe what an :term:`racingteam admin` might want to do in support of the :term:`racing team`.
 
+
 add a new racing team member
 -------------------------------
 If the racing team :term:`member` was not already in the system, they need to be added to the system before adding them to the 
 racing team.
 
 * use :ref:`Members view` to add the racing team member to the system
+* first check to see if they are already in the system, using search on their name
+* if they are in the system, see :ref:`update member for racing team`
+* if they are not in the system,
 
   *  click **New**
   *  fill in **Email**, **First Name**, **Full Name**
@@ -28,6 +32,25 @@ racing team.
   *  Click **Create**
 
 * continue with :ref:`add a member to the team`
+
+
+.. _update member for racing team:
+
+update member for racing team
+-------------------------------
+If the racing team :term:`member` was in the system but not yet on the team, their record may need to be updated.
+
+* use :ref:`Members view` to update the racing team member's configuration to support racing team features
+
+  *  select the member
+  *  click **Edit**
+  *  make sure **Role** includes *leadership-member*, *racingteam-member*
+  *  make sure **Interests** includes *Frederick Steeplechasers Running Club*
+  *  make sure **Active** is *yes*
+  *  Click **Update**
+
+* continue with :ref:`add a member to the team`
+
 
 .. _add a member to the team:
 
