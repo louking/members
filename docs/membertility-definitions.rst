@@ -87,6 +87,17 @@ Glossary
     position
         the volunteer position that a :term:`member` is assigned. Examples: President, Training Coach, Race Director
 
+    racing team
+        clubs may support a racing team. A member of the racing team may apply to be on the team and also may
+        update their result information and volunteer information
+
+    racingteam admin
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can create and manage :term:`racing team` information.
+
+    racingteam member
+        :term:`members <member>` with this :term:`security role` serve on the racing team
+
     rsvp
         when a :term:`member` is :term:`invited <invite>` to a :term:`meeting`, they are given a link to a form
         which they can use to indicate their intention to come to the :term:`meeting` or not. See also

@@ -23,6 +23,11 @@ Welcome to membertility's documentation!
 :doc:`membership-module`
    Show administrative details about RunSignUp club membership.
 
+:doc:`racingteam-module`
+   Define user views to apply for the racing team, and once on the racing team to submit information
+   about race results and volunteer activities, and administrative views for the racing team coordinator
+   to view the submitted applications and information.
+
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
@@ -31,6 +36,7 @@ Welcome to membertility's documentation!
    meetings-module
    leadership-task-module
    membership-module
+   racingteam-module
    super-admin-module
    membertility-definitions
    typographical-conventions
