@@ -110,6 +110,15 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
         'scrollXInner': "100%",
         'scrollY': True,
     },
+    edoptions={
+        # https://datatables.net/forums/discussion/comment/181763/#Comment_181763
+        'formOptions': {
+            'main': {
+                'focus': None
+            }
+    },    
+        
+    }
 )
 rt_members_view.register()
 
