@@ -5,7 +5,6 @@ develop execution from run.py; production execution from members.wsgi
 '''
 # standard
 import os.path
-from logging import getLogger, ERROR
 
 # pypi
 from flask_migrate import Migrate
@@ -36,9 +35,6 @@ with app.app_context():
 
     # turn on logging
     setlogging()
-
-    # see https://github.com/googleapis/google-api-python-client/issues/299#issuecomment-255793971
-    getLogger('googleapicliet.discovery_cache').setLevel(ERROR)
 
 migrate = Migrate(app, db, compare_type=True)
 members = Members(app, db)

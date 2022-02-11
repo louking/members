@@ -5,7 +5,6 @@ members - package
 
 # standard
 import os.path
-from logging import getLogger, ERROR
 
 # pypi
 from flask import Flask, send_from_directory, g, session, request, url_for, render_template, current_app
@@ -161,9 +160,6 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
         from .applogging import setlogging
         setlogging()
         
-        # see https://github.com/googleapis/google-api-python-client/issues/299#issuecomment-255793971
-        getLogger('googleapicliet.discovery_cache').setLevel(ERROR)
-
         # set up scoped session
         from sqlalchemy.orm import scoped_session, sessionmaker
         # see https://github.com/pallets/flask-sqlalchemy/blob/706982bb8a096220d29e5cef156950237753d89f/flask_sqlalchemy/__init__.py#L990
