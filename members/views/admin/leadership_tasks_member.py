@@ -208,13 +208,18 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                 'pageLength': 25,
             },
             edoptions={
-                'i18n':
-                    {'edit' :
+                'i18n': {
+                    'edit' :
                          {
                              'title'  : 'Task',
                              'submit' : 'Mark Complete'
                          }
+                },
+                'formOptions': {
+                    'main': {
+                        'focus': None
                     }
+                },
             }
         )
         args.update(kwargs)
