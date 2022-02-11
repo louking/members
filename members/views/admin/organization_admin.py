@@ -429,6 +429,7 @@ class PositionWizardApi(MethodView):
             else:
                 allmembers = []
                 posmembers = []
+                qualifier = ''
 
             return jsonify(options={'members':allmembers}, values={'members': posmembers, 'qualifier': qualifier})
 
