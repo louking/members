@@ -227,10 +227,6 @@ class RacingTeamInfoVolValidator(Schema):
     agegrade = Number(min=0, max=100)
 
 class RacingTeamInfoVolView(DbCrudApiInterestsRolePermissions):
-    def beforequery(self):
-        super().beforequery()
-        self.queryfilters.append(RacingTeamResult.info != None)
-
     def validate_form(self, action, formdata):
         val = DteFormValidate(RacingTeamInfoVolValidator(allow_extra_fields=True))
         results = val.validate(formdata)
