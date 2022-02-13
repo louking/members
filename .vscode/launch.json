@@ -48,6 +48,15 @@
             "jinja": true
         },
         {
+            "name": "Python: racingteam_inforesults_init",
+            "type": "python",
+            "request": "launch",
+            "module": "members.scripts.racingteam_inforesults_init",
+            "args": [
+                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\racingteam-script-inforesults.csv",
+            ],
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
