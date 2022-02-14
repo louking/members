@@ -377,7 +377,7 @@ for ndx in [1, 2]:
     result_clientfields = f'race{ndx}_eventdate,race{ndx}_eventname,race{ndx}_location,race{ndx}_resultslink,race{ndx}_distance,race{ndx}_units,' \
         f'race{ndx}_time,race{ndx}_age,race{ndx}_agegrade'.split(',')
     clientmapping = dict(zip(result_clientfields, result_dbattrs))
-    clientmapping[f'race{ndx}_eventdate'] = lambda dbrow: isodate.dt2asc(dbrow.eventdate)
+    clientmapping[f'race{ndx}_eventdate'] = lambda dbrow: isodate.dt2asc(dbrow.eventdate) if dbrow.eventdate else None
     db2client[ndx] = Transform(clientmapping, targetattr=False)
 
 class RacingTeamApplnsView(DbCrudApiInterestsRolePermissions):
@@ -390,6 +390,10 @@ class RacingTeamApplnsView(DbCrudApiInterestsRolePermissions):
         dbrec = next(self.rows)
         clientrec = self.dte.get_response_data(dbrec)
         results = SortedKeyList(dbrec.rt_results, key=lambda a: a.eventdate)
+        results = list(results)
+        # may be one or more empty results
+        while len(results) < 2:
+            results.append(RacingTeamResult())
         for ndx in range(2):
             clientrec.update(self._result2client(results[ndx], ndx+1))
         return clientrec
