@@ -66,6 +66,15 @@
             ],
         },
         {
+            "name": "Python: racingteam_appln_init",
+            "type": "python",
+            "request": "launch",
+            "module": "members.scripts.racingteam_appln_init",
+            "args": [
+                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\racing-team-applications.csv",
+            ],
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
