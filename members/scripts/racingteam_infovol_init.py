@@ -1,7 +1,7 @@
 '''
-racingteam_inforesults_init - command line database initialization - initialize racingteam info raceresults tables
+racingteam_infovol_init - command line database initialization - initialize racingteam info volunteer tables
 ====================================================================================================================
-run from 3 levels up, like python -m members.scripts.racingteam_inforesults_init
+run from 3 levels up, like python -m members.scripts.racingteam_infovol_init
 
 '''
 # standard
@@ -16,11 +16,11 @@ from charset_normalizer import detect
 # homegrown
 from members import create_app
 from members.settings import Development
-from members.model import db
+from members.model import RacingTeamVolunteer, db
 from members.applogging import setlogging
 
 from loutilities.timeu import asctime
-from members.model import LocalUser, RacingTeamMember, RacingTeamInfo, RacingTeamResult
+from members.model import LocalUser, RacingTeamMember, RacingTeamInfo
 from members.views.admin.viewhelpers import localinterest_query_params, localinterest
 
 class parameterError(Exception): pass
@@ -30,7 +30,7 @@ isodate = asctime("%Y-%m-%d")
 
 def main():
     descr = '''
-    Update racing team info results records from csv file
+    Update racing team info volunteer records from csv file
     '''
     parser = ArgumentParser(description=descr)
     parser.add_argument('inputfile', help='csv file with input records', default=None)
@@ -74,7 +74,7 @@ def main():
             member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one_or_none() if localuser else None
             if not member: continue
             
-            # this pulls timezone information off of result timestamp, formatted like 'Sun Feb 25 2018 14:07:17 GMT-0500 (EST)'
+            # this pulls timezone information off of timestamp, formatted like 'Sun Feb 25 2018 14:07:17 GMT-0500 (EST)'
             timestampasc = ' '.join(row['timestamp'].split(' ')[:-2])
             timestamp = tstamp.asc2dt(timestampasc)
             
@@ -82,22 +82,18 @@ def main():
             inforec = RacingTeamInfo.query.filter_by(member=member, logtime=timestamp).one_or_none()
             if inforec: continue
             
-            # if we've gotten here, we need to add info and result records
+            # if we've gotten here, we need to add info and volunteer records
             inforec = RacingTeamInfo(interest=localinterest(), member=member, logtime=timestamp)
             db.session.add(inforec)
-            resultrec = RacingTeamResult(
+            volrec = RacingTeamVolunteer(
                 interest=localinterest(), 
                 info=inforec, 
                 eventdate = isodate.asc2dt(row['eventdate']).date(),
                 eventname = row['eventname'],
-                age = row['age'],
-                agegrade = row['agegrade'],
-                distance = row['distance'],
-                units = row['units'],
-                time = row['time'],
-                awards = row['awards'],
+                hours = row['hours'],
+                comment = row['comments'],
             )
-            db.session.add(resultrec)
+            db.session.add(volrec)
             
         db.session.commit()
 
