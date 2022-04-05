@@ -40,7 +40,7 @@ class NavRenderer(SimpleRenderer):
     this generates nav_renderer renderer, referenced in the jinja2 code which builds the nav
     '''
     def visit_Subgroup(self, node):
-        # a tag required by smartmenus
+        # 'a' tag required by smartmenus
         title = tags.a(node.title, href="#")
         group = tags.ul(_class='subgroup')
 
