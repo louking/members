@@ -26,6 +26,8 @@
             "type": "pwa-chrome",
             "url": "http://dev.localhost:5000/",
             "webRoot": "${workspaceFolder}/members",
+            // see https://code.visualstudio.com/docs/editor/variables-reference#_variables-scoped-per-workspace-folder
+            "pathMapping": {"/loutilities/static": "${workspaceFolder:loutilities}/loutilities/tables-assets/static"},
             "justMyCode": false,
         },
         {
