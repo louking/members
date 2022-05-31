@@ -84,6 +84,7 @@ open racing team applications outside of normal window
 -------------------------------------------------------
 
 * use :ref:`Racing Team Config view` to manage the racing team configuration
+
   * normally **Open Behavior** should be set to *auto* to automatically allow applications during the specified date ranges
   * if you want applications to be open outside of the date ranges, set **Open Behavior** to *open*
   * don't forget to reset to *auto* to have the normal behavior
