@@ -99,6 +99,14 @@ See the :ref:`Task Configuration Guide` for details on how :term:`tasks <task>` 
         select the :term:`task groups <task group>` the :term:`task` is in. This can also be defined
         in the :ref:`Task Groups view`
 
+    :Position Based:
+        set to *yes* if you want the task to be *completed* for everyone when anyone in **Position** marks the :term:`task` complete;
+        set to *no* if this task must be completed by each :term:`member` in any :term:`position` assigned this :term:`task`
+
+    :Position:
+        if **Position Based** = *yes*, identifies the :term:`position` for which all :term:`members <member>` will see the :term:`task` as completed
+        when any :term:`member` marks it completed
+
     :Expires Soon:
         this is the time period before which the :term:`task` becomes *overdue* for :term:`tasks <task>`
         which have **Optional Task** set to *no* (i.e., required tasks)

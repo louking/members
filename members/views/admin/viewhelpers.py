@@ -76,8 +76,13 @@ class LocalUserPicker(DteDbRelationship):
 
 
 def get_task_completion(task, user):
+    # if completion is by position and this user is in the task's position, return the latest task completion for this position
     localuser = user2localuser(user)
-    return TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
+    if task.isbyposition:
+        return TaskCompletion.query.filter_by(task=task, position=task.position).order_by(TaskCompletion.update_time.desc()).first()
+    # if by member, return the latest task completion for the indicated user
+    else:
+        return TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
 
 def localuser2user(localuser):
     if type(localuser) == int:
@@ -204,7 +209,6 @@ def _get_status(task, taskcompletion):
             thisstatus = STATUS_DONE
         thisexpires = STATUS_NO_EXPIRATION
 
-
     # task is managed periodically
     elif task.period:
         if not task.period and taskcompletion:
@@ -260,13 +264,23 @@ def get_expires(task, user):
 def create_taskcompletion(task, localuser, localinterest, formdata):
     rightnow = datetime.now()
     taskcompletion = TaskCompletion(
-        user=localuser,
         interest=localinterest,
         completion=rightnow,
         task=task,
         update_time=rightnow,
         updated_by=localuser.id,
     )
+
+    # normal case is task is completed for the individual, so record the individual's completion
+    taskcompletion.user = localuser
+    
+    # if it's by position, record the position's completion
+    # if user doesn't have this position, then skip recording the position as this is for the individual
+    #  >> this is an odd case, not sure if it's needed, actually, but may be some reason for this case
+    # if task.isbyposition and task.position in localuser.positions:
+    if task.isbyposition:
+        taskcompletion.position = task.position
+    
     db.session.add(taskcompletion)
     db.session.flush()
 

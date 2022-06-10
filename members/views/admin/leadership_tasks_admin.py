@@ -87,6 +87,18 @@ class TaskView(AssociationCrudApi):
             self._fielderrors = [{'name': 'fields.id', 'get_status': '{} fields were found in more than one category'.format(dupnames)}]
             raise ParameterError
 
+        # disable position if not isbyposition
+        if not thistask.isbyposition:
+            thistask.position = None
+            self._responsedata[0]['position']['id'] = None
+            self._responsedata[0]['position']['position'] = None
+        
+        # update any affected taskcompletions
+        # this allows the isbyposition or position to change with the completed tasks updated accordingly
+        taskcompletions = TaskCompletion.query.filter_by(task=thistask).filter(TaskCompletion.position != thistask.position).all()
+        for taskcompletion in taskcompletions:
+            taskcompletion.position = thistask.position
+        
 def task_validate(action, formdata):
     results = []
 
@@ -107,14 +119,18 @@ def task_validate(action, formdata):
         if not formdata['expirysoon']:
             results.append({'name': 'expirysoon', 'status': 'please supply'})
 
+    # for task completion by position, a position needs to be supplied
+    if formdata['isbyposition'] == 'yes' and not formdata['position']['id']:
+        results.append({'name': 'position.id', 'status': 'please supply'})
+        
     return results
 
-task_dbattrs = 'id,interest_id,task,description,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
-task_formfields = 'rowid,interest_id,task,description,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
+task_dbattrs = 'id,interest_id,task,description,isbyposition,position,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
+task_formfields = 'rowid,interest_id,task,description,isbyposition,position,priority,expirysoon,expirysoon_units,period,period_units,dateofyear,expirystarts,expirystarts_units,isoptional,taskgroups,fields'.split(',')
 task_dbmapping = dict(zip(task_dbattrs, task_formfields))
 task_formmapping = dict(zip(task_formfields, task_dbattrs))
 # only take mm-dd portion of date into database
-# TODO: uncommend these when #51 fixed
+# TODO: uncomment these when #51 fixed
 # task_dbmapping['dateofyear'] = lambda formrow: formrow['dateofyear'][-5:] if formrow['dateofyear'] else None
 # task_formmapping['dateofyear'] = lambda dbrow: '{}-{}'.format(date.today().year, dbrow.dateofyear) if dbrow.dateofyear else None
 
@@ -157,8 +173,29 @@ task_view = TaskView(
                              'relationship': {'fieldmodel': TaskGroup, 'labelfield': 'taskgroup',
                                               'formfield': 'taskgroups',
                                               'dbfield': 'taskgroups', 'uselist': True,
+                                              'searchbox': True,
                                               'queryparams': localinterest_query_params,
                                               }}
+                         },
+                        {'data': 'isbyposition', 'name': 'isbyposition', 'label': 'Position Based',
+                         'class': 'TextCenter',
+                         '_treatment': {'boolean': {'formfield': 'isbyposition', 'dbfield': 'isbyposition'}},
+                         'ed': {'def': 'no'},
+                         'fieldInfo': 'if yes, task completion occurs when anyone in the indicated Position completes; if no, all individuals assigned must complete',
+                         },
+                        {'data': 'position', 'name': 'position', 'label': 'Position',
+                         '_treatment': {
+                             'relationship': 
+                                {
+                                    'fieldmodel': Position, 
+                                    'labelfield': 'position', 
+                                    'formfield': 'position',
+                                    'dbfield': 'position', 
+                                    'uselist': False,
+                                    'searchbox': True,
+                                    'queryparams': localinterest_query_params,
+                                }},
+                         'fieldInfo': 'required if Position Based = yes, otherwise ignored',
                          },
                         {'data': 'expirysoon', 'name': 'expirysoon', 'label': 'Expires Soon',
                          'class': 'TextCenter',
@@ -227,6 +264,7 @@ task_view = TaskView(
                          'class': 'TextCenter',
                          '_treatment': {'boolean': {'formfield': 'isoptional', 'dbfield': 'isoptional'}},
                          'ed': {'def': 'no'},
+                         'fieldInfo': 'indicates if task completion is optional',
                          },
                     ],
                     servercolumns = None,  # not server side

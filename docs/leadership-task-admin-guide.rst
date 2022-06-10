@@ -83,6 +83,23 @@ Task Configuration Guide
 
 The :ref:`Tasks view` is used to configure :term:`task` behavior.
 
+The :term:`task` display :ref:`Task Checklist view` is controlled by the attributes
+
+* **Priority** - controls the order of task display, all other things being equal
+* **Task Groups** - :term:`Task Groups <task group>` form a group of tasks which can be assigned to :term:`positions <position>` via :ref:`Positions view`
+
+:term:`Task <task>` :term:`status` can be for individual :term:`members <member>` or by :term:`position`, as controlled by the attributes
+
+* **Position Based** - if *yes*, when anyone in **Position** marks the :term:`task` complete, it is displayed as complete for all :term:`members <member>` 
+  in **Position**; if *no* this task must be completed by each :term:`member` in any :term:`position` assigned this :term:`task` via **Task Groups**
+* **Position** - if **Position Based** = *yes*, identifies the :term:`position` for which all :term:`members <member>` will see the :term:`task` as completed
+  when any :term:`member` marks it completed
+
+  .. warning::
+  
+    for this to work properly, **Task Groups** should contain a single :term:`task group`, and that
+    :term:`task group` should only be assigned to the indicated **Position**
+
 :term:`Task <task>` :term:`status` and expiration is controlled using the attributes
 
 * **Period** - how long after the :term:`task's <task>` completion date when it become *overdue*
@@ -119,6 +136,7 @@ To configure a :term:`task` to be optional, set
 * leave **Period**, **Date of Year**, **Expires Soon**, and **Overdue Starts** unset
 
 
+.. _Task Groups:
 
 Task Groups
 =================

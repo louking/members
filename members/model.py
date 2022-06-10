@@ -157,6 +157,9 @@ class Task(Base):
     dateofyear          = Column(String(DOY_LEN))   # mm-dd
     expirystarts        = Column(Integer)          # only used if dateofyear specified
     expirystarts_units  = Column(Enum(*date_unit_all), nullable=True)
+    isbyposition        = Column(Boolean)
+    position_id         = Column(Integer, ForeignKey('position.id'))
+    position            = relationship('Position', back_populates='positiontasks')
     isoptional          = Column(Boolean)
     fields              = relationship('TaskTaskField',
                                        back_populates='task')
@@ -275,6 +278,7 @@ class Position(Base):
     agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
     agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
     userpositions       = relationship('UserPosition', back_populates='position')
+    positiontasks       = relationship('Task', back_populates='position')
     # users               = relationship('LocalUser',
     #                                    secondary=userposition_table,
     #                                    backref=backref('positions'))
@@ -305,6 +309,8 @@ class TaskCompletion(Base):
     interest            = relationship('LocalInterest', backref=backref('taskcompletions'))
     user_id             = Column(Integer, ForeignKey('localuser.id'))
     user                = relationship('LocalUser', backref=backref('taskscompleted'))
+    position_id         = Column(Integer, ForeignKey('position.id'))
+    position            = relationship('Position', backref=backref('taskscompleted'))
     task_id             = Column(Integer, ForeignKey('task.id'))
     task                = relationship('Task', backref=backref('taskcompletions'))
     completion          = Column(DateTime)
