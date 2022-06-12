@@ -15,7 +15,7 @@ from members import create_app
 from members.settings import Production
 from members.model import db
 from members.applogging import setlogging
-from scripts import Members, Membership
+from scripts import MembersCli, MembershipCli, TaskCli
 
 abspath = os.path.abspath(__file__)
 configpath = os.path.join(os.path.dirname(abspath), 'config', 'members.cfg')
@@ -36,8 +36,10 @@ with app.app_context():
     # turn on logging
     setlogging()
 
+# set up flask command processing
 migrate = Migrate(app, db, compare_type=True)
-members = Members(app, db)
-membership = Membership(app, db)
+members = MembersCli(app, db)
+membership = MembershipCli(app, db)
+task = TaskCli(app, db)
 
 
