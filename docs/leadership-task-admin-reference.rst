@@ -107,6 +107,11 @@ See the :ref:`Task Configuration Guide` for details on how :term:`tasks <task>` 
         if **Position Based** = *yes*, identifies the :term:`position` for which all :term:`members <member>` will see the :term:`task` as completed
         when any :term:`member` marks it completed
 
+        .. warning::
+        
+            for this to work properly, **Task Groups** should contain a single :term:`task group`, and that
+            :term:`task group` should only be assigned to the indicated **Position**
+
     :Expires Soon:
         this is the time period before which the :term:`task` becomes *overdue* for :term:`tasks <task>`
         which have **Optional Task** set to *no* (i.e., required tasks)
