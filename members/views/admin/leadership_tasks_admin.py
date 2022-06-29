@@ -1035,12 +1035,13 @@ membersummary.register()
 def history_addlfields(tc, task):
     return get_taskfields(tc, task)
 
-history_dbattrs = 'id,interest_id,member,task,completion,update_time,updated_by'.split(',')
-history_formfields = 'rowid,interest_id,member,task,completion,update_time,updated_by'.split(',')
+history_dbattrs = 'id,interest_id,member,position,task,completion,update_time,updated_by'.split(',')
+history_formfields = 'rowid,interest_id,member,position,task,completion,update_time,updated_by'.split(',')
 history_dbmapping = dict(zip(history_dbattrs, history_formfields))
 history_formmapping = dict(zip(history_formfields, history_dbattrs))
 
 history_formmapping['member'] = lambda tc: localuser2user(tc.user_id).name
+history_formmapping['position'] = lambda tc: tc.position.position if tc.position else ""
 history_formmapping['task'] = lambda tc: tc.task.task
 history_formmapping['completion'] = lambda tc: dtrender.dt2asc(tc.completion)
 history_formmapping['update_time'] = lambda tc: dttimerender.dt2asc(tc.update_time)
@@ -1087,6 +1088,9 @@ history = DbCrudApiInterestsRolePermissions(
                          'type': 'readonly',
                          },
                         {'data': 'member', 'name': 'member', 'label': 'Member',
+                         'type': 'readonly',
+                         },
+                        {'data': 'position', 'name': 'position', 'label': 'Position',
                          'type': 'readonly',
                          },
                         {'data': 'task', 'name': 'task', 'label': 'Task',
