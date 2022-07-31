@@ -15,7 +15,7 @@ from members import create_app
 from members.settings import Production
 from members.model import db
 from members.applogging import setlogging
-from scripts import MembersCli, MembershipCli, TaskCli
+from scripts import MembersCli, MembershipCli, TaskCli, TestCli
 
 abspath = os.path.abspath(__file__)
 configpath = os.path.join(os.path.dirname(abspath), 'config', 'members.cfg')
@@ -41,5 +41,6 @@ migrate = Migrate(app, db, compare_type=True)
 members = MembersCli(app, db)
 membership = MembershipCli(app, db)
 task = TaskCli(app, db)
+test = TestCli(app, db)
 
 

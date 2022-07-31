@@ -3,7 +3,7 @@ leadership_tasks_admin - leadership task administrative handling
 ===========================================
 '''
 # standard
-from datetime import date
+from datetime import date, datetime
 from re import match
 
 # pypi
@@ -11,12 +11,15 @@ from flask import g, url_for, request
 from flask_security import current_user
 from slugify import slugify
 from dominate.tags import input, button
+from ...model import usertaskgroup_table, taskgroup_taskgroup_table, positiontaskgroup_table
+from sqlalchemy.orm import aliased
+from sqlalchemy import and_, or_, func, select
 
 # homegrown
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
-from ...model import Position
+from ...model import Position, UserPosition
 from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
@@ -39,6 +42,8 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions, Associati
 from loutilities.tables import DteDbRelationship, get_request_action, get_request_data
 from loutilities.tables import SEPARATOR, REGEX_ISODATE
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
+from loutilities.timeu import asctime
+isodate = asctime('%Y-%m-%d')
 
 class ParameterError(Exception): pass
 
@@ -546,7 +551,7 @@ class TaskMember():
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-class TaskDetails(DbCrudApiInterestsRolePermissions):
+class ClientTaskDetails(DbCrudApiInterestsRolePermissions):
 
     def getids(self, id):
         '''
@@ -745,7 +750,7 @@ taskdetails_yadcf_options = [
     yadcfoption('expires:name', 'members-external-filter-expires', 'range_date'),
 ]
 
-taskdetails_view = TaskDetails(
+taskdetails_view = ClientTaskDetails(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
@@ -758,10 +763,10 @@ taskdetails_view = TaskDetails(
                     },
                     pretablehtml = taskdetails_filters.render(),
                     yadcfoptions = taskdetails_yadcf_options,
-                    pagename = 'Task Details',
-                    endpoint = 'admin.taskdetails',
+                    pagename = 'Client Task Details',
+                    endpoint = 'admin.clienttaskdetails',
                     endpointvalues={'interest': '<interest>'},
-                    rule = '/<interest>/taskdetails',
+                    rule = '/<interest>/clienttaskdetails',
                     dbmapping = taskdetails_dbmapping,
                     formmapping = taskdetails_formmapping,
                     checkrequired = True,
@@ -852,6 +857,248 @@ taskdetails_view = TaskDetails(
                         'rowCallback': {'eval': 'set_cell_status_class'},
                         # note id is column 0 to datatables, col 2 (display order) hidden
                         'order': [['member:name', 'asc'], ['order:name', 'asc'], ['expires:name', 'asc']],
+                    },
+                    edoptions={
+                        'i18n':
+                            # "edit" window shows "Task" in title
+                            {'edit':
+                                {
+                                    'title': 'Task',
+                                }
+                            }
+                    },
+                )
+taskdetails_view.register()
+
+###########################################################################################
+# serverside taskdetails
+###########################################################################################
+class TaskDetails(DbCrudApiInterestsRolePermissions):
+    # def beforequery(self):
+    #     '''
+    #     filter on current interest
+    #     :return:
+    #     '''
+    #     # self.interest set in self.permission()
+    #     # need to convert to id of local interest table for query
+    #     super().beforequery()
+    #     self.queryfilters.append(LocalUser.interest_id == self.localinterest.id)
+
+    def serverquery(self):
+        """override serverquery with specific query for datatables invocation
+        """
+        def countlevels(tg, count):
+            """count the level depth for a TaskGroup instance
+
+            Args:
+                tg (TaskGroup): TaskGroup instance
+                count (int): current depth
+
+            Returns:
+                int: depth of this instance
+            """
+            maxcount = 0
+            if tg.taskgroups:
+                for subtg in tg.taskgroups:
+                    thiscount = countlevels(subtg, count+1)
+                    if thiscount > maxcount:
+                        maxcount = thiscount
+                return maxcount
+            else:
+                return count
+
+        # determine max depth of any taskgroups in this interest
+        tgdepth = 0
+        linterest = localinterest()
+        for tg in TaskGroup.query.filter_by(interest=linterest).all():
+            thiscount = countlevels(tg, 1)
+            if thiscount > tgdepth:
+                tgdepth = thiscount
+        
+        # set base query
+        task = {}
+        taskgroup = {}
+        taskgroup_taskgroup = {}
+        for i in range(tgdepth):
+            task[i] = aliased(Task)
+            taskgroup[i] = aliased(TaskGroup)
+            taskgroup_taskgroup[i] = aliased(taskgroup_taskgroup_table)
+        up_1 = aliased(UserPosition)
+        pt_1 = aliased(positiontaskgroup_table)
+        # query = self.db.session.query(LocalUser).join(usertaskgroup_table).join(taskgroup[1], taskgroup[1].id == usertaskgroup_table.c.taskgroup_id).outerjoin(task[1], taskgroup[1].tasks)
+
+        # TODO: get from filters
+        active_on = isodate.dt2asc(datetime.today())
+        
+        # query = self.db.session.query().select_from(LocalInterest).join(LocalInterest.users).join(up_1, LocalUser.userpositions).filter(up_1.is_active_on(active_on))
+
+        query = self.db.session.query().select_from(LocalUser)
+        query = query.join(up_1, LocalUser.userpositions).filter(up_1.is_active_on(active_on))
+        query = query.join(Position, Position.id==up_1.position_id)
+        # filters required to avoid cartesian products in SELECT statement
+        # see https://docs.sqlalchemy.org/en/14/changelog/migration_14.html#built-in-from-linting-will-warn-for-any-potential-cartesian-products-in-a-select-statement
+        query = query.join(taskgroup[1], Position.taskgroups).filter(TaskGroup.id==taskgroup[1].id)
+        query = query.join(task[1], taskgroup[1].tasks).filter(Task.id==task[1].id)
+
+        # subquery to find max TaskCompletion.update_time. https://stackoverflow.com/questions/9144677/left-join-on-max-value
+        def tcfilter(tbl):
+            return or_(and_(tbl.position_id!=None, tbl.position_id==Position.id), tbl.user_id==LocalUser.id)
+        tc2 = aliased(TaskCompletion)
+        tcmaxquery = self.db.session.query(tc2.id, func.max(tc2.update_time)).filter(tcfilter(tc2)).subquery()
+        
+        # get latest taskcompletion
+        query = query.outerjoin(TaskCompletion)
+        query = query.outerjoin(tcmaxquery, TaskCompletion.id == tcmaxquery.c.id).filter(tcfilter(TaskCompletion))
+        # query = query.outerjoin(TaskCompletion).filter(and_(tcfilter(TaskCompletion), TaskCompletion.update_time.in_(tcmaxquery)))
+        
+        # filter duplicates (see https://stackoverflow.com/questions/12188027/mysql-select-distinct-multiple-columns)
+        query = query.group_by(LocalUser.name, Task.task)
+        
+        # for level in range(2, tgdepth):
+        #     query = query.outerjoin(taskgroup_taskgroup[level], taskgroup[level-1].id == taskgroup_taskgroup[level].c.parent_id)
+        #     query = query.outerjoin(taskgroup[level], taskgroup[level].id == taskgroup_taskgroup[level].c.child_id).outerjoin(task[level], taskgroup[level].tasks)
+        
+        # bring in filters after TaskGroups/Tasks
+        self.queryfilters.append(LocalUser.interest == localinterest())
+        query = query.filter_by().filter(*self.queryfilters)
+        # query = query.filter_by(**self.queryparams).filter(*self.queryfilters)
+        
+        return query
+        # return super().serverquery()
+
+from sqlalchemy.orm import aliased
+
+# map id to rowid, retrieve all other required fields
+# no dbmapping because this table is read-only
+svrtaskdetails_dbattrs = 'id,member,task,lastcompleted,lastupdated,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
+svrtaskdetails_formfields = 'rowid,member,task,lastcompleted,lastupdated,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
+svrtaskdetails_dbmapping = dict(zip(svrtaskdetails_dbattrs, svrtaskdetails_formfields))
+svrtaskdetails_formmapping = dict(zip(svrtaskdetails_formfields, svrtaskdetails_dbattrs))
+
+# need aliased because TaskGroup referenced twice within Task
+# https://stackoverflow.com/questions/46800183/using-sqlalchemy-datatables-with-multiple-relationships-between-the-same-tables
+# need to use single variable with onclause so duplicate join checking in tables.DbCrudApi.__init__() doesn't duplicate join
+task_taskgroup_alias = aliased(TaskGroup)
+task_taskgroup_onclause = Task.taskgroups
+
+taskdetails_view = TaskDetails(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = LocalUser,
+                    template = 'datatables.jinja2',
+                    templateargs = {
+                        'tablefiles': lambda: fieldupload.list(),
+                        'adminguide': adminguide,
+                    },
+                    pretablehtml = taskdetails_filters.render(),
+                    yadcfoptions = taskdetails_yadcf_options,
+                    pagename = 'Task Details',
+                    endpoint = 'admin.taskdetails',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/taskdetails',
+                    dbmapping = svrtaskdetails_dbmapping,
+                    formmapping = svrtaskdetails_formmapping,
+                    checkrequired = True,
+                    validate = taskdetails_validate,
+                    clientcolumns = [
+                        { 'data': 'member', 'name': 'member', 'label': 'Member',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                            {'sqla_expr': LocalUser.name},
+                         },
+                        # {'data': 'order', 'name': 'order', 'label': 'Display Order',
+                        #  'type': 'hidden',
+                        #  'className': 'Hidden',
+                        #  },
+                        # {'data': 'status', 'name': 'status', 'label': 'Status',
+                        #  'type': 'readonly',
+                        #  'className': 'status-field',
+                        #  },
+                        {'data': 'task', 'name': 'task', 'label': 'Task',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                            {'sqla_expr': Task.task},
+                         },
+                        {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
+                         'type': 'datetime',
+                         '_ColumnDT_args' :
+                            {'sqla_expr': func.date_format(TaskCompletion.completion, '%Y-%m-%d')},
+                         },
+                        {'data': 'lastupdated', 'name': 'lastupdated', 'label': 'Last Updated',
+                         'type': 'hidden',
+                         '_ColumnDT_args' :
+                            {'sqla_expr': TaskCompletion.update_time},
+                         },
+                        # {'data': 'expires', 'name': 'expires', 'label': 'Expiration Date',
+                        #  'type': 'readonly',
+                        #  'className': 'status-field',
+                        #  },
+                        # {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member Positions',
+                        #  # 'type': 'readonly',
+                        #  '_treatment': {
+                        #      'relationship': {
+                        #          'optionspicker' : ReadOnlySelect2(
+                        #             fieldmodel = Position, labelfield = 'position',
+                        #             formfield = 'member_positions',
+                        #             dbfield = 'member_positions', uselist = True,
+                        #             queryparams = localinterest_query_params,
+                        #          )
+                        #      }}
+                        #  },
+                        # # {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
+                        # #  # 'type': 'readonly',
+                        # #  '_treatment': {
+                        # #      'relationship': {
+                        # #          'optionspicker' : ReadOnlySelect2(
+                        # #             fieldmodel = TaskGroup, labelfield = 'taskgroup',
+                        # #             formfield = 'member_taskgroups',
+                        # #             dbfield = 'member_taskgroups', uselist = True,
+                        # #             queryparams = localinterest_query_params,
+                        # #          )
+                        # #      }}
+                        # #  },
+                        # {'data': 'task_taskgroups', 'name': 'task_taskgroups', 'label': 'Task Task Groups',
+                        #  'type': 'readonly',
+                        #  '_treatment': {
+                        #      'relationship': {
+                        #          'optionspicker' : ReadOnlySelect2(
+                        #                 fieldmodel = TaskGroup, labelfield = 'taskgroup', formfield = 'task_taskgroups',
+                        #                 dbfield = 'task_taskgroups', uselist = True,
+                        #                 queryparams = localinterest_query_params,
+                        #                 onclause = task_taskgroup_onclause,
+                        #          )
+
+                        #     }}
+                        #  },
+                        # {'data': 'fields', 'name': 'fields', 'label': 'Add\'l Fields',
+                        #  'type': 'readonly',
+                        #  'dtonly': True,
+                        #  },
+                    ],
+                    serverside = True,  
+                    idSrc = 'rowid', 
+                    buttons = [
+                        {
+                            'extend':'editRefresh',
+                            'text':'View',
+                            'editor': {'eval':'editor'},
+                            'formButtons': [
+                                {'text': 'Update', 'action': {'eval': 'submit_button'}},
+                                {'text': 'Dismiss', 'action': {'eval':'dismiss_button'}}
+                            ]
+                        },
+                        'csv'
+                    ],
+                    dtoptions = {
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': True,
+                        'rowCallback': {'eval': 'set_cell_status_class'},
+                        # note id is column 0 to datatables, col 2 (display order) hidden
+                        # 'order': [['member:name', 'asc'], ['order:name', 'asc'], ['expires:name', 'asc']],
                     },
                     edoptions={
                         'i18n':

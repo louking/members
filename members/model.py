@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 # pypi
 from flask import g
+from sqlalchemy.ext.hybrid import hybrid_method
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
@@ -225,6 +226,7 @@ class TaskGroup(Base):
     interest            = relationship('LocalInterest', backref=backref('taskgroups'))
     taskgroup           = Column(String(TASKGROUP_LEN))
     description         = Column(String(DESCR_LEN))
+    # parent_id is deprecated; use taskgroups instead for many to many relationship via taskgroup_taskgroup
     parent_id           = Column(Integer, ForeignKey('taskgroup.id'))
     taskgroups          = relationship('TaskGroup',
                                        secondary=taskgroup_taskgroup_table,
@@ -265,6 +267,10 @@ class UserPosition(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+    
+    @hybrid_method
+    def is_active_on(self, ondate):
+        return ((self.startdate == None) | (self.startdate <= ondate)) & ((self.finishdate == None) | (ondate <= self.finishdate))
 
 class Position(Base):
     __tablename__ = 'position'
