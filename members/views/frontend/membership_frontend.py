@@ -17,7 +17,7 @@ from loutilities.timeu import epoch2dt, age, asctime
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.model import Interest
 from loutilities.filters import filtercontainerdiv, filterdiv
-from dominate.tags import div, button, input, span, i
+from dominate.tags import div, button, input_, span, i
 
 class parameterError(): pass
 
@@ -121,7 +121,7 @@ def frontendmembers_pretablehtml():
             with datefilter:
                 with span(id='spinner', style='display:none;'):
                     i(cls='fas fa-spinner fa-spin')
-                input(type='text', id='effective-date', name='effective-date' )
+                input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
                 cachetime = TableUpdateTime.query.filter_by(interest=localinterest(), tablename='member').one().lastchecked
                 span(f'(last update time {cachet.dt2asc(cachetime)})')

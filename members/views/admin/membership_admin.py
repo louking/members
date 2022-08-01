@@ -9,7 +9,7 @@ from platform import system
 
 # pypi
 from flask import request
-from dominate.tags import div, span, i, button, input
+from dominate.tags import div, span, i, button, input_
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
@@ -66,7 +66,7 @@ def clubmembers_filters():
             with datefilter:
                 with span(id='spinner', style='display:none;'):
                     i(cls='fas fa-spinner fa-spin')
-                input(type='text', id='effective-date', name='effective-date' )
+                input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
                 cachetime = TableUpdateTime.query.filter_by(interest=localinterest(), tablename='member').one().lastchecked
                 span(f'(last update time {cachet.dt2asc(cachetime)})')

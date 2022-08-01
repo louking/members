@@ -11,7 +11,7 @@ from uuid import uuid4
 from flask import g, request, jsonify, current_app, url_for, has_request_context
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import h1, div, label, input, select, option, script, dd
+from dominate.tags import h1, div, label, input_, select, option, script, dd
 from dominate.util import text, raw
 from sqlalchemy import func, inspect
 from sqlalchemy.orm import aliased
@@ -931,7 +931,7 @@ def meeting_pretablehtml():
         # hide / show hidden rows
         hiddenfilter = div(_class='checkbox-filter FloatRight')
         with hiddenfilter:
-            input(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
+            input_(type='checkbox', id='show-hidden-status', name='show-hidden-status', value='show-hidden')
             label('Show hidden items', _for='show-hidden-status')
 
         # table variables - don't display, used by beforedatatables.js meeting_send_email()

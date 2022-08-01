@@ -10,7 +10,7 @@ from re import match
 from flask import g, url_for, request
 from flask_security import current_user
 from slugify import slugify
-from dominate.tags import input, button
+from dominate.tags import input_, button
 
 # homegrown
 from . import bp
@@ -731,7 +731,7 @@ with taskdetails_filters:
     filterdiv('members-external-filter-expires', 'Expiration Date')
     datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
     with datefilter:
-        input(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing')
+        input_(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing')
         button('Today', id='todays-date-button')
 
 taskdetails_yadcf_options = [

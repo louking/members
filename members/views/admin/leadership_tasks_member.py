@@ -10,7 +10,7 @@ from datetime import date
 from flask import g, current_app, request, url_for
 from flask_security import current_user
 from markdown import markdown
-from dominate.tags import a, div, input, button
+from dominate.tags import a, div, input_, button
 
 # homegrown
 from . import bp
@@ -104,7 +104,7 @@ def taskchecklist_pretablehtml():
             datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
 
             with datefilter:
-                input(type='text', id='effective-date', name='effective-date' )
+                input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
 
     return pretablehtml.render()

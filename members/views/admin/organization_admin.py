@@ -10,7 +10,7 @@ from traceback import format_exception_only, format_exc
 from flask import request, jsonify, g, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import div, input, button, dd
+from dominate.tags import div, input_, button, dd
 
 # homegrown
 from . import bp
@@ -58,7 +58,7 @@ def position_pretablehtml():
             datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
 
             with datefilter:
-                input(type='text', id='effective-date', name='effective-date' )
+                input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
 
         # make dom repository for Editor wizard standalone form
@@ -606,7 +606,7 @@ def distribution_pretablehtml():
             filterdiv('distribution-external-filter-roles', 'Roles')
 
             with filterdiv('distribution-external-filter-startdate', 'In Position On'):
-                input(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing' )
+                input_(type='text', id='effective-date', name='effective-date', _class='like-select2-sizing' )
                 button('Today', id='todays-date-button')
 
     return pretablehtml.render()
