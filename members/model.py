@@ -719,6 +719,10 @@ meetingtypestatusreporttag_table = Table('meetingtypestatusreport_tag', Base.met
     Column( 'meetingtype_id', Integer, ForeignKey('meetingtype.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
     )
+interestpublicpositionstag_table = Table('interestpublicpositions_tag', Base.metadata,
+    Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
+    Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
+    )
 interestmeetingtag_table = Table('interestmeeting_tag', Base.metadata,
     Column( 'interest_id', Integer, ForeignKey('localinterest.id' ) ),
     Column( 'tag_id', Integer, ForeignKey('tag.id' ), nullable=False ),
@@ -747,6 +751,7 @@ class Tag(Base):
     meetingtypevotes    = relationship( 'MeetingType', secondary=meetingtypevotetag_table, backref='votetags', lazy=True )
     meetingtypestatusreports = relationship( 'MeetingType', secondary=meetingtypestatusreporttag_table,
                                          backref='statusreporttags', lazy=True )
+    interestpublicpositions = relationship( 'LocalInterest', secondary=interestpublicpositionstag_table, backref='interestpublicpositionstags', lazy=True )
 
     # interest attributes have defaults for these tags, which are used when setting up meetings
     # these two fields have been deprecated due to #378

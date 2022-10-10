@@ -32,9 +32,9 @@ def interestattr_validate(action, formdata):
     return results
 
 interestattr_dbattrs = 'id,__readonly__,initial_expiration,from_email,club_service,service_id,'\
-                       'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
+                       'interestpublicpositionstags,gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_formfields = 'rowid,interest,initial_expiration,from_email,club_service,service_id,'\
-                          'gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
+                          'interestpublicpositionstags,gs_agenda_fdr,gs_status_fdr,gs_minutes_fdr'.split(',')
 interestattr_dbmapping = dict(zip(interestattr_dbattrs, interestattr_formfields))
 interestattr_formmapping = dict(zip(interestattr_formfields, interestattr_dbattrs))
 interestattr_dbmapping['initial_expiration'] = lambda formrow: date(*[int(f) for f in formrow['initial_expiration'].split('-')])
@@ -79,6 +79,15 @@ interestattr_view = DbCrudApiRolePermissions(
                         {'data': 'service_id', 'name': 'service_id', 'label': 'Service ID',
                          'fieldInfo': 'ID which Club Service uses for club member access',
                          'className': 'field_req',
+                         },
+                        {'data': 'interestpublicpositionstags', 'name': 'interestpublicpositionstags', 'label': 'Public Positions Tags',
+                         'fieldInfo': 'tags to display for public positions view',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': Tag, 'labelfield': 'tag', 'formfield': 'interestpublicpositionstags',
+                                              'dbfield': 'interestpublicpositionstags', 'uselist': True,
+                                              'searchbox': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
                          },
                         {'data': 'gs_agenda_fdr', 'name': 'gs_agenda_fdr', 'label': 'GSuite Agenda Folder',
                          # 'type': 'googledoc',
