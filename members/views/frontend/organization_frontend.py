@@ -39,7 +39,7 @@ class PositionsView(DbCrudApiInterestsRolePermissions):
         thesepositions = []
         for tag in localinterest().interestpublicpositionstags:
             thesepositions += [p for p in tag.positions if p not in thesepositions]
-        self.queryfilters += [Position.id.in_([pos.id for pos in thesepositions])]
+        self.queryfilters = [Position.id.in_([pos.id for pos in thesepositions])]
         
 position_view = PositionsView(
     roles_accepted = [],
