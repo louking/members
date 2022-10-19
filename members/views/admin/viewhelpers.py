@@ -16,7 +16,7 @@ from dominate.tags import a
 # homegrown
 from ...model import TaskCompletion, LocalUser, LocalInterest
 from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLOAD, localinterest_query_params
-from ...helpers import positions_active, members_active, localinterest
+from ...helpers import positions_active, members_active, member_positions, localinterest
 
 from loutilities.timeu import asctime
 
@@ -100,7 +100,7 @@ def lastcompleted(task, user):
     taskcompletion = get_task_completion(task, user)
     return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
 
-def _get_expiration(task, taskcompletion):
+def _get_expiration(task, taskcompletion, localuser):
     '''
     task expiration depends on configuration type
         if configured with a period
@@ -111,25 +111,12 @@ def _get_expiration(task, taskcompletion):
             if task was completed between date of year + expiry starts
     :param task: task to check
     :param taskcompletion: last task completion, or None
+    :param localuser: LocalUser for whom task completion should be
     :return: date
     '''
     # task is optional
     if task.isoptional:
         return None
-
-    # task is managed periodically
-    elif task.period:
-        # task completed, return expiration depending on task / completion date
-        if taskcompletion:
-            return dtrender.dt2asc(taskcompletion.completion + relativedelta(**{task.period_units: task.period}))
-
-        # task not completed, return default
-        else:
-            li = localinterest()
-            if li.initial_expiration:
-                return dtrender.dt2asc(li.initial_expiration)
-            else:
-                return None
 
     # task expires yearly on a specific date
     elif task.dateofyear:
@@ -191,16 +178,40 @@ def _get_expiration(task, taskcompletion):
 
             return date(theyear, month, day).isoformat()
 
-    # no period or date of year configured, but not optional
+    # periodic or no period or date of year configured, but not optional
     else:
-        li = localinterest()
-        if li.initial_expiration:
-            return dtrender.dt2asc(li.initial_expiration)
+        # task completed, return expiration depending on task / completion date
+        if taskcompletion:
+            return dtrender.dt2asc(taskcompletion.completion + relativedelta(**{task.period_units: task.period}))
+
+        # task not completed, return default
         else:
-            return None
+            current_app.logger.debug(f'{localuser2user(localuser).name}: task {task.task} not completed')
+            positions = positions_active(localuser, date.today())
+            userpositions = []
+            for position in positions:
+                taskgroups = set()
+                get_position_taskgroups(position, taskgroups)
+                for taskgroup in taskgroups:
+                    tasks = set()
+                    get_taskgroup_tasks(taskgroup, tasks)
+                    if task in tasks:
+                        current_app.logger.debug(f'task {task.task} found in taskgroup {taskgroup.taskgroup}')
+                        userpositions += [up for up in member_positions(localuser, position) if up not in userpositions]
+            if userpositions:
+                userpositions.sort(key=lambda up: up.startdate)
+                current_app.logger.debug(f'userpositions found: {[(up.position.position,up.startdate) for up in userpositions]}')
+                # return earliest start date for this user in any position which requires this task
+                return dtrender.dt2asc(userpositions[0].startdate)
+            else:
+                li = localinterest()
+                if li.initial_expiration:
+                    return dtrender.dt2asc(li.initial_expiration)
+                else:
+                    return None
 
 
-def _get_status(task, taskcompletion):
+def _get_status(task, taskcompletion, localuser):
     # task is optional
     if task.isoptional:
         if not taskcompletion:
@@ -216,17 +227,17 @@ def _get_status(task, taskcompletion):
             thisexpires = STATUS_NO_EXPIRATION
         elif not taskcompletion or taskcompletion.completion + relativedelta(**{task.period_units: task.period}) < datetime.today():
             thisstatus = STATUS_OVERDUE
-            thisexpires = _get_expiration(task, taskcompletion)
+            thisexpires = _get_expiration(task, taskcompletion, localuser)
         elif taskcompletion.completion + (relativedelta(**{task.period_units: task.period}) - relativedelta(**{task.expirysoon_units: task.expirysoon})) < datetime.today():
             thisstatus = STATUS_EXPIRES_SOON
-            thisexpires = _get_expiration(task, taskcompletion)
+            thisexpires = _get_expiration(task, taskcompletion, localuser)
         else:
             thisstatus = STATUS_UP_TO_DATE
-            thisexpires = _get_expiration(task, taskcompletion)
+            thisexpires = _get_expiration(task, taskcompletion, localuser)
 
     # task expires yearly on a specific date
     elif task.dateofyear:
-        thisexpires = _get_expiration(task, taskcompletion)
+        thisexpires = _get_expiration(task, taskcompletion, localuser)
         year, month, day = [int(ymd) for ymd in thisexpires.split('-')]
         today = date.today()
         expiressoon = relativedelta(**{task.expirysoon_units: task.expirysoon})
@@ -245,21 +256,21 @@ def _get_status(task, taskcompletion):
             thisexpires = STATUS_NO_EXPIRATION
         else:
             thisstatus = STATUS_OVERDUE
-            thisexpires = _get_expiration(task, taskcompletion)
+            thisexpires = _get_expiration(task, taskcompletion, localuser)
 
     return {'status': thisstatus, 'order': STATUS_DISPLAYORDER.index(thisstatus), 'expires': thisexpires}
 
 def get_status(task, user):
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion)['status']
+    return _get_status(task, taskcompletion, user2localuser(user))['status']
 
 def get_order(task, user):
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion)['order']
+    return _get_status(task, taskcompletion, user2localuser(user))['order']
 
 def get_expires(task, user):
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion)['expires']
+    return _get_status(task, taskcompletion, user2localuser(user))['expires']
 
 def create_taskcompletion(task, localuser, localinterest, formdata):
     rightnow = datetime.now()
