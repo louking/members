@@ -186,7 +186,7 @@ def _get_expiration(task, taskcompletion, localuser):
 
         # task not completed, return default
         else:
-            current_app.logger.debug(f'{localuser2user(localuser).name}: task {task.task} not completed')
+            if debug: current_app.logger.debug(f'{localuser2user(localuser).name}: task {task.task} not completed')
             positions = positions_active(localuser, date.today())
             userpositions = []
             for position in positions:
@@ -196,11 +196,11 @@ def _get_expiration(task, taskcompletion, localuser):
                     tasks = set()
                     get_taskgroup_tasks(taskgroup, tasks)
                     if task in tasks:
-                        current_app.logger.debug(f'task {task.task} found in taskgroup {taskgroup.taskgroup}')
+                        if debug: current_app.logger.debug(f'task {task.task} found in taskgroup {taskgroup.taskgroup}')
                         userpositions += [up for up in member_positions(localuser, position) if up not in userpositions]
             if userpositions:
                 userpositions.sort(key=lambda up: up.startdate)
-                current_app.logger.debug(f'userpositions found: {[(up.position.position,up.startdate) for up in userpositions]}')
+                if debug: current_app.logger.debug(f'userpositions found: {[(up.position.position,up.startdate) for up in userpositions]}')
                 # return earliest start date for this user in any position which requires this task
                 return dtrender.dt2asc(userpositions[0].startdate)
             else:
