@@ -322,6 +322,12 @@ class TaskCompletion(Base):
         'version_id_col': version_id
     }
 
+    # lookups by task_id, position_id need to be fast
+    __tableargs__ = (
+        Index('taskcompletion_taskid_positionid_idx', task_id, position_id),
+        Index('taskcompletion_taskid_localuserid_idx', task_id, user_id),
+    )
+
 class Files(Base, FilesMixin):
     __tablename__ = 'files'
     id                  = Column(Integer(), primary_key=True)

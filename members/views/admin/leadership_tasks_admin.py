@@ -29,6 +29,8 @@ from .viewhelpers import get_fieldoptions, get_taskfields
 from .viewhelpers import get_member_tasks
 from .viewhelpers import dtrender, dttimerender
 from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY, STATUS_DISPLAYORDER
+from .viewhelpers import PositionTaskgroupCacheMixin, TASK_CHECKLIST_ROLES_ACCEPTED, localuser2user
+from .viewhelpers import has_oneof_roles
 
 # this is just to pick up list() function
 from .leadership_tasks_member import fieldupload
@@ -524,20 +526,6 @@ taskdetails_dbattrs = 'id,member,task,lastcompleted,status,order,expires,fields,
 taskdetails_formfields = 'rowid,member,task,lastcompleted,status,order,expires,fields,task_taskgroups,member_taskgroups,member_positions'.split(',')
 taskdetails_dbmapping = dict(zip(taskdetails_dbattrs, taskdetails_formfields))
 
-taskdetails_formmapping = {}
-taskdetails_formmapping['rowid'] = 'id'
-taskdetails_formmapping['task_taskgroups'] = 'task_taskgroups'
-taskdetails_formmapping['member_taskgroups'] = 'member_taskgroups'
-taskdetails_formmapping['member_positions'] = 'member_positions'
-taskdetails_formmapping['member'] = lambda tu: tu.member.name
-taskdetails_formmapping['task'] = lambda tu: tu.task.task
-taskdetails_formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
-taskdetails_formmapping['status'] = lambda tu: get_status(tu.task, tu.member)
-taskdetails_formmapping['order'] = lambda tu: get_order(tu.task, tu.member)
-taskdetails_formmapping['expires'] = lambda tu: get_expires(tu.task, tu.member)
-taskdetails_formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
-taskdetails_formmapping['addlfields'] = lambda tu: taskdetails_addlfields(tu.task, tu.member)
-
 class TaskMember():
     '''
     allows creation of "taskuser" object to simulate database behavior
@@ -546,7 +534,29 @@ class TaskMember():
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-class TaskDetails(DbCrudApiInterestsRolePermissions):
+class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin):
+
+    def __init__(self, formmapping={}, **kwargs):
+        self.kwargs = kwargs
+
+        # update formmapping here, 
+        # a) because super().__init__ makes a copy of formmapping, so must be done before __init__ called
+        # b) because self.open() stores some information used by some of these functions
+        # NOTE: the lambda functions are not called until after self.open() is called
+        formmapping['rowid'] = 'id'
+        formmapping['task_taskgroups'] = 'task_taskgroups'
+        formmapping['member_taskgroups'] = 'member_taskgroups'
+        formmapping['member_positions'] = 'member_positions'
+        formmapping['member'] = lambda tu: tu.member.name
+        formmapping['task'] = lambda tu: tu.task.task
+        formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
+        formmapping['status'] = lambda tu: get_status(self, tu.member, tu.task)
+        formmapping['order'] = lambda tu: get_order(self, tu.member, tu.task)
+        formmapping['expires'] = lambda tu: get_expires(self, tu.member, tu.task)
+        formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
+        formmapping['addlfields'] = lambda tu: taskdetails_addlfields(tu.task, tu.member)
+
+        super().__init__(formmapping=formmapping, **kwargs)
 
     def getids(self, id):
         '''
@@ -569,14 +579,16 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         locinterest = localinterest()
         localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
 
-        # collect all the members
-        localusers = set()
-        for localuser in localusersdb:
-            localusers |= {localuser}
+        # collect all the members who should be in task details view (i.e., they are allowe do do task checklist)
+        localusers = [lu for lu in localusersdb if has_oneof_roles(localuser2user(lu), TASK_CHECKLIST_ROLES_ACCEPTED)]
+
+        # initialize cache
+        ondate = request.args.get('ondate', date.today())
+        self.init_position_taskgroup_cache(localusersdb, ondate)
 
         # retrieve member data from localusers
         members = []
-        for localuser in iter(localusers):
+        for localuser in localusers:
             # None can be returned, but it seems like this should happen only if the User table was manipulated
             # manually without adjusting the LocalUser table accordingly.
             # This should only happen in development testing of member management
@@ -587,11 +599,10 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
         tasksmembers = []
         for member in members:
             # collect all the tasks which are referenced by positions and taskgroups for this member
-            ondate = request.args.get('ondate', date.today())
             tasks = get_member_tasks(member['localuser'], ondate)
 
             # create/add taskmember to list for all tasks
-            active_positions = positions_active(member['localuser'], ondate)
+            active_positions = self.get_activepositions(member['localuser'])
             for task in iter(tasks):
                 membertaskid = self.setid(member['localuser'].id, task.id)
                 taskmember = TaskMember(
@@ -604,15 +615,19 @@ class TaskDetails(DbCrudApiInterestsRolePermissions):
                 # drill down to get all the taskgroups
                 member_taskgroups = set()
                 for position in active_positions:
-                    get_position_taskgroups(position, member_taskgroups)
-                for taskgroup in member['localuser'].taskgroups:
-                    get_taskgroup_taskgroups(taskgroup, member_taskgroups)
+                    member_taskgroups |= self.get_position_taskgroups(position)
+                member_taskgroups |= self.get_localuser_taskgroups(member['localuser'])
                 taskmember.member_taskgroups = member_taskgroups
 
                 tasksmembers.append(taskmember)
 
         self.rows = iter(tasksmembers)
 
+    def close(self):
+        # from .viewhelpers import profiler
+        # profiler.print_stats()
+        return super().close()
+    
     def updaterow(self, thisid, formdata):
         '''
         just update TaskCompletion.completion
@@ -763,7 +778,7 @@ taskdetails_view = TaskDetails(
                     endpointvalues={'interest': '<interest>'},
                     rule = '/<interest>/taskdetails',
                     dbmapping = taskdetails_dbmapping,
-                    formmapping = taskdetails_formmapping,
+                    # formmapping = taskdetails_formmapping,
                     checkrequired = True,
                     validate = taskdetails_validate,
                     clientcolumns = [
@@ -894,7 +909,7 @@ class MemberSummary(DbCrudApiInterestsRolePermissions):
             model=Task,
             local_interest_model=LocalInterest,
             dbmapping=taskdetails_dbmapping,
-            formmapping=taskdetails_formmapping,
+            # formmapping=taskdetails_formmapping,
             rule='unused',
             clientcolumns=[
                 {'data': 'member', 'name': 'member', 'label': 'Member',

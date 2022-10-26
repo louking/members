@@ -57,6 +57,7 @@ itsdangerous==2.1.2
 Jinja2==3.1.2
 jsmin==3.0.1
 lazy-object-proxy==1.7.1
+line-profiler==3.5.1
 loutilities==3.7.1
 lxml==4.9.1
 Mako==1.2.1

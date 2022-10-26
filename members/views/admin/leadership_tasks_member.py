@@ -5,27 +5,30 @@ leadership_tasks_member - member task handling
 
 # standard
 from datetime import date
+from time import time
 
 # pypi
 from flask import g, current_app, request, url_for
 from flask_security import current_user
 from markdown import markdown
 from dominate.tags import a, div, input_, button
+from loutilities.tables import SEPARATOR, get_request_data
+from loutilities.filters import filtercontainerdiv, filterdiv
+from loutilities.user.tables import DbCrudApiInterestsRolePermissions
+from loutilities.user.tablefiles import FieldUpload
 
 # homegrown
 from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
 from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...version import __docversion__
-from loutilities.tables import SEPARATOR, get_request_data
-from loutilities.filters import filtercontainerdiv, filterdiv
-from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from loutilities.user.tables import DbCrudApiInterestsRolePermissions
-from loutilities.user.tablefiles import FieldUpload
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires
 from .viewhelpers import create_taskcompletion, get_task_completion, get_member_tasks
+from .viewhelpers import PositionTaskgroupCacheMixin
+from .viewhelpers import TASK_CHECKLIST_ROLES_ACCEPTED
 
 debug = False
+timingdebug = False
 
 adminguide = 'https://members.readthedocs.io/en/{docversion}/leadership-task-member-guide.html'.format(docversion=__docversion__)
 
@@ -34,7 +37,7 @@ fieldupload = FieldUpload(
                 app=bp,  # use blueprint instead of app
                 db=db,
                 local_interest_model=LocalInterest,
-                roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
+                roles_accepted=TASK_CHECKLIST_ROLES_ACCEPTED,
                 uploadendpoint='admin.fieldupload',
                 endpointvalues={'interest': '<interest>'},
                 uploadrule='/<interest>/fieldupload',
@@ -46,10 +49,13 @@ fieldupload = FieldUpload(
 fieldupload.register()
 
 def mdrow(dbrow):
+    start = time()
     if dbrow.description:
-        return markdown(dbrow.description, extensions=['md_in_html', 'attr_list'])
+        description = markdown(dbrow.description, extensions=['md_in_html', 'attr_list'])
     else:
-        return ''
+        description = ''
+    if timingdebug: current_app.logger.debug(f',mdrow() execution time,,{time()-start:0.3f}')
+    return description
 
 def get_options(f):
     if not f.fieldoptions:
@@ -58,6 +64,7 @@ def get_options(f):
         return f.fieldoptions.split(SEPARATOR)
 
 def addlfields(task):
+    start = time()
     taskfields = []
     tc = get_task_completion(task, current_user)
 
@@ -70,7 +77,6 @@ def addlfields(task):
             if key == 'displayvalue' and getattr(f, key):
                 thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
         thistaskfield['fieldoptions'] = get_options(f)
-
 
         if tc:
             # field may exist now but maybe didn't before
@@ -94,6 +100,7 @@ def addlfields(task):
                 thistaskfield['value'] = None
 
         taskfields.append(thistaskfield)
+    if timingdebug: current_app.logger.debug(f',addlfields() execution time,,{time()-start:0.3f}')
     return taskfields
 
 def taskchecklist_pretablehtml():
@@ -113,24 +120,18 @@ taskchecklist_dbattrs = 'id,task,description,priority,__readonly__,__readonly__,
 taskchecklist_formfields = 'rowid,task,description,priority,lastcompleted,addlfields,status,order,expires'.split(',')
 taskchecklist_dbmapping = dict(zip(taskchecklist_dbattrs, taskchecklist_formfields))
 taskchecklist_formmapping = dict(zip(taskchecklist_formfields, taskchecklist_dbattrs))
+# see TaskChecklist.__init__ for updates to formmapping
 
-taskchecklist_formmapping['description'] = mdrow
-taskchecklist_formmapping['addlfields'] = addlfields
-taskchecklist_formmapping['lastcompleted'] = lambda task: lastcompleted(task, current_user)
-taskchecklist_formmapping['status'] = lambda task: get_status(task, current_user)
-taskchecklist_formmapping['order'] = lambda task: get_order(task, current_user)
-taskchecklist_formmapping['expires'] = lambda task: get_expires(task, current_user)
-
-class TaskChecklist(DbCrudApiInterestsRolePermissions):
-    def __init__(self, **kwargs):
-        
+class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin):
+    
+    def __init__(self, formmapping=taskchecklist_formmapping, **kwargs):
         self.kwargs = kwargs
         args = dict(
             app=bp,  # use blueprint instead of app
             db=db,
             model=Task,
             local_interest_model=LocalInterest,
-            roles_accepted=[ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER],
+            roles_accepted=TASK_CHECKLIST_ROLES_ACCEPTED,
             template='datatables.jinja2',
             templateargs={'adminguide': adminguide},
             pagename='Task Checklist',
@@ -138,7 +139,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             endpointvalues={'interest': '<interest>'},
             rule='/<interest>/taskchecklist',
             dbmapping=taskchecklist_dbmapping,
-            formmapping=taskchecklist_formmapping,
+            # formmapping=taskchecklist_formmapping,
             pretablehtml=taskchecklist_pretablehtml,
             validate = self._validate,
             clientcolumns=[
@@ -195,7 +196,8 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
                     'text':'View Task',
                     'editor': {'eval':'editor'},
                     'className': 'Hidden',
-                }
+                },
+                'csv'
             ],
             dtoptions={
                 'scrollCollapse': True,
@@ -223,10 +225,22 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
             }
         )
         args.update(kwargs)
-        super().__init__(**args)
+
+        # update formmapping here, 
+        # a) because super().__init__ makes a copy of formmapping, so must be done before __init__ called
+        # b) because self.open() stores some information used by some of these functions
+        # NOTE: the lambda functions are not called until after self.open() is called
+        formmapping['description'] = mdrow
+        formmapping['addlfields'] = addlfields
+        formmapping['lastcompleted'] = lambda task: lastcompleted(task, current_user)
+        formmapping['status'] = lambda task: get_status(self, current_user, task)
+        formmapping['order'] = lambda task: get_order(self, current_user, task)
+        formmapping['expires'] = lambda task: get_expires(self, current_user, task)
+
+        super().__init__(formmapping=formmapping, **args)
 
     def open(self):
-        theserows = []
+        start = time()
 
         # collect all the tasks to send to client
         member = self._get_localuser()
@@ -234,12 +248,24 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions):
         # collect all the tasks which are referenced by positions and taskgroups for this member
         ondate = request.args.get('ondate', date.today())
         tasks = get_member_tasks(member, ondate)
-
-        for task in iter(tasks):
-            theserows.append(task)
-
-        self.rows = iter(theserows)
-
+        
+        # cache some information which is needed frequently (by get_status, get_order, get_expires)
+        self.init_position_taskgroup_cache([member], ondate)
+        
+        self.rows = iter(tasks)
+        if timingdebug: current_app.logger.debug(f',open() execution time,{time()-start:0.3f}')
+        
+    def nexttablerow(self):
+        start = time()
+        row = super().nexttablerow()
+        if timingdebug: current_app.logger.debug(f',nexttablerow() execution time,{time()-start:0.3f}')
+        return row
+    
+    def close(self):
+        # from .viewhelpers import profiler
+        # profiler.print_stats()
+        return super().close()
+    
     def updaterow(self, thisid, formdata):
         # find the task and local user
         thistask = Task.query.filter_by(id=thisid).one()

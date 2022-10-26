@@ -4,10 +4,12 @@ viewhelpers - helpers for admin views
 
 # standard
 from datetime import datetime, date
+from time import time
 
 # pypi
 from loutilities.user.model import User, Interest, Role
 from loutilities.tables import DteDbRelationship, SEPARATOR
+from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from flask import g, current_app, url_for
 from dateutil.relativedelta import relativedelta
 from markdown import markdown
@@ -19,6 +21,19 @@ from ...model import db, InputFieldData, Files, INPUT_TYPE_DATE, INPUT_TYPE_UPLO
 from ...helpers import positions_active, members_active, member_positions, localinterest
 
 from loutilities.timeu import asctime
+
+# # profile slow code -- delete!
+# from line_profiler import LineProfiler
+
+# profiler = LineProfiler()
+
+# def profile(func):
+#     def inner(*args, **kwargs):
+#         profiler.add_function(func)
+#         profiler.enable_by_count()
+#         return func(*args, **kwargs)
+#     return inner
+# # end profile
 
 dtrender = asctime('%Y-%m-%d')
 dttimerender = asctime('%Y-%m-%d %H:%M:%S')
@@ -36,8 +51,12 @@ STATUS_UP_TO_DATE = 'up to date'
 STATUS_DISPLAYORDER = [STATUS_OVERDUE, STATUS_EXPIRES_SOON, STATUS_OPTIONAL, STATUS_UP_TO_DATE, STATUS_DONE]
 
 debug = False
+timingdebug = False
+taskgroupsdebug = False
 
 class ParameterError(Exception): pass
+
+TASK_CHECKLIST_ROLES_ACCEPTED = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER]
 
 class LocalUserPicker(DteDbRelationship):
     '''
@@ -76,13 +95,16 @@ class LocalUserPicker(DteDbRelationship):
 
 
 def get_task_completion(task, user):
+    start = time()
     # if completion is by position and this user is in the task's position, return the latest task completion for this position
     localuser = user2localuser(user)
     if task.isbyposition:
-        return TaskCompletion.query.filter_by(task=task, position=task.position).order_by(TaskCompletion.update_time.desc()).first()
+        taskcompletion = TaskCompletion.query.filter_by(task=task, position=task.position).order_by(TaskCompletion.update_time.desc()).first()
     # if by member, return the latest task completion for the indicated user
     else:
-        return TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
+        taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
+    if timingdebug: current_app.logger.debug(f',get_task_completion() execution time,,,{time()-start:0.3f}')
+    return taskcompletion
 
 def localuser2user(localuser):
     if type(localuser) == int:
@@ -97,10 +119,118 @@ def user2localuser(user):
     return LocalUser.query.filter_by(user_id=user.id, interest=localinterest).one()
 
 def lastcompleted(task, user):
+    start = time()
     taskcompletion = get_task_completion(task, user)
-    return dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
+    completed = dtrender.dt2asc(taskcompletion.completion) if taskcompletion else None
+    if timingdebug: current_app.logger.debug(f',lastcompleted() execution time,,{time()-start:0.3f}')
+    return completed
 
-def _get_expiration(task, taskcompletion, localuser):
+# TODO: move these next two functions to User definition
+def has_oneof_roles(user, roles):
+    allowed = False
+    for role in roles:
+        if user.has_role(role):
+            allowed = True
+            break
+    return allowed
+
+def has_all_roles(user, roles):
+    allowed = True
+    for role in roles:
+        if not user.has_role(role):
+            allowed = False
+            break
+    return allowed
+
+class PositionTaskgroupCacheMixin():
+    def init_position_taskgroup_cache(self, localusers, ondate):
+        """initialize cache of positions and taskgroups
+
+        Args:
+            localusers (list): list of LocalUser records
+            ondate (str or datetime): date for which we're interested
+        """
+        self.activepositions = {}
+        self.position2taskgroups = {}
+        self.localuser2taskgroups = {}
+        self.taskgroup2tasks = {}
+        self.task2userpositions = {}
+        for localuser in localusers:
+            self.activepositions[localuser.id] = positions_active(localuser, ondate)
+            self.localuser2taskgroups[localuser.id] = set(localuser.taskgroups)
+            for position in self.activepositions[localuser.id]:
+                if position.id not in self.position2taskgroups:
+                    self.position2taskgroups[position.id] = set()
+                    get_position_taskgroups(position, self.position2taskgroups[position.id])
+                userpositions = []
+                for taskgroup in self.position2taskgroups[position.id]:
+                    if taskgroup.id not in self.taskgroup2tasks:
+                        self.taskgroup2tasks[taskgroup.id] = set()
+                        get_taskgroup_tasks(taskgroup, self.taskgroup2tasks[taskgroup.id])
+                    for task in self.taskgroup2tasks[taskgroup.id]:
+                        userpositions += [up for up in member_positions(localuser, position) if up not in userpositions]
+                        userpositions.sort(key=lambda up: up.startdate)
+                        self.task2userpositions[localuser.id, task.id] = userpositions
+            
+    def get_activepositions(self, localuser):
+        """return list of active positions for a user
+    
+        Args:
+            localuser (LocalUser): LocalUser instance
+
+        Returns:
+            list: [position, position, ...]
+        """
+        activepositions = self.activepositions[localuser.id]
+        return activepositions
+    
+    def get_position_taskgroups(self, position):
+        """return set of taskgroups for a position
+
+        Args:
+            position (Position): position for which taskgroups are to be returned
+
+        Returns:
+            set: {taskgroup, taskgroup, ...}
+        """
+        return self.position2taskgroups[position.id]
+    
+    def get_localuser_taskgroups(self, localuser):
+        """return set of taskgroups for a position
+
+        Args:
+            localuser (LocalUser): localuser for which taskgroups are to be returned
+
+        Returns:
+            set: {taskgroup, taskgroup, ...}
+        """
+        return self.localuser2taskgroups[localuser.id]
+    
+    def get_taskgroup_tasks(self, taskgroup):
+        """return set of tasks for taskgroup
+
+        Args:
+            taskgroup (TaskGroup): TaskGroup instance
+
+        Returns:
+            set: {task, task, ...}
+        """
+        return self.taskgroup2tasks[taskgroup.id]
+
+    def get_userpositions(self, localuser, task):
+        """return list of UserPosition records for localuser, task
+
+        Args:
+            localuser (LocalUser): LocalUser instance
+            task (Task): Task instance
+
+        Returns:
+            list: sorted list of UserPosition records for localuser, task, earliest start first
+        """
+        return self.task2userpositions[localuser.id, task.id]
+
+# @profile
+def _get_expiration(view, localuser, task, taskcompletion):
     '''
     task expiration depends on configuration type
         if configured with a period
@@ -114,9 +244,12 @@ def _get_expiration(task, taskcompletion, localuser):
     :param localuser: LocalUser for whom task completion should be
     :return: date
     '''
+    start = time()
+    timingdebug = False
+    
     # task is optional
     if task.isoptional:
-        return None
+        expires = None
 
     # task expires yearly on a specific date
     elif task.dateofyear:
@@ -145,7 +278,7 @@ def _get_expiration(task, taskcompletion, localuser):
                 theyear += 1
                 expiry = date(theyear, month, day)
 
-            return expiry.isoformat()
+            expires = expiry.isoformat()
 
         else:
             completion = taskcompletion.completion
@@ -176,42 +309,36 @@ def _get_expiration(task, taskcompletion, localuser):
             if completiondate <= windowstarts:
                 theyear -= 1
 
-            return date(theyear, month, day).isoformat()
+            expires = date(theyear, month, day).isoformat()
 
     # periodic or no period or date of year configured, but not optional
     else:
         # task completed, return expiration depending on task / completion date
         if taskcompletion:
-            return dtrender.dt2asc(taskcompletion.completion + relativedelta(**{task.period_units: task.period}))
+            expires = dtrender.dt2asc(taskcompletion.completion + relativedelta(**{task.period_units: task.period}))
 
         # task not completed, return default
         else:
             if debug: current_app.logger.debug(f'{localuser2user(localuser).name}: task {task.task} not completed')
-            positions = positions_active(localuser, date.today())
-            userpositions = []
-            for position in positions:
-                taskgroups = set()
-                get_position_taskgroups(position, taskgroups)
-                for taskgroup in taskgroups:
-                    tasks = set()
-                    get_taskgroup_tasks(taskgroup, tasks)
-                    if task in tasks:
-                        if debug: current_app.logger.debug(f'task {task.task} found in taskgroup {taskgroup.taskgroup}')
-                        userpositions += [up for up in member_positions(localuser, position) if up not in userpositions]
+
+            userpositions = view.get_userpositions(localuser, task)
             if userpositions:
-                userpositions.sort(key=lambda up: up.startdate)
                 if debug: current_app.logger.debug(f'userpositions found: {[(up.position.position,up.startdate) for up in userpositions]}')
                 # return earliest start date for this user in any position which requires this task
-                return dtrender.dt2asc(userpositions[0].startdate)
+                # NOTE: view.get_userpositions returns list sorted by earliest startdate
+                expires = dtrender.dt2asc(userpositions[0].startdate)
             else:
                 li = localinterest()
                 if li.initial_expiration:
-                    return dtrender.dt2asc(li.initial_expiration)
+                    expires = dtrender.dt2asc(li.initial_expiration)
                 else:
-                    return None
+                    expires = None
+    
+    if timingdebug: current_app.logger.debug(f',_get_expiration() execution time,,,,{time()-start:0.3f}')
+    return expires
 
-
-def _get_status(task, taskcompletion, localuser):
+# @profile
+def _get_status(view, localuser, task, taskcompletion):
     # task is optional
     if task.isoptional:
         if not taskcompletion:
@@ -227,17 +354,17 @@ def _get_status(task, taskcompletion, localuser):
             thisexpires = STATUS_NO_EXPIRATION
         elif not taskcompletion or taskcompletion.completion + relativedelta(**{task.period_units: task.period}) < datetime.today():
             thisstatus = STATUS_OVERDUE
-            thisexpires = _get_expiration(task, taskcompletion, localuser)
+            thisexpires = _get_expiration(view, localuser, task, taskcompletion)
         elif taskcompletion.completion + (relativedelta(**{task.period_units: task.period}) - relativedelta(**{task.expirysoon_units: task.expirysoon})) < datetime.today():
             thisstatus = STATUS_EXPIRES_SOON
-            thisexpires = _get_expiration(task, taskcompletion, localuser)
+            thisexpires = _get_expiration(view, localuser, task, taskcompletion)
         else:
             thisstatus = STATUS_UP_TO_DATE
-            thisexpires = _get_expiration(task, taskcompletion, localuser)
+            thisexpires = _get_expiration(view, localuser, task, taskcompletion)
 
     # task expires yearly on a specific date
     elif task.dateofyear:
-        thisexpires = _get_expiration(task, taskcompletion, localuser)
+        thisexpires = _get_expiration(view, localuser, task, taskcompletion)
         year, month, day = [int(ymd) for ymd in thisexpires.split('-')]
         today = date.today()
         expiressoon = relativedelta(**{task.expirysoon_units: task.expirysoon})
@@ -256,21 +383,30 @@ def _get_status(task, taskcompletion, localuser):
             thisexpires = STATUS_NO_EXPIRATION
         else:
             thisstatus = STATUS_OVERDUE
-            thisexpires = _get_expiration(task, taskcompletion, localuser)
+            thisexpires = _get_expiration(view, localuser, task, taskcompletion)
 
     return {'status': thisstatus, 'order': STATUS_DISPLAYORDER.index(thisstatus), 'expires': thisexpires}
 
-def get_status(task, user):
+def get_status(view, user, task):
+    start = time()
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion, user2localuser(user))['status']
+    status = _get_status(view, user2localuser(user), task, taskcompletion)['status']
+    if timingdebug: current_app.logger.debug(f',get_status() execution time,,{time()-start:0.3f}')
+    return status
 
-def get_order(task, user):
+def get_order(view, user, task):
+    start = time()
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion, user2localuser(user))['order']
+    order = _get_status(view, user2localuser(user), task, taskcompletion)['order']
+    if timingdebug: current_app.logger.debug(f',get_order() execution time,,{time()-start:0.3f}')
+    return order
 
-def get_expires(task, user):
+def get_expires(view, user, task):
+    start = time()
     taskcompletion = get_task_completion(task, user)
-    return _get_status(task, taskcompletion, user2localuser(user))['expires']
+    expires = _get_status(view, user2localuser(user), task, taskcompletion)['expires']
+    if timingdebug: current_app.logger.debug(f',get_expires() execution time,,{time()-start:0.3f}')
+    return expires
 
 def create_taskcompletion(task, localuser, localinterest, formdata):
     rightnow = datetime.now()
@@ -410,11 +546,14 @@ def get_taskgroup_taskgroups(taskgroup, taskgroups):
     :param taskgroups: input and output set of tasks
     :return: None
     '''
-    taskgroups |= {taskgroup}
-    for tg in taskgroup.taskgroups:
-        taskgroups |= {tg}
-    for tg in taskgroup.taskgroups:
-        get_taskgroup_taskgroups(tg, taskgroups)
+    taskgroups |= {taskgroup} | set(taskgroup.taskgroups)
+    # for tg in taskgroup.taskgroups:
+    #     taskgroups |= {tg}
+    if taskgroupsdebug: current_app.logger.debug(f'get_taskgroup_taskgroups(): taskgroups before recursion {taskgroups}')
+    ## the recursion isn't needed apparently
+    # for tg in taskgroup.taskgroups:
+    #     get_taskgroup_taskgroups(tg, taskgroups)
+    # if taskgroupsdebug: current_app.logger.debug(f'get_taskgroup_taskgroups(): taskgroups after recursion {taskgroups}')
 
 def get_position_taskgroups(position, taskgroups):
     '''
@@ -423,8 +562,11 @@ def get_position_taskgroups(position, taskgroups):
     :param taskgroups: input and output set of task groups
     :return: None
     '''
+    if taskgroupsdebug: current_app.logger.debug(f'get_position_taskgroups() position.taskgroups: {position.taskgroups}')
     for taskgroup in position.taskgroups:
+        if taskgroupsdebug: current_app.logger.debug('get_position_taskgroups() calling get_taskgroup_taskgroups()')
         get_taskgroup_taskgroups(taskgroup, taskgroups)
+        if taskgroupsdebug: current_app.logger.debug('get_position_taskgroups() return from get_taskgroup_taskgroups()')
 
 def get_tags_users(tags, users, ondate):
     '''
