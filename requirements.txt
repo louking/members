@@ -60,7 +60,7 @@ lazy-object-proxy==1.7.1
 line-profiler==3.5.1
 loutilities==3.7.1
 lxml==4.9.1
-Mako==1.2.1
+Mako==1.2.2
 Markdown==3.4.1
 MarkupSafe==2.1.1
 mccabe==0.7.0
