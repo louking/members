@@ -22,18 +22,18 @@ from ...helpers import positions_active, members_active, member_positions, local
 
 from loutilities.timeu import asctime
 
-# # profile slow code -- delete!
-# from line_profiler import LineProfiler
+# profile slow code
+from line_profiler import LineProfiler
 
-# profiler = LineProfiler()
+profiler = LineProfiler()
 
-# def profile(func):
-#     def inner(*args, **kwargs):
-#         profiler.add_function(func)
-#         profiler.enable_by_count()
-#         return func(*args, **kwargs)
-#     return inner
-# # end profile
+def profile(func):
+    def inner(*args, **kwargs):
+        profiler.add_function(func)
+        profiler.enable_by_count()
+        return func(*args, **kwargs)
+    return inner
+# end profile
 
 dtrender = asctime('%Y-%m-%d')
 dttimerender = asctime('%Y-%m-%d %H:%M:%S')
@@ -143,6 +143,7 @@ def has_all_roles(user, roles):
     return allowed
 
 class PositionTaskgroupCacheMixin():
+    # @profile
     def init_position_taskgroup_cache(self, localusers, ondate):
         """initialize cache of positions and taskgroups
 
@@ -154,23 +155,35 @@ class PositionTaskgroupCacheMixin():
         self.position2taskgroups = {}
         self.localuser2taskgroups = {}
         self.taskgroup2tasks = {}
-        self.task2userpositions = {}
+        localusertask2positions = {}
+        localusers_cache = {}
+        self.localusertask2earliest = {}
         for localuser in localusers:
+            localusers_cache[localuser.id] = localuser
             self.activepositions[localuser.id] = positions_active(localuser, ondate)
             self.localuser2taskgroups[localuser.id] = set(localuser.taskgroups)
             for position in self.activepositions[localuser.id]:
                 if position.id not in self.position2taskgroups:
                     self.position2taskgroups[position.id] = set()
                     get_position_taskgroups(position, self.position2taskgroups[position.id])
-                userpositions = []
                 for taskgroup in self.position2taskgroups[position.id]:
                     if taskgroup.id not in self.taskgroup2tasks:
                         self.taskgroup2tasks[taskgroup.id] = set()
                         get_taskgroup_tasks(taskgroup, self.taskgroup2tasks[taskgroup.id])
+                    # this is used to calculate earliest start date for tasks for this user in these positions
                     for task in self.taskgroup2tasks[taskgroup.id]:
-                        userpositions += [up for up in member_positions(localuser, position) if up not in userpositions]
-                        userpositions.sort(key=lambda up: up.startdate)
-                        self.task2userpositions[localuser.id, task.id] = userpositions
+                        localusertask2positions.setdefault((localuser.id, task.id), []).append(position)
+            
+        # find earliest start date for any positions held by each user for given task
+        for localuser_id, task_id in localusertask2positions:
+            earliest = dtrender.asc2dt('2999-12-31').date()
+            for position in localusertask2positions[localuser_id, task_id]:
+                localuser = localusers_cache[localuser_id]
+                # member_positions returns list sorted by startdate
+                thisstart = member_positions(localuser, position)[0].startdate
+                if thisstart < earliest:
+                    earliest = thisstart
+            self.localusertask2earliest[localuser_id, task_id] = earliest        
             
     def get_activepositions(self, localuser):
         """return list of active positions for a user
@@ -217,17 +230,17 @@ class PositionTaskgroupCacheMixin():
         """
         return self.taskgroup2tasks[taskgroup.id]
 
-    def get_userpositions(self, localuser, task):
-        """return list of UserPosition records for localuser, task
+    def get_earliestposition(self, localuser, task):
+        """return earliest start date that user would have had to do this task
 
         Args:
             localuser (LocalUser): LocalUser instance
             task (Task): Task instance
 
         Returns:
-            list: sorted list of UserPosition records for localuser, task, earliest start first
+            date: earliest start time for any position user held for which they would have had to do this task
         """
-        return self.task2userpositions[localuser.id, task.id]
+        return self.localusertask2earliest[localuser.id, task.id]
 
 # @profile
 def _get_expiration(view, localuser, task, taskcompletion):
@@ -321,12 +334,12 @@ def _get_expiration(view, localuser, task, taskcompletion):
         else:
             if debug: current_app.logger.debug(f'{localuser2user(localuser).name}: task {task.task} not completed')
 
-            userpositions = view.get_userpositions(localuser, task)
-            if userpositions:
-                if debug: current_app.logger.debug(f'userpositions found: {[(up.position.position,up.startdate) for up in userpositions]}')
+            earliest = view.get_earliestposition(localuser, task)
+            if earliest:
                 # return earliest start date for this user in any position which requires this task
-                # NOTE: view.get_userpositions returns list sorted by earliest startdate
-                expires = dtrender.dt2asc(userpositions[0].startdate)
+                expires = dtrender.dt2asc(earliest)
+            
+            # seems like this shouldn't be reachable
             else:
                 li = localinterest()
                 if li.initial_expiration:

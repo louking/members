@@ -31,6 +31,7 @@ from .viewhelpers import dtrender, dttimerender
 from .viewhelpers import EXPIRES_SOON, PERIOD_WINDOW_DISPLAY, STATUS_DISPLAYORDER
 from .viewhelpers import PositionTaskgroupCacheMixin, TASK_CHECKLIST_ROLES_ACCEPTED, localuser2user
 from .viewhelpers import has_oneof_roles
+from .viewhelpers import profile, profiler
 
 # this is just to pick up list() function
 from .leadership_tasks_member import fieldupload
@@ -575,6 +576,7 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         '''
         return ';'.join([str(userid), str(taskid)])
 
+    # @profile
     def open(self):
         locinterest = localinterest()
         localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
@@ -624,7 +626,6 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         self.rows = iter(tasksmembers)
 
     def close(self):
-        # from .viewhelpers import profiler
         # profiler.print_stats()
         return super().close()
     
