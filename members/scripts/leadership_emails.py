@@ -17,7 +17,7 @@ from members import create_app
 from members.settings import Development
 from members.applogging import setlogging
 # this is a little trick as the emails have the same information as the Task Details view
-from members.views.admin.leadership_tasks_admin import TaskDetails, taskdetails_dbmapping, taskdetails_formmapping
+from members.views.admin.leadership_tasks_admin import TaskDetails, taskdetails_dbmapping
 from members.views.admin import bp
 from members.model import db, LocalUser, LocalInterest, Task, EmailTemplate, Position
 from members.views.admin.viewhelpers import localuser2user, localinterest, get_taskgroup_tasks
@@ -34,7 +34,7 @@ taskdetails = TaskDetails(
     model=Task,
     local_interest_model=LocalInterest,
     dbmapping=taskdetails_dbmapping,
-    formmapping=taskdetails_formmapping,
+    # formmapping=taskdetails_formmapping,
     rule='unused',
     clientcolumns=[
         {'data': 'member', 'name': 'member', 'label': 'Member',

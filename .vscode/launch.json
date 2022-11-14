@@ -50,6 +50,15 @@
             "jinja": true
         },
         {
+            "name": "Python: leadership_emails",
+            "type": "python",
+            "request": "launch",
+            "module": "members.scripts.leadership_emails",
+            "args": [
+                "fsrc",
+            ],
+        },
+        {
             "name": "Python: racingteam_inforesults_init",
             "type": "python",
             "request": "launch",
