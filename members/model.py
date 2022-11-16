@@ -876,7 +876,7 @@ class RacingTeamConfig(Base):
         'version_id_col': version_id
     }
     
-monthname = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Nov,Dec'.split(',')
+monthname = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'.split(',')
 monthnum = range(1,13)
 month2num = dict(zip(monthname, monthnum))
 monthmaxdate = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
