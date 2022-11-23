@@ -23,7 +23,7 @@
         {
             "name": "Launch Chrome",
             "request": "launch",
-            "type": "pwa-chrome",
+            "type": "chrome",
             "url": "http://dev.localhost:5000/",
             "webRoot": "${workspaceFolder}/members",
             // see https://code.visualstudio.com/docs/editor/variables-reference#_variables-scoped-per-workspace-folder
@@ -64,7 +64,7 @@
             "request": "launch",
             "module": "members.scripts.racingteam_inforesults_init",
             "args": [
-                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\racingteam-script-inforesults.csv",
+                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\rt table init files\\racing-team-script-inforesults-2.csv",
             ],
         },
         {
@@ -73,7 +73,7 @@
             "request": "launch",
             "module": "members.scripts.racingteam_infovol_init",
             "args": [
-                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\racingteam-script-infovol.csv",
+                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\rt table init files\\racingteam-script-infovol-2.csv",
             ],
         },
         {
@@ -82,7 +82,7 @@
             "request": "launch",
             "module": "members.scripts.racingteam_appln_init",
             "args": [
-                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\racing-team-applications.csv",
+                "C:\\Users\\lking\\OneDrive\\Documents\\King-Langlois\\FSRC\\Racing Team\\rt table init files\\racing-team-applications.csv",
             ],
         },
         {

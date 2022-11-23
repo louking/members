@@ -82,6 +82,13 @@ def main():
             inforec = RacingTeamInfo.query.filter_by(member=member, logtime=timestamp).one_or_none()
             if inforec: continue
             
+            # maybe there was a record for which the member got nulled out somehow - see https://github.com/louking/members/issues/520
+            # if so, set the member and we're done
+            inforec = RacingTeamInfo.query.filter_by(member=None, logtime=timestamp).one_or_none()
+            if inforec:
+                inforec.member = member
+                continue
+            
             # if we've gotten here, we need to add info and result records
             inforec = RacingTeamInfo(interest=localinterest(), member=member, logtime=timestamp)
             db.session.add(inforec)
