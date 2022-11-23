@@ -907,6 +907,7 @@ class RacingTeamMember(Base):
     localuser           = relationship('LocalUser', backref=backref('rt_members'))
     gender              = Column(Text)
     dateofbirth         = Column(Date)
+    is_active           = Column(Boolean, default=True)
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id

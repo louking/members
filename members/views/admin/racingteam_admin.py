@@ -5,13 +5,15 @@ racingteam_admin - racingteam administrative handling
 # standard
 
 # pypi
-from datetime import datetime, timedelta
+from datetime import datetime
 from formencode.schema import Schema
-from formencode.validators import Email, DateConverter, Number, OneOf, StringBool, NotEmpty
+from formencode.validators import DateConverter, Number, OneOf, NotEmpty
 from loutilities.tables import DteFormValidate, TimeOptHoursConverter
 from loutilities.timeu import asctime
 from loutilities.transform import Transform
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from sortedcontainers import SortedKeyList
+from dominate.tags import div, label, input_
 
 # homegrown
 from . import bp
@@ -40,18 +42,53 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/racingteam-admin-gu
 # rt_members endpoint
 ###########################################################################################
 
-rt_member_dbattrs = 'id,interest_id,localuser,gender,dateofbirth'.split(',')
-rt_member_formfields = 'rowid,interest_id,localuser,gender,dateofbirth'.split(',')
+rt_member_dbattrs = 'id,interest_id,localuser,gender,dateofbirth,is_active'.split(',')
+rt_member_formfields = 'rowid,interest_id,localuser,gender,dateofbirth,is_active'.split(',')
 rt_member_dbmapping = dict(zip(rt_member_dbattrs, rt_member_formfields))
 rt_member_formmapping = dict(zip(rt_member_formfields, rt_member_dbattrs))
 rt_member_dbmapping['dateofbirth'] = lambda formrow: isodate.asc2dt(formrow['dateofbirth']).date()
 rt_member_formmapping['dateofbirth'] = lambda dbrow: isodate.dt2asc(dbrow.dateofbirth)
 
+rt_member_yadcf_options = [
+    yadcfoption('is_active:name', 'active-filter', 'multi_select', uselist=True, placeholder='Select active status')
+]
+
+def rt_member_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show inactive members
+        inactivefilter = div(_class='checkbox-filter')
+        with inactivefilter:
+            input_(type='checkbox', id='show-inactive-status', name='show-inactive-status', value='show-inactive')
+            label('Show inactive members', _for='show-inactive-status')
+        filters = filtercontainerdiv(style='display:none;')
+        with filters:
+            filterdiv('active-filter', 'Active')
+    return pretablehtml.render()
+
 class RacingTeamMembersValidator(Schema):
     dateofbirth = DateConverter(month_style='iso')
     gender = OneOf(['M', 'F'])
 
-rt_members_view = DbCrudApiInterestsRolePermissions(
+class RacingTeamMembersView(DbCrudApiInterestsRolePermissions):
+    def validate_form(self, action, formdata):
+        val = DteFormValidate(RacingTeamMembersValidator(allow_extra_fields=True))
+        valresults = val.validate(formdata)
+        self.formdata = valresults['python']
+        results = valresults['results']
+        
+        if action == 'create':
+            # do we already have this member in the table?
+            localuser = LocalUser.query.filter_by(id=formdata['localuser']['id']).one()
+            member = RacingTeamMember.query.filter_by(localuser=localuser, dateofbirth=formdata['dateofbirth']).one_or_none()
+
+            # for task completion by position, a position needs to be supplied
+            if member:
+                results += [{'name': 'localuser.id', 'status': 'duplicate: select Show inactive members, select member, click Edit'}]
+        
+        return results
+
+rt_members_view = RacingTeamMembersView(
     roles_accepted=racingteam_roles,
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app
@@ -60,6 +97,8 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
     version_id_col='version_id',  # optimistic concurrency control
     template='datatables.jinja2',
     templateargs={'adminguide': adminguide},
+    pretablehtml=rt_member_pretablehtml,
+    yadcfoptions=rt_member_yadcf_options,
     pagename='Racing Team Members',
     endpoint='admin.rt_members',
     endpointvalues={'interest': '<interest>'},
@@ -67,7 +106,8 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
     dbmapping=rt_member_dbmapping,
     formmapping=rt_member_formmapping,
     checkrequired=True,
-    formencode_validator=RacingTeamMembersValidator(allow_extra_fields=True),
+    validate=lambda action, formdata: rt_members_view.validate_form(action, formdata),
+    # formencode_validator=RacingTeamMembersValidator(allow_extra_fields=True),
     clientcolumns=[
         {'data': 'localuser', 'name': 'localuser', 'label': 'Member',
          'className': 'field_req',
@@ -100,10 +140,13 @@ rt_members_view = DbCrudApiInterestsRolePermissions(
              }
          }
          },
+        {'data': 'is_active', 'name': 'is_active', 'label': 'Active',
+         '_treatment': {'boolean': {'formfield': 'is_active', 'dbfield': 'is_active'}},
+         'ed': {'def': 'yes'},
+         },
     ],
-    servercolumns=None,  # not server side
     idSrc='rowid',
-    buttons=['create', 'editRefresh', 'remove', 'csv'],
+    buttons=['create', 'editRefresh', 'csv'],
     dtoptions={
         'scrollCollapse': True,
         'scrollX': True,

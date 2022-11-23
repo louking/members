@@ -81,8 +81,9 @@ class RacingTeamInfoView(MethodView):
         configdict['agegenderapi'] = url_for('frontend._rt_getagegender', interest=g.interest)
         configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
         
-        namesdb = RacingTeamMember.query.filter_by(**localinterest_query_params()).all()
+        namesdb = RacingTeamMember.query.filter_by(is_active=True, **localinterest_query_params()).all()
         names = [n.localuser.name for n in namesdb]
+        names.sort()
 
         return render_template('racing-info.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
 
@@ -283,11 +284,7 @@ class RacingTeamApplnView(MethodView):
         configdict['agegenderapi'] = url_for('frontend._rt_getagegender', interest=g.interest)
         configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
         
-        # this generates a pull-down for racing team members
-        namesdb = RacingTeamMember.query.filter_by(**localinterest_query_params()).all()
-        names = [n.localuser.name for n in namesdb]
-
-        return render_template('racing-application.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
+        return render_template('racing-application.jinja2', config=configdict, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
 
     def post(self):
         try:
