@@ -170,13 +170,13 @@ def nav_menu():
             if current_user.has_role(ROLE_RACINGTEAM_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
                 racingteamadmin = Subgroup('Racing Team')
                 navbar.items.append(racingteamadmin)
-                racingteam_admin_view(racingteamadmin, 'Members', 'admin.rt_members', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Info Results', 'admin.rt_inforesults', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Info Volunteer', 'admin.rt_infovol', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Applications', 'admin.rt_applns', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Application Results', 'admin.rt_applnresults', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Date Range', 'admin.rt_daterange', interest=g.interest)
-                racingteam_admin_view(racingteamadmin, 'Config', 'admin.rt_config', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Members', 'admin.rt_members', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Info Results', 'admin.rt_inforesults', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Info Volunteer', 'admin.rt_infovol', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Applications', 'admin.rt_applns', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Application Results', 'admin.rt_applnresults', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Date Range', 'admin.rt_daterange', prelink='Racing Team', interest=g.interest)
+                racingteam_admin_view(racingteamadmin, 'Config', 'admin.rt_config', prelink='Racing Team', interest=g.interest)
 
         # superadmin stuff
         if current_user.has_role(ROLE_SUPER_ADMIN):
