@@ -58,10 +58,22 @@ add a member to the team
 ---------------------------
 The team :term:`member` :term:`terms <term>` are managed via the Racing Team Member :term:`position`.
 
-* from :ref:`Positions view` select *Racing Team Member* :term:`position`
-* use the :ref:`Position Wizard` to manage the team membership
-  
-  * add the :term:`member` on the effective date
+* :term:`positions <position>` are used indirectly to assign tasks to people. In the case of the racing team, the task  
+  the racing team member must do is agree to the racing team contract
+
+  * from :ref:`Positions view` select the appropriate *Racing Team Member* :term:`position` (depending on their term)
+  * use the :ref:`Position Wizard` to manage the team membership
+    
+    * add the :term:`member` on the effective date
+
+* :ref:`Racing Team Members view` is used to save the racing team member's gender and birth date, which is used to calculate age grade.
+  This table is also used to populate the name pull-down on the Racing Team Information form.
+
+  * from :ref:`Racing Team Members view`, check *Show inactive members* to see all the members, then search to 
+    see if the new member has been a member of the team before. 
+  * if the new member has been a member of the team before, select the member, then use **Edit** to set the 
+    member **Active** to *yes*
+  * otherwise use **New** to create the new member record
 
 team management
 ----------------------
@@ -79,6 +91,8 @@ The team :term:`member` :term:`terms <term>` are managed via the Racing Team Mem
 * use the :ref:`Position Wizard` to manage the team membership
   
   * remove the :term:`member` on the effective date
+
+* use :ref:`Racing Team Members view` to indicate that the racing team member is not active any more
 
 open racing team applications outside of normal window
 -------------------------------------------------------

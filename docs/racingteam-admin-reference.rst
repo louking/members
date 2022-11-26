@@ -229,6 +229,15 @@ Racing Team Members view
 
     :DOB:
         :term:`members <member>` date of birth
+    
+    :Active:
+        if *yes*, indicates :term:`member` is currently on the racing team
+
+The view has the following filters:
+
+    :Show inactive members:
+        check this to see inactive members. This allows old members to be added back to
+        the racing team by checking this then setting the old member's **Active** to *yes*
 
 .. note::
     before using this view, new :term:`members <member>` needs to be created on the :ref:`Members view`, and 
