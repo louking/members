@@ -117,6 +117,7 @@ class RacingTeamInfoView(MethodView):
                     ('common_infotype', 'Submission Type'),
                     ('raceresult_distance', 'Distance'),
                     ('raceresult_units', ''),
+                    ('raceresult_surface', ''),
                     ('raceresult_time', 'Official Time (hh:mm:ss)'),
                     ('raceresult_age', 'Age (Race Date)'),
                     ('raceresult_agegrade', 'Age Grade'),
@@ -127,6 +128,7 @@ class RacingTeamInfoView(MethodView):
                     'common_eventname': 'eventname',
                     'raceresult_distance': 'distance',
                     'raceresult_units': 'units',
+                    'raceresult_surface': 'surface',
                     'raceresult_time': 'time',
                     'raceresult_age': 'age',
                     'raceresult_agegrade': 'agegrade',
@@ -207,13 +209,14 @@ class ApplnValidator(Schema):
     name = ByteString(not_empty=True)
     email = Email()
     dob = DateConverter(month_style='iso')
-    gender = OneOf(['M', 'F'])
+    gender = OneOf(['M', 'F', 'X'])
     applntype = OneOf(['new', 'renewal'])
     race1_name = ByteString(not_empty=True)
     race1_location = ByteString(not_empty=True)
     race1_date = DateConverter(month_style='iso')
     race1_distance = Number(min=0, max=200)
     race1_units = OneOf(['miles', 'km'])
+    race1_surface = OneOf(['road', 'track'])
     race1_time = TimeOptHoursConverter()
     race1_resultslink = URL()
     race2_name = ByteString(not_empty=True)
@@ -221,6 +224,7 @@ class ApplnValidator(Schema):
     race2_date = DateConverter(month_style='iso')
     race2_distance = Number(min=0, max=200)
     race2_units = OneOf(['miles', 'km'])
+    race2_surface = OneOf(['road', 'track'])
     race2_time = TimeOptHoursConverter()
     race2_resultslink = URL()
 
@@ -322,6 +326,7 @@ class RacingTeamApplnView(MethodView):
                 ('race1_age',         'Race 1 - Age'),
                 ('race1_distance',    'Race 1 - Distance'),
                 ('race1_units',       ''),
+                ('race1_surface',     ''),
                 ('race1_time',        'Race 1 - Official Time (hh:mm:ss)'),
                 ('race1_resultslink', 'Race 1 - Results Website'),
                 ('race1_agegrade',    'Race 1 - Age Grade'),
@@ -331,6 +336,7 @@ class RacingTeamApplnView(MethodView):
                 ('race2_age',         'Race 2 - Age'),
                 ('race2_distance',    'Race 2 - Distance'),
                 ('race2_units',       ''),
+                ('race2_surface',     ''),
                 ('race2_time',        'Race 2 - Official Time (hh:mm:ss)'),
                 ('race2_resultslink', 'Race 2 - Results Website'),
                 ('race2_agegrade',    'Race 2 - Age Grade'),
@@ -339,8 +345,8 @@ class RacingTeamApplnView(MethodView):
             
             for ndx in [1, 2]:
                 resultsrec = RacingTeamResult(interest=localinterest())
-                resultsform = f'race{ndx}_name,race{ndx}_date,race{ndx}_location,race{ndx}_resultslink,race{ndx}_distance,race{ndx}_units,race{ndx}_time,race{ndx}_agegrade,race{ndx}_age'.split(',')
-                resultsdb = 'eventname,eventdate,location,url,distance,units,time,agegrade,age'.split(',')
+                resultsform = f'race{ndx}_name,race{ndx}_date,race{ndx}_location,race{ndx}_resultslink,race{ndx}_distance,race{ndx}_units,race{ndx}_surface,race{ndx}_time,race{ndx}_agegrade,race{ndx}_age'.split(',')
+                resultsdb = 'eventname,eventdate,location,url,distance,units,surface,time,agegrade,age'.split(',')
                 resultsmapping = dict(zip(resultsdb, resultsform))
                 resultsxform = Transform(resultsmapping, sourceattr=False)
                 resultsxform.transform(request.form, resultsrec)
@@ -414,6 +420,7 @@ class RacingTeamAgeGradeApi(MethodView):
             dist = request.args['dist']
             units = request.args['units']
             time = request.args['time']
+            surface = request.args['surface']
 
             # convert marathon and half marathon to exact miles
             if (dist == 26.2 and units == 'miles') or (dist == 42.2 and units == 'km'):
@@ -432,6 +439,7 @@ class RacingTeamAgeGradeApi(MethodView):
                 'gender'   : member.gender,
                 'distance' : dist,
                 'time'     : time,
+                'surface'  : surface,
             }
             
             # get age grade data

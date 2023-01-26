@@ -110,7 +110,7 @@ function setConfirmationFields() {
   // get all the fields we are interested in
   // only use 1 race if new applicant
   var formfields = ['name', 'email', 'dob', 'gender', 'applntype'];
-  var racefields = 'race{i}_name,race{i}_location,race{i}_date,race{i}_age,race{i}_distance,race{i}_units,race{i}_time,race{i}_resultslink,race{i}_agegrade';
+  var racefields = 'race{i}_name,race{i}_location,race{i}_date,race{i}_age,race{i}_distance,race{i}_units,race{i}_surface,race{i}_time,race{i}_resultslink,race{i}_agegrade';
   for (racenum=1; racenum<=2; racenum++) {
     // don't save 2nd race if new application - uncomment if only one race required for new
     // if (racenum==2 && $('#applntype').val() == 'new') break;
@@ -268,9 +268,10 @@ function setAgeGrade( race ) {
       var gender = $('#gender').val();
       var dist   = $('#' + thisrace + '_distance').val();
       var units  = $( '#' + thisrace + '_units' ).val()
+      var surface   = $('#' + thisrace + '_surface').val();
       var time   = $('#' + thisrace + '_time').val();
       
-      updateAgeGrade(thisrace, age, gender, dist, units, time);
+      updateAgeGrade(thisrace, age, gender, dist, units, surface, time);
     }
 }
 
@@ -280,11 +281,12 @@ function setAgeGrade( race ) {
 //   gender - 'M' or 'F'
 //   dist - float distance
 //   units - 'miles' or 'km'
+//   surface - 'road' or 'track'
 //   time - [[hh:]mm:]ss[.ddd]
-function updateAgeGrade(race, age, gender, dist, units, time) {
-  console.log('updateAgeGrade('+race+','+age+','+gender+','+dist+','+units+','+time+')');
+function updateAgeGrade(race, age, gender, dist, units, surface, time) {
+  console.log('updateAgeGrade('+race+','+age+','+gender+','+dist+','+units+','+surface+','+time+')');
   // noop if any of the parameters are missing
-  if (!age || !gender || !dist || !units || !time) return;
+  if (!age || !gender || !dist || !units || !surface || !time) return;
   
   // convert marathon and half marathon to exact miles
   if ( (dist == 26.2 && units == 'miles') || (dist == 42.2 && units == 'km') ) {
@@ -303,6 +305,7 @@ function updateAgeGrade(race, age, gender, dist, units, time) {
     age      : age,
     gender   : gender,
     distance : dist,
+    surface  : surface,
     time     : time,
   });
   $.getJSON('https://scoretility.com/_agegrade?'+params, function ( data ) {

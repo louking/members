@@ -958,6 +958,7 @@ class RacingTeamResult(Base):
     url                 = Column(Text)
     distance            = Column(Float)
     units               = Column(Enum('miles', 'km'))
+    surface             = Column(Enum('road', 'track'))
     time                = Column(Text)
     age                 = Column(Integer)
     agegrade            = Column(Float)

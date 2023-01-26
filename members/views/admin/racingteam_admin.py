@@ -169,8 +169,8 @@ rt_members_view.register()
 # rt_inforesults endpoint
 ###########################################################################################
 
-rt_inforesult_dbattrs = 'id,interest_id,info.logtime,info.member,eventdate,age,eventname,distance,units,time,agegrade,awards'.split(',')
-rt_inforesult_formfields = 'rowid,interest_id,logtime,name,eventdate,age,eventname,distance,units,time,agegrade,awards'.split(',')
+rt_inforesult_dbattrs = 'id,interest_id,info.logtime,info.member,eventdate,age,eventname,distance,units,surface,time,agegrade,awards'.split(',')
+rt_inforesult_formfields = 'rowid,interest_id,logtime,name,eventdate,age,eventname,distance,units,surface,time,agegrade,awards'.split(',')
 rt_inforesult_dbmapping = dict(zip(rt_inforesult_dbattrs, rt_inforesult_formfields))
 rt_inforesult_formmapping = dict(zip(rt_inforesult_formfields, rt_inforesult_dbattrs))
 rt_inforesult_formmapping['name'] = lambda dbrow: dbrow.info.member.localuser.name
@@ -183,6 +183,7 @@ class RacingTeamInfoResultsValidator(Schema):
     eventname = NotEmpty()
     distance = Number(min=0, max=200)
     units = OneOf(['miles', 'km'])
+    surface = OneOf(['road', 'track'])
     time = TimeOptHoursConverter()
     agegrade = Number(min=0, max=100)
 
@@ -228,6 +229,8 @@ rt_inforesults_view = RacingTeamInfoResultsView(
         {'data': 'distance', 'name': 'distance', 'label': 'Dist',
          },
         {'data': 'units', 'name': 'units', 'label': 'Units',
+         },
+        {'data': 'surface', 'name': 'surface', 'label': 'Surface',
          },
         {'data': 'agegrade', 'name': 'agegrade', 'label': 'Age Grade',
          },
@@ -325,8 +328,8 @@ rt_infovols_view.register()
 # rt_applnresults endpoint
 ###########################################################################################
 
-rt_applnresult_dbattrs = 'id,interest_id,application.logtime,application.name,application.email,application.comments,eventdate,eventname,location,distance,units,time,agegrade,age,url'.split(',')
-rt_applnresult_formfields = 'rowid,interest_id,logtime,name,email,comments,eventdate,eventname,location,distance,units,time,agegrade,age,url'.split(',')
+rt_applnresult_dbattrs = 'id,interest_id,application.logtime,application.name,application.email,application.comments,eventdate,eventname,location,distance,units,surface,time,agegrade,age,url'.split(',')
+rt_applnresult_formfields = 'rowid,interest_id,logtime,name,email,comments,eventdate,eventname,location,distance,units,surface,time,agegrade,age,url'.split(',')
 rt_applnresult_dbmapping = dict(zip(rt_applnresult_dbattrs, rt_applnresult_formfields))
 rt_applnresult_formmapping = dict(zip(rt_applnresult_formfields, rt_applnresult_dbattrs))
 
@@ -380,6 +383,8 @@ rt_applnresults_view = RacingTeamApplnResultsView(
         {'data': 'distance', 'name': 'distance', 'label': 'Dist',
          },
         {'data': 'units', 'name': 'units', 'label': 'Units',
+         },
+        {'data': 'surface', 'name': 'surface', 'label': 'Surface',
          },
         {'data': 'agegrade', 'name': 'agegrade', 'label': 'Age Grade',
          },

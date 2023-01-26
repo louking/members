@@ -61,6 +61,7 @@
               <option value="" required disabled selected>Select gender</option>
               <option value="F">female</option>
               <option value="M">male</option>
+              <option value="X">nonbinary</option>
             </select>
             <label>Gender *</label>
           </div>
@@ -110,16 +111,23 @@
               </div>
               
               <div class="row">
-                <div class="input-field col s">
+                <div class="input-field col s4">
                   <input id="{{ tag }}_distance" type="number" step="any" required class="validate" name="{{ tag }}_distance" onchange="setAgeGrade('{{ tag }}')" required aria-required="true">
                   <label for="{{ tag }}_distance">Race {{ racenum }} - Distance *</label>
                 </div>
-                <div class="input-field col s6">
+                <div class="input-field col s4">
                   <select id="{{ tag }}_units" name="{{ tag }}_units" class="validate" required  onchange="setAgeGrade('{{ tag }}')">
                     <option value="" required disabled selected>miles / km *</option>
                     <option value="miles">miles</option>
                     <option value="km">km</option>
                   </select>
+                </div>
+                <div class="input-field col s4">
+                <select id="{{ tag }}_surface" name="{{ tag }}_surface" class="raceresult validate" required  onchange="setAgeGrade()">
+                    <option value="" required disabled selected>road / track *</option>
+                    <option value="road">road</option>
+                    <option value="track">track</option>
+                </select>
                 </div>
               </div>
               
@@ -142,7 +150,7 @@
 
               <div class="row">
                 <div class="input-field col s12">
-                  <input readonly value="Calculated from birth date, gender, race date, distance, time" id="{{ tag }}_agegrade" type="text" name="{{ tag }}_agegrade" >
+                  <input readonly value="(based on birth date, gender, race date, distance, surface, time)" id="{{ tag }}_agegrade" type="text" name="{{ tag }}_agegrade" >
                   <label for="{{ tag }}_agegrade">Race {{ racenum }} - Age Grade</label>
                 </div>
               </div>

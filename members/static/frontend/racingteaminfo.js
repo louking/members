@@ -120,7 +120,7 @@ function setConfirmationFields() {
   
   // get all the fields we are interested in
   var commonfields = ['common_name', 'common_eventname', 'common_eventdate', 'common_infotype'];
-  var resultfields = ['raceresult_distance', 'raceresult_units', 'raceresult_time', 'raceresult_age', 'raceresult_agegrade', 'raceresult_awards'];
+  var resultfields = ['raceresult_distance', 'raceresult_units', 'raceresult_surface', 'raceresult_time', 'raceresult_age', 'raceresult_agegrade', 'raceresult_awards'];
   var volunteerfields = ['volunteer_hours', 'volunteer_comments'];
   
   var formfields = [].concat(commonfields);
@@ -300,9 +300,10 @@ function setAgeGrade( ) {
   var racedate = $('#common_eventdate').val();
   var dist     = $('#raceresult_distance').val();
   var units    = $('#raceresult_units' ).val()
+  var surface  = $('#raceresult_surface').val();
   var time     = $('#raceresult_time').val();
 
-  updateAgeGrade(name, racedate, dist, units, time);
+  updateAgeGrade(name, racedate, dist, units, surface, time);
 }
 
 // updateAgeGrade
@@ -310,16 +311,17 @@ function setAgeGrade( ) {
 //   racedate - date of race
 //   dist - float distance
 //   units - 'miles' or 'km'
+//   surface - 'road' or 'track'
 //   time - [[hh:]mm:]ss[.ddd]
-function updateAgeGrade(name, racedate, dist, units, time) {
-  console.log('updateAgeGrade('+name+','+racedate+','+dist+','+units+','+time+')');
+function updateAgeGrade(name, racedate, dist, units, surface, time) {
+  console.log('updateAgeGrade('+name+','+racedate+','+dist+','+units+','+surface+','+time+')');
 
   // disable next button, enabled in show_age_grade()
   // see https://forum.jquery.com/topic/disable-enable-button-in-form
   $("#next-button").attr("disabled", "disabled");
 
   // noop if any of the parameters are missing
-  if ( !name || !racedate || !dist || !units || !time ) return;
+  if ( !name || !racedate || !dist || !units || !surface || !time ) return;
 
   // get age grade from back end
   urlparams = {
@@ -327,6 +329,7 @@ function updateAgeGrade(name, racedate, dist, units, time) {
     racedate: racedate,
     dist: dist,
     units: units,
+    surface: surface,
     time: time,
   };
   $.ajax({
