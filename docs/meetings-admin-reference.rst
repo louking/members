@@ -115,11 +115,15 @@ Invites view
     :Email:
         email address of the :term:`member` invited to the :term:`meeting`
 
+    :RSVP:
+        the :term:`member's <member>` :term:`rsvp` response when invited to the :term:`meeting`
+
     :Attended:
         indication of whether the :term:`member` attended the meeting, *yes* or *no*
 
-    :RSVP:
-        the :term:`member's <member>` :term:`rsvp` response when invited to the :term:`meeting`
+    :In person/Virtual:
+        if the :term:`meeting` includes the option *RSVP Required*, this shows whether
+        the :term:`member` plans to or has attended *in person* or *virtual*
 
     :Invited:
         generally *yes* but if the :term:`member's <member>` :term:`position` changed after the initial

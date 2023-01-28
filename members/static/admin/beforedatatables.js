@@ -607,12 +607,16 @@ function mystatus_rsvp(url) {
         var get = $.get(url, function(data, textStatus, jqXHR) {
             if (textStatus === "success") {
                 if (data.status === "success") {
+                    var dtebody = $('<div>', {class: 'DTE_Body'});
+                    var dtebodycontent = $('<div>', {class: 'DTE_Body_Content'});
+                    dtebody.append(dtebodycontent);
                     var form = $('<form>', {id: 'doc-form', action: url, method:'POST'})
+                    dtebodycontent.append(form);
                     var responsediv = $('<div>', {class: 'DTE_Field field_req'});
                     form.append(responsediv);
                     responsediv.append($('<label>', {for: 'response', text: 'RSVP', class: 'DTE_Label'}));
                     var attending = $('<select>', {id:  'response', name: 'response', class: 'form-input DTE_Field_Input',
-                                                   style: 'width: 80%;'});
+                                                   style: 'width: 60%;'});
                     responsediv.append(attending);
                     for (var i=0; i<data.options.length; i++) {
                         attending.append($('<option>', {value: data.options[i], text: data.options[i]}));
@@ -622,11 +626,44 @@ function mystatus_rsvp(url) {
                         minimumResultsForSearch: Infinity
                     });
 
+                    var attend_typediv = $('<div>', {class: 'DTE_Field field_req'});
+                    form.append(attend_typediv);
+                    attend_typediv.append($('<label>', {for: 'attend_type', text: 'in person/virtual', class: 'DTE_Label'}));
+                    var attend_type = $('<select>', {id:  'attend_type', name: 'attend_type', class: 'form-input DTE_Field_Input',
+                                                   style: 'width: 60%;'});
+                    attend_typediv.append(attend_type);
+                    for (var i=0; i<data.attend_type_options.length; i++) {
+                        attend_type.append($('<option>', {value: data.attend_type_options[i], text: data.attend_type_options[i]}));
+                    }
+                    attend_type.val(data.attend_type);
+                    attend_type.select2({
+                        minimumResultsForSearch: Infinity
+                    });
+
+                    // set default attend_type to the top option if not already set
+                    if (attend_type.val() == null) {
+                        // see https://stackoverflow.com/a/42898862/799921
+                        attend_type.val(attend_type[0][0].value).trigger('change');
+                    }
+
+                    // show attend_type only when attending shows user is actually attending the meeting
+                    function check_attending() {
+                        if (attending.val() == 'attending') {
+                            attend_typediv.show();
+                        } else {
+                            attend_typediv.hide();
+                        }
+                    }
+                    $(attending).change(function(){
+                        check_attending();
+                    });
+                    check_attending();
+
                     // adapted from https://www.tjvantoll.com/2013/07/10/creating-a-jquery-ui-dialog-with-a-submit-button/
-                    form.dialog({
+                    dtebody.dialog({
                         title: 'RSVP',
                         modal: true,
-                        minWidth: 400,
+                        width: 600,
                         height: 'auto',
                         close: function(event, ui) {
                             that.processing(false);
@@ -650,7 +687,7 @@ function mystatus_rsvp(url) {
                                                 if (formfields.response != 'response pending') {
                                                     $('.rsvp-noresponse').removeClass('rsvp-noresponse');
                                                 }
-                                                form.dialog('close');
+                                                dtebody.dialog('close');
                                             } else {
                                                 formerror.text(data.error);
                                                 formerror.show();
@@ -665,7 +702,7 @@ function mystatus_rsvp(url) {
                             {
                                 text: 'Cancel',
                                 click: function() {
-                                    form.dialog('close');
+                                    dtebody.dialog('close');
                                 }
                             },
                         ]

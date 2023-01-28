@@ -419,8 +419,12 @@ MEETING_OPTION_HASDISCUSSIONS = 'has_discussions'
 MEETING_OPTION_HASMOTIONS = 'has_motions'
 MEETING_OPTION_SHOWACTIONITEMS = 'show_action_items'
 MEETING_OPTION_ONLINEMOTIONS = 'allow_online_motions'
+MEETING_OPTION_INPERSON = 'in_person'
+MEETING_OPTION_VIRTUAL = 'virtual'
 MEETING_OPTIONS = OrderedDict([
     (MEETING_OPTION_RSVP, 'RSVP Required'),
+    (MEETING_OPTION_INPERSON, 'In Person'),
+    (MEETING_OPTION_VIRTUAL, 'Virtual'),
     (MEETING_OPTION_TIME, 'Time Required'),
     (MEETING_OPTION_LOCATION, 'Location Required'),
     (MEETING_OPTION_SHOWACTIONITEMS, 'Show Action Items'),
@@ -481,6 +485,14 @@ INVITE_RESPONSE_ATTENDING = 'attending'
 INVITE_RESPONSE_NOT_ATTENDING = 'not attending'
 invite_response_all = [INVITE_RESPONSE_NO_RESPONSE, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NOT_ATTENDING]
 
+INVITE_ATTENDANCE_IN_PERSON = 'in person'
+INVITE_ATTENDANCE_VIRTUAL = 'virtual'
+invite_attend_type_all = [INVITE_ATTENDANCE_IN_PERSON, INVITE_ATTENDANCE_VIRTUAL]
+invite_opt2attend = OrderedDict([
+    (MEETING_OPTION_INPERSON, INVITE_ATTENDANCE_IN_PERSON),
+    (MEETING_OPTION_VIRTUAL, INVITE_ATTENDANCE_VIRTUAL),
+])
+
 class Invite(Base):
     __tablename__ = 'invite'
     id                  = Column(Integer(), primary_key=True)
@@ -495,6 +507,7 @@ class Invite(Base):
     agendaitem          = relationship('AgendaItem', backref=backref('invites'))
     invitekey           = Column(String(INVITE_KEY_LEN))
     response            = Column(Enum(*invite_response_all), default=INVITE_RESPONSE_NO_RESPONSE)
+    attend_type         = Column(Enum(*invite_attend_type_all))
     attended            = Column(Boolean, default=False)
     activeinvite        = Column(Boolean, default=True)
     lastreminder        = Column(DateTime)

@@ -20,6 +20,7 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Invite, ActionItem, Motion, MotionVote
 from ...model import invite_response_all, INVITE_RESPONSE_ATTENDING, INVITE_RESPONSE_NO_RESPONSE, action_all
+from ...model import invite_opt2attend
 from ...model import motionvote_all, MOTIONVOTE_KEY_URLARG, INVITE_KEY_URLARG
 from ...version import __docversion__
 from ...meeting_evotes import get_evotes, generateevotes
@@ -531,7 +532,21 @@ class MyMeetingRsvpApi(MethodView):
             options = [r for r in invite_response_all
                        # copy if no response yet, or (if a response) anything but no response
                        if invite.response == INVITE_RESPONSE_NO_RESPONSE or r != INVITE_RESPONSE_NO_RESPONSE]
-            return jsonify(status='success', response=invite.response, options=options)
+            
+            # build attendance options
+            attend_type_options = []
+            for inp_v_opt in invite_opt2attend:
+                if meeting_has_option(invite.meeting, inp_v_opt):
+                    attend_type_options.append(invite_opt2attend[inp_v_opt])
+            
+            jsonfields = {
+                'status': 'success',
+                'response': invite.response,
+                'options': options,
+                'attend_type': invite.attend_type,
+                'attend_type_options': attend_type_options,
+            }
+            return jsonify(**jsonfields)
 
         except Exception as e:
             exc = ''.join(format_exception_only(type(e), e))
@@ -554,6 +569,9 @@ class MyMeetingRsvpApi(MethodView):
 
             invite = Invite.query.filter_by(invitekey=invitekey).one()
             invite.response = response
+            if response == INVITE_RESPONSE_ATTENDING:
+                attend_type = request.form['attend_type']
+                invite.attend_type = attend_type
             invite.attended = response == INVITE_RESPONSE_ATTENDING
             db.session.commit()
 

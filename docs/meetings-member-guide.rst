@@ -107,6 +107,11 @@ This opens a form for your :term:`RSVP <rsvp>`:
     :align: center
 
 * next to **RSVP** select your response, one of *attending*, *not attending*
+* if you chose *attending*, you need to pick whether you will be attending *in person* or *virtual*
+  
+  .. note::
+    if the meeting only allows *in person* or only allows *virtual*, only that option will be shown
+
 * click **Save**
 
 .. _My Status Report update report:

@@ -25,12 +25,13 @@ from ...model import LocalInterest, LocalUser, Tag, MeetingType
 from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import Email
 from ...model import localinterest_query_params
-from ...model import invite_response_all
+from ...model import invite_response_all, invite_attend_type_all
 from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE, MEETING_RENEW_OPTIONS
 from ...helpers import positions_active, members_active
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, send_discuss_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
+from ...model import MEETING_OPTION_INPERSON, MEETING_OPTION_VIRTUAL
 from ...model import MEETING_OPTION_SHOWACTIONITEMS, MEETING_OPTION_TIME, MEETING_OPTION_LOCATION, MEETING_OPTION_HASMOTIONS
 from ...model import MEETING_RENEW_COPYAGENDADISCUSSION, MEETING_RENEW_COPYAGENDASUMMARY, MEETING_RENEW_RESETACTIONDATE
 from ...model import MEETING_RENEW_COPYINVITEEMAIL, MEETING_RENEW_COPYREMINDEREMAIL, INVITE_KEY_URLARG
@@ -409,8 +410,8 @@ meetings_view.register()
 # invites endpoint
 ###########################################################################################
 
-invites_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,user.name,user.email,agendaitem.agendaitem,invitekey,response,attended,activeinvite'.split(',')
-invites_formfields = 'rowid,interest_id,purpose,date,name,email,agendaitem,invitekey,response,attended,activeinvite'.split(',')
+invites_dbattrs = 'id,interest_id,meeting.purpose,meeting.date,user.name,user.email,agendaitem.agendaitem,invitekey,response,attend_type,attended,activeinvite'.split(',')
+invites_formfields = 'rowid,interest_id,purpose,date,name,email,agendaitem,invitekey,response,attend_type,attended,activeinvite'.split(',')
 invites_dbmapping = dict(zip(invites_dbattrs, invites_formfields))
 invites_formmapping = dict(zip(invites_formfields, invites_dbattrs))
 # invites_formmapping['date'] = lambda dbrow: isodate.dt2asc(dbrow.meeting.date)
@@ -497,14 +498,17 @@ invites_view = InvitesView(
          'aliased': localuser_invites_alias,
          'onclause': localuser_invites_onclause,
          },
-        {'data': 'attended', 'name': 'attended', 'label': 'Attended',
-         'className': 'TextCenter',
-         '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
-         'ed': {'def': 'no'},
-         },
         {'data': 'response', 'name': 'response', 'label': 'RSVP',
          'type': 'select2',
          'options': invite_response_all,
+         },
+        {'data': 'attended', 'name': 'attended', 'label': 'Attended',
+         '_treatment': {'boolean': {'formfield': 'attended', 'dbfield': 'attended'}},
+         'ed': {'def': 'no'},
+         },
+        {'data': 'attend_type', 'name': 'attend_type', 'label': 'In person/Virtual',
+         'type': 'select2',
+         'options': invite_attend_type_all,
          },
         {'data': 'activeinvite', 'name': 'activeinvite', 'label': 'Invited',
          'className': 'TextCenter',
@@ -995,7 +999,8 @@ def meeting_childrowoptions():
                 },
                 'inline': {
                     # uses name field as key; value is used for editor.inline() options
-                    'attended': {'submitOnBlur': True}
+                    'attended': {'submitOnBlur': True},
+                    'attend_type': {'submitOnBlur': True},
                 },
                 'updatedtopts': {
                     'dom': 'Bfrt',
@@ -2069,7 +2074,19 @@ class MeetingTypesView(DbCrudApiInterestsRolePermissions):
         if self.action != 'refresh':
             self.updatepeers(self.thisid, self.prevpeers)
             # table display is updated in afterdatatables.js on('submitSuccess') function
-
+        
+            # check for option incompatibilities
+            meetingtype = MeetingType.query.filter_by(id=self.thisid).one()
+            options = set(meetingtype.options.split(MEETING_OPTION_SEPARATOR))
+            rsvp_required_options = {MEETING_OPTION_INPERSON, MEETING_OPTION_VIRTUAL}
+            rsvp_required_text = {MEETING_OPTIONS[o] for o in rsvp_required_options}
+            if MEETING_OPTION_RSVP in options and not (rsvp_required_options & options):
+                self._fielderrors = [
+                    {'name': 'options', 
+                     'status': f'if \'{MEETING_OPTIONS[MEETING_OPTION_RSVP]}\' set, must set at least one of {rsvp_required_text}'
+                    }]
+                raise ParameterError
+                
 
 meetingtypes_dbattrs = 'id,interest_id,order,meetingtype,options,buttonoptions,renewoptions,meetingwording,' \
                        'statusreportwording,invitewording,autoagendatitle,invitetags,votetags,statusreporttags,' \

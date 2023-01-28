@@ -332,8 +332,8 @@ From the :term:`meeting's <meeting>` :ref:`Meeting view`,
 
 * select the :term:`agenda item` entitled *Attendees*
 * click **Edit**
-* under the **Invites** table, on the :term:`member` row, click the cell under the **Attended** column to change
-* click off the selected cell to save -- when select widget disappers, the entry is saved
+* under the **Invites** table, on the :term:`member` row, click the cell under the **Attended** and/or **In person/Virtual** columns to change
+* click off the selected cell to save -- when select widget disappears, the entry is saved
 
   .. important::
     if you don't click off the selected cell, this change won't be saved
@@ -403,7 +403,7 @@ To edit the :term:`votes <vote>`,
 * select the :term:`motion`
 * under **Motions** click **Edit**
 * under **Votes**, on the :term:`member` row, click the cell under the **Vote** column to change
-* click off the selected cell to save -- when select widget disappers, the entry is saved
+* click off the selected cell to save -- when select widget disappears, the entry is saved
 
   .. important::
     if you don't click off the selected cell, this change won't be saved
