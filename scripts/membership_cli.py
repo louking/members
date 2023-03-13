@@ -68,6 +68,30 @@ def update(interest, membershipfile):
         db.session.add(tableupdatetime)
     tableupdatetime.lastchecked = datetime.today()
     
+    # gender logic
+    def get_gender(mem):
+        """get gender from member record
+
+        Args:
+            mem (rsu_member): member record from RunSignUp
+
+        Returns:
+            str: gender for Member record in database
+        """
+        # bug in RunSignUp: no "gender" field if non-binary
+        if 'gender' not in mem['user']:
+            gender = 'Non-binary'
+        
+        else:
+            rsu2gender = {
+                'M': 'Male',
+                'F': 'Female',
+                'X': 'Non-binary'
+            }
+            gender = rsu2gender[mem['user']['gender']]
+        
+        return gender
+    
     # normal case is download from RunSignUp service
     if not membershipfile:
         # get, check club id
@@ -83,7 +107,7 @@ def update(interest, membershipfile):
                             'FamilyName'     : lambda mem: mem['user']['last_name'],
                             'GivenName'      : lambda mem: mem['user']['first_name'],
                             'MiddleName'     : lambda mem: mem['user']['middle_name'] if mem['user']['middle_name'] else '',
-                            'Gender'         : lambda mem: 'Female' if mem['user']['gender'] == 'F' else 'Male',
+                            'Gender'         : get_gender,
                             'DOB'            : lambda mem: mem['user']['dob'],
                             'City'           : lambda mem: mem['user']['address']['city'],
                             'State'          : lambda mem: mem['user']['address']['state'],
