@@ -254,11 +254,41 @@ def update(interest, membershipfile):
                     thislogger.warn(f'overlap detected for {memberkey}: end={endasc} was start={oldstartasc} now start={newstartasc}')
                     thismship.start_date = newstart
 
+            # calculate contigous range for membership records
+            mship_date_range = {}
+            contiguous_mshipids = []
+            class DateRangeItem(object): 
+                def __init__(self, **kwargs):
+                    for arg in kwargs:
+                        setattr(self, arg, kwargs[arg])
+            for mshipid in dbmships_keys:
+                mship = dbmships[mshipid]
+                # contiguous_mshipids is empty (startup condition), let's get it started
+                if not contiguous_mshipids:
+                    current_range = DateRangeItem(start_date=mship.start_date, end_date=mship.end_date)
+                    contiguous_mshipids = [mshipid]
+                else:
+                    last_mshipid = contiguous_mshipids[-1]
+                    last_mship = dbmships[last_mshipid]
+                    # if membership is contiguous
+                    if mship.start_date == last_mship.end_date + timedelta(1):
+                        current_range.end_date = mship.end_date
+                        contiguous_mshipids.append(mshipid)
+                    # membership not contiguous
+                    else:
+                        for contiguous_mshipid in contiguous_mshipids:
+                            mship_date_range[contiguous_mshipid] = current_range
+                        current_range = DateRangeItem(start_date=mship.start_date, end_date=mship.end_date)
+                        contiguous_mshipids = [mshipid]
+            for contiguous_mshipid in contiguous_mshipids:
+                mship_date_range[contiguous_mshipid] = current_range
+            
             # update appropriate member record(s), favoring earlier member records
             # NOTE: membership hometown, email get copied into appropriate member records; 
             #   since mship list is sorted, last one remains
             for mshipid in dbmships_keys:
                 mship = dbmships[mshipid]
+                date_range = mship_date_range[mshipid]
                 for nextmndx in range(len(thesemembers)):
                     thismember = thesemembers[nextmndx]
                     lastmember = thesemembers[nextmndx-1] if nextmndx != 0 else None
@@ -301,16 +331,16 @@ def update(interest, membershipfile):
 
                     # mship end date was changed
                     if (mship.start_date >= thismember.start_date and mship.start_date <= thismember.end_date 
-                            and mship.end_date != thismember.end_date):
-                        thismember.end_date = mship.end_date
+                            and date_range.end_date != thismember.end_date):
+                        thismember.end_date = date_range.end_date
                         mship.member = thismember
                         memupdate.transform(mship, thismember)
                         break
 
                     # mship start date was changed
                     if (mship.end_date >= thismember.start_date and mship.end_date <= thismember.end_date 
-                            and mship.start_date != thismember.start_date):
-                        thismember.start_date = mship.start_date
+                            and date_range.start_date != thismember.start_date):
+                        thismember.start_date = date_range.start_date
                         mship.member = thismember
                         memupdate.transform(mship, thismember)
                         break
