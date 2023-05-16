@@ -181,8 +181,10 @@ def main():
                 for positionworker in responsibility[manager]['workers']:
                     resptasks = [taskdetails.setid(positionworker.id, t.id) for t in responsibility[manager]['tasks']]
                     positionuser = localuser2user(positionworker)
-                    thesetasks = [t for t in mem2tasks[positionuser.email]['tasks']
-                                  if t['rowid'] in resptasks and t['status'] in [STATUS_OVERDUE]]
+                    thesetasks = []
+                    if positionuser.email in mem2tasks:
+                        thesetasks = [t for t in mem2tasks[positionuser.email]['tasks']
+                                    if t['rowid'] in resptasks and t['status'] in [STATUS_OVERDUE]]
                     if thesetasks:
                         manager2members['members'].append({'name':positionuser.name,
                                                            'tasks':thesetasks})
