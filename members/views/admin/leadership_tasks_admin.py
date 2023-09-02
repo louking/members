@@ -676,6 +676,12 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         theseids = ids.split(',')
         responsedata = []
         ondate = request.args.get('ondate', date.today())
+        
+        # initialize cache
+        locinterest = localinterest()
+        localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
+        self.init_position_taskgroup_cache(localusersdb, ondate)
+        
         for thisid in theseids:
             # id is made up of localuser.id, task.id
             localuserid, taskid = self.getids(thisid)
