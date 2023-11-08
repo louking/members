@@ -165,7 +165,7 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
         # see https://github.com/pallets/flask-sqlalchemy/blob/706982bb8a096220d29e5cef156950237753d89f/flask_sqlalchemy/__init__.py#L990
         db.session = scoped_session(sessionmaker(autocommit=False,
                                                  autoflush=False,
-                                                 binds=db.get_binds(app)))
+                                                 binds=db.get_binds()))
         db.query = db.session.query_property()
 
         # handle favicon request for old browsers
