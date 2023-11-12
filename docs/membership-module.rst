@@ -10,3 +10,4 @@ Guides
    :maxdepth: 3
 
    membership-admin-guide
+   membership-admin-reference

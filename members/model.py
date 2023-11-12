@@ -864,6 +864,20 @@ class Membership(Base):
         'version_id_col' : version_id
     }
 
+class MemberAlias(Base):
+    __tablename__ =  'memberalias'
+    id            = Column( Integer, primary_key=True )
+    interest_id   = Column(Integer, ForeignKey('localinterest.id'))
+    interest      = relationship('LocalInterest', backref=backref('memberaliases'))
+    member_id     = Column(Integer, ForeignKey('member.id'))
+    member        = relationship('Member', backref=backref('memberaliases'))
+    facebookalias = Column(Text)
+
+    version_id    = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
 class TableUpdateTime(Base):
     __tablename__ = 'tableupdatetime'
     id                  = Column( Integer, primary_key=True )

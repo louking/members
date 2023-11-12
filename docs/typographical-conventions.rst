@@ -54,6 +54,9 @@ before traversal, that is described within square brackets ([action]), e.g.,
 .. note::
     since View Meeting is a button, it is shown in bold
 
+
+.. _Section Management:
+
 Section Management
 ======================
 
@@ -63,7 +66,7 @@ accidentally ended up with what is below.
 Top level section is delineated by ============== above section title and ============== below section title, as can be
 seen in :ref:`Typographical Conventions`.
 
-Next level section is delineated by ============== below section title, as can be seen in :ref`Section Management`.
+Next level section is delineated by ============== below section title, as can be seen in :ref:`Section Management`.
 
 Next level is delineated by ------------- as can be seen below
 

@@ -3,13 +3,14 @@ membership_admin - membership administrative handling
 ===========================================
 '''
 # standard
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from operator import and_
 from platform import system
 
 # pypi
 from flask import request
 from dominate.tags import div, span, i, button, input_
+from loutilities.tables import DteDbOptionsPickerBase
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
@@ -19,7 +20,7 @@ from sqlalchemy import func
 # homegrown
 from . import bp
 from ...model import db, LocalInterest
-from ...model import Member, Membership, TableUpdateTime
+from ...model import Member, Membership, TableUpdateTime, MemberAlias
 from ...version import __docversion__
 from .viewhelpers import localinterest
 
@@ -326,4 +327,87 @@ memberships_view = MembershipsView(
                     },
                     )
 memberships_view.register()
+
+##########################################################################################
+# facebookaliases endpoint
+###########################################################################################
+
+facebookalias_dbattrs = 'id,interest_id,member,facebookalias'.split(',')
+facebookalias_formfields = 'rowid,interest_id,member,facebookalias'.split(',')
+facebookalias_dbmapping = dict(zip(facebookalias_dbattrs, facebookalias_formfields))
+facebookalias_formmapping = dict(zip(facebookalias_formfields, facebookalias_dbattrs))
+
+class MemberAgePicker(DteDbOptionsPickerBase):
+    def __init__(self):
+        super().__init__(
+            labelfield='member',
+            searchbox=True
+        )
+
+    def get_memberage(self, member):
+        return f'{member.family_name}, {member.given_name} ({member.dob})'
+    
+    def get(self, dbrow_or_id):
+        memberalias = self.get_dbrow(dbrow_or_id)
+        memberage = self.get_memberage(memberalias.member)
+        
+        item = {'member': memberage, 'id': memberalias.member.id}
+        return item
+
+    def set(self, formrow):
+        member = Member.query.filter_by(id=formrow['member']['id']).one()
+        return member
+    
+    def options(self):
+        members = Member.query.filter_by(interest=localinterest()).filter(
+            Member.start_date<=date.today(), Member.end_date>=date.today()).all()
+        members.sort(key=lambda m: self.get_memberage(m).lower())
+        options = [{'label': self.get_memberage(m), 'value': m.id} for m in members]
+        return options
+
+    def col_options(self):
+        col = {}
+        col['type'] = 'select2'
+        col['onFocus'] = 'focus'
+        col['opts'] = {'minimumResultsForSearch': 0 if self.searchbox else 'Infinity'}
+        return col
+
+facebookalias_view = DbCrudApiInterestsRolePermissions(
+                    roles_accepted = [ROLE_SUPER_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = MemberAlias,
+                    version_id_col = 'version_id',  # optimistic concurrency control
+                    template = 'datatables.jinja2',
+                    templateargs={'adminguide': adminguide},
+                    pagename = 'Facebook Aliases',
+                    endpoint = 'admin.facebookaliases',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/facebookaliases',
+                    dbmapping = facebookalias_dbmapping, 
+                    formmapping = facebookalias_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'member', 'name': 'member', 'label': 'Member',
+                         'className': 'field_req',
+                         '_treatment': {'relationship': { 'optionspicker': MemberAgePicker() } }
+                         },
+                        {'data': 'facebookalias', 'name': 'facebookalias', 'label': 'Alias',
+                         'className': 'field_req',
+                         # TODO: is this unique in the table or within an interest? Needs to be within an interest
+                         '_unique': True,
+                         },
+                    ],
+                    servercolumns = None,  # not server side
+                    idSrc = 'rowid', 
+                    buttons = ['create', 'editRefresh', 'remove', 'csv'],
+                    dtoptions = {
+                                        'scrollCollapse': True,
+                                        'scrollX': True,
+                                        'scrollXInner': "100%",
+                                        'scrollY': True,
+                                  },
+                    )
+facebookalias_view.register()
 
