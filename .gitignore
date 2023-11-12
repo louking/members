@@ -147,6 +147,9 @@ node_modules/
 # FieldType-Selectize/
 /test-scratch/
 
+# ignore weirdness which started appearing since maybe Oct 15, 2023
+%SystemDrive%/
+
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json
