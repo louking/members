@@ -652,6 +652,8 @@ function afterdatatables() {
         set_effective_date('#effective-date', '#todays-date-button');
     } else if (pathname == `/admin/${interest}/members`) {
         set_effective_date('#effective-date', '#todays-date-button');
+    } else if (pathname == `/admin/${interest}/expired_members`) {
+        set_effective_date('#effective-date', '#todays-date-button');
 
     // special processing for rt_members
     } else if (pathname == `/admin/${interest}/rt_members`) {

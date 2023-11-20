@@ -165,6 +165,7 @@ def nav_menu():
                 membership_admin_view(membershipadmin, 'Club Members', 'admin.clubmembers', interest=g.interest)
                 membership_admin_view(membershipadmin, 'Memberships', 'admin.memberships', interest=g.interest)
                 membershipadmin.items.append(View('Membership Stats', 'frontend.membershipstats', interest=g.interest))
+                membership_admin_view(membershipadmin, 'Expired Members', 'admin.expired_members', interest=g.interest)
                 membership_admin_view(membershipadmin, 'Facebook Aliases', 'admin.facebookaliases', interest=g.interest)
 
             # racingteam admin stuff

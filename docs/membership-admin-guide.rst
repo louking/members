@@ -24,3 +24,8 @@ The :ref:`Club Members view` shows the members as of a given date, showing their
 name as well as their Facebook alias. This allows the :term:`membership admin`
 to search for a Facebook name to determine if the Facebook user is indeed a
 :term:`member` of the club.
+
+The :ref:`Expired Members view` shows the members whose memberships have expired
+since a given date, including their Facebook alias. This allows the
+:term:`membership admin` to look for Facebook Group members who should be
+removed from members-only groups.

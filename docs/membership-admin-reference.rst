@@ -30,6 +30,24 @@ The view has the following filters:
     :align: center
 
 
+.. _Expired Members view:
+
+Expired Members view
+===========================
+**Navigation:** Members > Expired Members
+
+The Expired Members view is used to determine members who have expired since a specific date. The members which have 
+memberships expired on or after the **Since** date and before the current date are shown.
+
+The view has the following filters:
+
+    :Since:
+        chooses the date on or after which the members memberships have expired
+
+.. image:: images/expired-members-view.*
+    :align: center
+
+
 .. _Facebook Aliases view:
 
 Facebook Aliases view

@@ -15,6 +15,7 @@ from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
 from loutilities.timeu import asctime
+from loutilities.transform import Transform
 from sqlalchemy import func
 
 # homegrown
@@ -39,7 +40,7 @@ else:
 adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
 ##########################################################################################
-# members endpoint
+# clubmembers endpoint
 ##########################################################################################
 
 clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
@@ -328,6 +329,10 @@ memberships_view = MembershipsView(
                     )
 memberships_view.register()
 
+def get_memberdob(member):
+    return f'{member.family_name}, {member.given_name} ({member.dob})'
+    
+
 ##########################################################################################
 # facebookaliases endpoint
 ###########################################################################################
@@ -344,12 +349,9 @@ class MemberAgePicker(DteDbOptionsPickerBase):
             searchbox=True
         )
 
-    def get_memberage(self, member):
-        return f'{member.family_name}, {member.given_name} ({member.dob})'
-    
     def get(self, dbrow_or_id):
         memberalias = self.get_dbrow(dbrow_or_id)
-        memberage = self.get_memberage(memberalias.member)
+        memberage = get_memberdob(memberalias.member)
         
         item = {'member': memberage, 'id': memberalias.member.id}
         return item
@@ -359,10 +361,21 @@ class MemberAgePicker(DteDbOptionsPickerBase):
         return member
     
     def options(self):
-        members = Member.query.filter_by(interest=localinterest()).filter(
-            Member.start_date<=date.today(), Member.end_date>=date.today()).all()
-        members.sort(key=lambda m: self.get_memberage(m).lower())
-        options = [{'label': self.get_memberage(m), 'value': m.id} for m in members]
+        from sqlalchemy import select
+        stmt = (
+            select(Member.id, Member.family_name, Member.middle_name, Member.given_name, Member.dob, Member.end_date)
+        )
+        all_members = db.session.execute(stmt).all()
+        if all_members:
+            all_members.sort(key=lambda m: m.end_date, reverse=True)
+            all_members.sort(key=lambda m: get_memberdob(m).lower())
+            members = [all_members[0]]
+            for i in range(1, len(all_members)):
+                # skip duplicates
+                if get_memberdob(all_members[i-1]) == get_memberdob(all_members[i]):
+                    continue
+                members.append(all_members[i])
+        options = [{'label': get_memberdob(m), 'value': m.id} for m in members]
         return options
 
     def col_options(self):
@@ -411,3 +424,163 @@ facebookalias_view = DbCrudApiInterestsRolePermissions(
                     )
 facebookalias_view.register()
 
+##########################################################################################
+# expired_members endpoint
+##########################################################################################
+
+expired_members_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,end_date,__readonly__'.split(',')
+expired_members_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,end_date,facebookalias'.split(',')
+expired_members_dbmapping = dict(zip(expired_members_dbattrs, expired_members_formfields))
+expired_members_formmapping = dict(zip(expired_members_formfields, expired_members_dbattrs))
+
+expired_members_formmapping['dob'] = lambda m: ymd.dt2asc(m.dob)
+expired_members_formmapping['end_date'] = lambda m: ymd.dt2asc(m.end_date)
+expired_members_formmapping['facebookalias'] = lambda m: m.member.memberalias.facebookalias if m.member.memberalias else None
+
+class ExpiredMember():
+    '''
+    allows creation of "memberend" object to simulate database behavior
+    '''
+    def __init__(self, **kwargs):
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+member2expired_member = Transform(
+    {
+        'id': 'id',
+        'family_name': 'family_name',
+        'given_name': 'given_name',
+        'gender': 'gender',
+        'dob': 'dob',
+        'hometown': 'hometown',
+        'svc_member_id': 'svc_member_id',
+        'email': 'email',
+        'member': lambda m: m
+    }
+)
+class ExpiredMembers(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        add update query parameters based on sincedate
+        '''
+        self.queryfilters = []
+        super().beforequery()
+        self.sincedate = request.args.get('ondate', None)
+        if self.sincedate:
+            self.sincedated = ymd.asc2dt(self.sincedate).date()
+        else:
+            self.sincedated = None
+
+    def open(self):
+        locinterest = localinterest()
+        members = Member.query.filter_by(interest=locinterest).all()
+
+        if self.sincedated:
+            expired_members_lookup = {}
+            for member in members:
+                # create/add memberend
+                expired_member = ExpiredMember()
+                member2expired_member.transform(member, expired_member)
+                expired_member.end_date = date(1970, 1, 1)
+                
+                # check all the memberships for this member
+                for membership in member.memberships:
+                    if membership.end_date > expired_member.end_date:
+                        expired_member.end_date = membership.end_date
+                
+                # only use member record with latest membership
+                member_dob = get_memberdob(member)
+                if member_dob not in expired_members_lookup or expired_member.end_date > expired_members_lookup[member_dob].end_date:
+                    expired_members_lookup[member_dob] = expired_member
+
+            # collect interesting expired members for display
+            expired_members = []
+            for member_dob in expired_members_lookup:
+                expired_member = expired_members_lookup[member_dob]
+                # save members whose end_dates are interesting
+                if expired_member.end_date >= self.sincedated and expired_member.end_date < date.today():
+                    expired_members.append(expired_member)
+
+            self.rows = iter(expired_members)
+        
+        else:
+            self.rows = iter([])
+
+
+def expired_members_filters():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show hidden rows
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            datefilter = filterdiv('fsrcmembers-external-filter-since', 'Since')
+            with datefilter:
+                with span(id='spinner', style='display:none;'):
+                    i(cls='fas fa-spinner fa-spin')
+                input_(type='text', id='effective-date', name='effective-date' )
+    return pretablehtml.render()
+
+expired_members_view = ExpiredMembers(
+                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
+                    local_interest_model = LocalInterest,
+                    app = bp,   # use blueprint instead of app
+                    db = db,
+                    model = Member,
+                    template = 'datatables.jinja2',
+                    templateargs={'adminguide': adminguide},
+                    pretablehtml = expired_members_filters,
+                    pagename = 'Expired Members',
+                    endpoint = 'admin.expired_members',
+                    endpointvalues={'interest': '<interest>'},
+                    rule = '/<interest>/expired_members',
+                    dbmapping = expired_members_dbmapping,
+                    formmapping = expired_members_formmapping,
+                    checkrequired = True,
+                    clientcolumns = [
+                        {'data': 'family_name', 'name': 'family_name', 'label': 'Last Name',
+                         'type':'readonly',
+                         },
+                        {'data': 'given_name', 'name': 'given_name', 'label': 'First Name',
+                         'type': 'readonly',
+                         },
+                        {'data': 'gender', 'name': 'gender', 'label': 'Gender',
+                         'type': 'readonly',
+                         },
+                        {'data': 'dob', 'name': 'dob', 'label': 'DOB',
+                         'type': 'readonly',
+                         },
+                        {'data': 'facebookalias', 'name': 'facebookalias', 'label': 'Facebook',
+                         'type': 'readonly',
+                         },
+                        {'data': 'svc_member_id', 'name': 'svc_member_id', 'label': 'Member ID',
+                         'type': 'readonly',
+                         },
+                        {'data': 'email', 'name': 'email', 'label': 'Email',
+                         'type': 'readonly',
+                         },
+                        {'data': 'hometown', 'name': 'hometown', 'label': 'Hometown',
+                         'type': 'readonly',
+                         },
+                        {'data': 'end_date', 'name': 'end_date', 'label': 'Expired',
+                         'type': 'readonly',
+                         },
+                    ],
+                    serverside = False,
+                    idSrc = 'rowid', 
+                    buttons=[
+                        {
+                            'extend': 'csv',
+                            'exportOptions': {
+                                'columns': ':visible'
+                            }
+                        },
+                    ],
+
+                    dtoptions = {
+                        'scrollCollapse': True,
+                        'scrollX': True,
+                        'scrollXInner': "100%",
+                        'scrollY': '55vh',
+                        'lengthMenu': [ [10, 25, 50, 100, -1], [10, 25, 50, 100, 'All'] ],
+                    },
+                    )
+expired_members_view.register()

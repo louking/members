@@ -870,7 +870,7 @@ class MemberAlias(Base):
     interest_id   = Column(Integer, ForeignKey('localinterest.id'))
     interest      = relationship('LocalInterest', backref=backref('memberaliases'))
     member_id     = Column(Integer, ForeignKey('member.id'))
-    member        = relationship('Member', backref=backref('memberaliases'))
+    member        = relationship('Member', backref=backref('memberalias', uselist=False))
     facebookalias = Column(Text)
 
     version_id    = Column(Integer, nullable=False, default=1)

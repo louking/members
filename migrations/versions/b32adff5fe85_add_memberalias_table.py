@@ -1,8 +1,8 @@
 """add memberalias table
 
-Revision ID: cee945acbc58
+Revision ID: b32adff5fe85
 Revises: b4823b3a5e53
-Create Date: 2023-11-09 07:37:27.359118
+Create Date: 2023-11-20 14:28:16.459397
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cee945acbc58'
+revision = 'b32adff5fe85'
 down_revision = 'b4823b3a5e53'
 branch_labels = None
 depends_on = None
