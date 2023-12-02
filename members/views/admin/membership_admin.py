@@ -21,7 +21,7 @@ from sqlalchemy import func
 # homegrown
 from . import bp
 from ...model import db, LocalInterest
-from ...model import Member, Membership, TableUpdateTime, MemberAlias
+from ...model import Member, Membership, TableUpdateTime, MemberAlias, MemberDates
 from ...version import __docversion__
 from .viewhelpers import localinterest
 
@@ -43,7 +43,7 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-gu
 # clubmembers endpoint
 ##########################################################################################
 
-clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date,'.split(',')
+clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,memberdates.start_date,memberdates.end_date,'.split(',')
 clubmembers_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
 clubmembers_dbmapping = dict(zip(clubmembers_dbattrs, clubmembers_formfields))
 clubmembers_formmapping = dict(zip(clubmembers_formfields, clubmembers_dbattrs))
@@ -57,7 +57,7 @@ class ClubMembers(DbCrudApiInterestsRolePermissions):
         super().beforequery()
         ondate = request.args.get('ondate', ymd.dt2asc(datetime.now()))
         ondatedt = ymd.asc2dt(ondate)
-        self.queryfilters += [Member.start_date <= ondatedt, Member.end_date >= ondatedt]
+        self.queryfilters += [MemberDates.start_date <= ondatedt, MemberDates.end_date >= ondatedt]
 
 def clubmembers_filters():
     pretablehtml = div()
@@ -123,12 +123,12 @@ clubmembers_view = ClubMembers(
                         {'data': 'start_date', 'name': 'start_date', 'label': 'Start',
                          'type': 'readonly',
                          '_ColumnDT_args' :
-                             {'sqla_expr': func.date_format(Member.start_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                             {'sqla_expr': func.date_format(MemberDates.start_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
                         {'data': 'end_date', 'name': 'end_date', 'label': 'End',
                          'type': 'readonly',
                          '_ColumnDT_args' :
-                             {'sqla_expr': func.date_format(Member.end_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                             {'sqla_expr': func.date_format(MemberDates.end_date, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
                          },
                     ],
                     serverside = True,
@@ -330,7 +330,8 @@ memberships_view = MembershipsView(
 memberships_view.register()
 
 def get_memberdob(member):
-    return f'{member.family_name}, {member.given_name} ({member.dob})'
+    middlename = f'{member.middle_name} ' if member.middle_name else ''
+    return f'{member.family_name}, {member.given_name} {middlename}({member.dob})'
     
 
 ##########################################################################################

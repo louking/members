@@ -28,7 +28,7 @@
             "webRoot": "${workspaceFolder}/members",
             // see https://code.visualstudio.com/docs/editor/variables-reference#_variables-scoped-per-workspace-folder
             "pathMapping": {"/loutilities/static": "${workspaceFolder:loutilities}/loutilities/tables-assets/static"},
-            "justMyCode": false,
+            // "justMyCode": false,
         },
         {
             "name": "Python: flask membership update fsrc",
@@ -38,7 +38,7 @@
             "justMyCode": false,
             "env": {
                 "FLASK_APP": "app.py",
-                "FLASK_ENV": "development"
+                "FLASK_DEBUG": "True"
             },
             "args": [
                 "membership",
@@ -46,6 +46,22 @@
                 "fsrc",
                 // "--membershipfile",
                 // "C:\\Users\\lking\\Documents\\Lou's Software\\operational\\fsrc\\membercache\\membercache.csv",
+            ],
+            "jinja": true
+        },
+        {
+            "name": "Python: flask db upgrade",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "justMyCode": false,
+            "env": {
+                "FLASK_APP": "app.py",
+                "FLASK_DEBUG": "True"
+            },
+            "args": [
+                "db",
+                "upgrade",
             ],
             "jinja": true
         },

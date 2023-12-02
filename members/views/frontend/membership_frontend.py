@@ -24,7 +24,7 @@ class parameterError(): pass
 # homegrown
 from ..admin.viewhelpers import localinterest
 from ...model import db, LocalInterest
-from ...model import Member, TableUpdateTime
+from ...model import Member, TableUpdateTime, MemberDates
 from . import bp
 
 ymd = asctime('%Y-%m-%d')
@@ -74,15 +74,14 @@ def _getdivision(member):
 # front end members endpoint
 ##########################################################################################
 
-members_dbattrs = 'id,given_name,family_name,gender,hometown,start_date,end_date,'.split(',')
-members_formfields = 'rowId,given_name,family_name,gender,hometown,start_date,end_date'.split(',')
+members_dbattrs = 'id,given_name,family_name,gender,hometown,memberdates.end_date,'.split(',')
+members_formfields = 'rowId,given_name,family_name,gender,hometown,end_date'.split(',')
 members_dbmapping = dict(zip(members_dbattrs, members_formfields))
 members_formmapping = dict(zip(members_formfields, members_dbattrs))
 members_formmapping['div'] = _getdivision
 # see https://datatables.net/manual/data/orthogonal-data#API-interface (must include render option for the field)
 members_formmapping['family_name'] = lambda m: {'display': m.family_name, 'sort': m.family_name.lower() }
-members_formmapping['start_date'] = lambda m: mdy.dt2asc(m.start_date)
-members_formmapping['end_date'] = lambda m: mdy.dt2asc(m.end_date)
+members_formmapping['end_date'] = lambda m: mdy.dt2asc(m.memberdates[0].end_date)
 
 class FrontendMembersView(DbCrudApiInterestsRolePermissions):
     # remove auth_required() decorator
@@ -96,8 +95,16 @@ class FrontendMembersView(DbCrudApiInterestsRolePermissions):
         super().beforequery()
         ondate = request.args.get('ondate', ymd.dt2asc(datetime.now()))
         ondatedt = ymd.asc2dt(ondate)
-        self.queryfilters += [Member.start_date <= ondatedt, Member.end_date >= ondatedt]
+        self.queryfilters += [MemberDates.start_date <= ondatedt, MemberDates.end_date >= ondatedt]
 
+    def open(self):
+        query = (self.model.query
+                 .outerjoin(MemberDates, MemberDates.member_id==Member.id)
+                 .filter_by(**self.queryparams)
+                 .filter(*self.queryfilters)
+                )
+        self.rows = iter(query.all())
+        
     def permission(self):
         '''
         check for permission on data

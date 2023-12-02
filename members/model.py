@@ -878,6 +878,21 @@ class MemberAlias(Base):
         'version_id_col' : version_id
     }
 
+class MemberDates(Base):
+    __tablename__ =  'memberdates'
+    id            = Column( Integer, primary_key=True )
+    interest_id   = Column(Integer, ForeignKey('localinterest.id'))
+    interest      = relationship('LocalInterest', backref=backref('memberdates'))
+    member_id     = Column(Integer, ForeignKey('member.id'))
+    member        = relationship('Member', backref=backref('memberdates'))
+    start_date    = Column(Date)
+    end_date      = Column(Date)
+
+    version_id    = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col' : version_id
+    }
+
 class TableUpdateTime(Base):
     __tablename__ = 'tableupdatetime'
     id                  = Column( Integer, primary_key=True )
