@@ -16,7 +16,7 @@ from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN
 from loutilities.timeu import asctime
 from loutilities.transform import Transform
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 # homegrown
 from . import bp
@@ -170,58 +170,50 @@ class MembershipsView(DbCrudApiInterestsRolePermissions):
     def deleterow(self, thisid):
         membership = Membership.query.filter_by(id=thisid).one()
 
-        # update member record(s) by recalculating contiguous membership dates
-        if membership.member:
-            member = membership.member
+        # update memberdates record(s) by recalculating contiguous membership dates
+        if membership.memberdates:
+            memberdates = membership.memberdates
 
-            # this membership will be deleted, so remove member association 
-            # NOTE: this also removes membership from member.memberships
-            membership.member = None
+            # this membership will be deleted, so remove memberdates association 
+            # NOTE: this also removes membership from memberdates.memberships
+            membership.memberdates = None
 
-            # if membership is not wholly contained within member, there was some data error, probably in membership_cli
-            if membership.start_date < member.start_date or membership.end_date > member.end_date:
-                raise dataError(f'membership {membership.id} references member {member.id} but extent of membership goes beyond that of member')
+            # if membership is not wholly contained within memberdates, there was some data error, probably in membership_cli
+            if membership.start_date < memberdates.start_date or membership.end_date > memberdates.end_date:
+                raise dataError(f'membership {membership.id} references memberdates {memberdates.id} but extent of membership goes beyond that of memberdates')
 
-            # if membership extent is same as member, this membership must have been the only membership referenced by member
-            # NOTE: this membership was removed from member.memberships above, so checking against 0
-            if membership.start_date == member.start_date and membership.end_date == member.end_date and len(member.memberships) != 0:
-                raise dataError(f'member {member.id} has same extent as membership {membership.id} but has multiple memberships')
+            # if membership extent is same as memberdates, this membership must have been the only membership referenced by memberdates
+            # NOTE: this membership was removed from memberdates.memberships above, so checking against 0
+            if membership.start_date == memberdates.start_date and membership.end_date == memberdates.end_date and len(memberdates.memberships) != 0:
+                raise dataError(f'memberdates {memberdates.id} has same extent as membership {membership.id} but has multiple memberships')
 
-            # if membership extent is same as member, delete the member record
-            if membership.start_date == member.start_date and membership.end_date == member.end_date:
-                db.session.delete(member)
+            # if membership extent is same as memberdates, delete the memberdates record
+            if membership.start_date == memberdates.start_date and membership.end_date == memberdates.end_date:
+                db.session.delete(memberdates)
             
-            # if membership extent starts member dates, change start of member to beyond the membership dates
-            elif membership.start_date == member.start_date:
-                member.start_date = membership.end_date + timedelta(1)
+            # if membership extent starts memberdates dates, change start of memberdates to beyond the membership dates
+            elif membership.start_date == memberdates.start_date:
+                memberdates.start_date = membership.end_date + timedelta(1)
             
-            # if membership extent finishes member dates, change end of member to before the membership dates
-            elif membership.end_date == member.end_date:
-                member.end_date = membership.start_date - timedelta(1)
+            # if membership extent finishes memberdates dates, change end of memberdates to before the membership dates
+            elif membership.end_date == memberdates.end_date:
+                memberdates.end_date = membership.start_date - timedelta(1)
             
-            # otherwise membership extent must be in the middle, so create a new member record and update memberships to point to it
+            # otherwise membership extent must be in the middle, so create a new memberdates record and update memberships to point to it
             else:
-                # create new member record by copying data in member
-                cols = [k for k in Member.__table__.columns.keys() if k != 'id']
-                memberdata = {c: getattr(member, c) for c in cols}
-                newmember = Member(**memberdata)
-                db.session.add(newmember)
-                member.end_date = membership.start_date - timedelta(1)
-                newmember.start_date = membership.end_date + timedelta(1)
+                # create new memberdates record by copying data in memberdates
+                cols = [k for k in MemberDates.__table__.columns.keys() if k != 'id']
+                memberdatesdata = {c: getattr(memberdates, c) for c in cols}
+                newmemberdates = Member(**memberdatesdata)
+                db.session.add(newmemberdates)
+                memberdates.end_date = membership.start_date - timedelta(1)
+                newmemberdates.start_date = membership.end_date + timedelta(1)
 
                 # copy memberships as we'll be changing the list during the loop
-                thesememberships = member.memberships[:]
+                thesememberships = memberdates.memberships[:]
                 for mship in thesememberships:
-                    if mship.start_date >= newmember.start_date and mship.end_date <= newmember.end_date:
-                        mship.member = newmember
-                
-                # for completeness, update member record's hometown, email from latest membership record
-                thesememberships = member.memberships[:]
-                thesememberships.sort(key=lambda m: m.start_date)
-                lastmship = thesememberships[-1]
-                member.hometown = lastmship.hometown
-                member.email = lastmship.email
-
+                    if mship.start_date >= newmemberdates.start_date and mship.end_date <= newmemberdates.end_date:
+                        mship.memberdates = newmemberdates
 
         # use inherited class to delete the Membership instance
         return super().deleterow(thisid)
@@ -362,13 +354,11 @@ class MemberAgePicker(DteDbOptionsPickerBase):
         return member
     
     def options(self):
-        from sqlalchemy import select
         stmt = (
-            select(Member.id, Member.family_name, Member.middle_name, Member.given_name, Member.dob, Member.end_date)
+            select(Member.id, Member.family_name, Member.middle_name, Member.given_name, Member.dob)
         )
         all_members = db.session.execute(stmt).all()
         if all_members:
-            all_members.sort(key=lambda m: m.end_date, reverse=True)
             all_members.sort(key=lambda m: get_memberdob(m).lower())
             members = [all_members[0]]
             for i in range(1, len(all_members)):
@@ -440,7 +430,7 @@ expired_members_formmapping['facebookalias'] = lambda m: m.member.memberalias.fa
 
 class ExpiredMember():
     '''
-    allows creation of "memberend" object to simulate database behavior
+    allows creation of "ExpiredMember" object to simulate database behavior
     '''
     def __init__(self, **kwargs):
         for key in kwargs:

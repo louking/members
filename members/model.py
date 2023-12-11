@@ -813,9 +813,6 @@ class Member(Base):
     dob                 = Column(Date)
     hometown            = Column(Text)
     email               = Column(Text)   
-    # start_date / end_date tracks contiguous memberships
-    start_date          = Column(Date)
-    end_date            = Column(Date)
 
     # lookups by family_name, given_name, gender, dob need to be fast
     # note length is required for family_name, given_name, gender in order to create index
@@ -840,6 +837,8 @@ class Membership(Base):
     interest            = relationship('LocalInterest', backref=backref('memberships'))
     member_id           = Column(Integer, ForeignKey('member.id'))
     member              = relationship('Member', backref=backref('memberships'))
+    memberdates_id      = Column(Integer, ForeignKey('memberdates.id'))
+    memberdates         = relationship('MemberDates', backref=backref('memberships'))
     svc_member_id       = Column(Text)
     svc_membership_id   = Column(String(MEMBERSHIP_ID_LEN))
     membershiptype      = Column(Text)

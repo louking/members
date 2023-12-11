@@ -9,10 +9,9 @@ from json import dumps
 
 # pypi
 from loutilities.timeu import asctime
-from sortedcollections import SortedDict
 
 # homegrown
-from ..model import Member
+from ..model import MemberDates
 from .admin.viewhelpers import localinterest
 from ..applogging import timenow    # for logpoints
 
@@ -23,14 +22,14 @@ def analyzemembership(statsfile=None):
     stats = {}
     # stats = SortedDict(key=lambda k, v: k)
 
-    members = Member.query.filter_by(interest=localinterest()).all()
+    memberdates = MemberDates.query.filter_by(interest=localinterest()).all()
 
     # for each member, add 1 for every date the membership represents
     # only go through today
     today = datetime.now().date()
-    for member in members:
-        thisdate = member.start_date
-        enddate  = member.end_date
+    for memberdate in memberdates:
+        thisdate = memberdate.start_date
+        enddate  = memberdate.end_date
         while thisdate <= enddate and thisdate <= today:
             thisyear = thisdate.year
             # skip early registrations
