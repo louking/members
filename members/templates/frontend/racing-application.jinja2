@@ -50,7 +50,7 @@
              
         <div class="row">
           <div class="input-field col s12">
-            <input id="dob" type="date" name="dob" class="common datepicker">
+            <input id="dob" type="date" name="dob" class="common datepicker validate" required aria-required="true">
             <label for="dob">Birth Date *</label>
           </div>
         </div>
@@ -104,7 +104,7 @@
 
               <div class="row">
                 <div class="input-field col s12">
-                  <input id="{{ tag }}_date" type="date" class="datepicker" name="{{ tag }}_date" >
+                  <input id="{{ tag }}_date" type="date" class="datepicker validate" name="{{ tag }}_date" required aria-required="true">
                   <!-- <input id="{{ tag }}_date" type="date" class="datepicker" name="{{ tag }}_date" onchange="setAgeGrade('{{ tag }}')" > -->
                   <label for="{{ tag }}_date">Race {{ racenum }} - Date *</label>
                 </div>
