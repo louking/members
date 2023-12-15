@@ -43,8 +43,8 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-gu
 # clubmembers endpoint
 ##########################################################################################
 
-clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,memberdates.start_date,memberdates.end_date,'.split(',')
-clubmembers_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,start_date,end_date'.split(',')
+clubmembers_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,memberalias.facebookalias,memberdates.start_date,memberdates.end_date,'.split(',')
+clubmembers_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,facebookalias,start_date,end_date'.split(',')
 clubmembers_dbmapping = dict(zip(clubmembers_dbattrs, clubmembers_formfields))
 clubmembers_formmapping = dict(zip(clubmembers_formfields, clubmembers_dbattrs))
 
@@ -110,6 +110,11 @@ clubmembers_view = ClubMembers(
                          'type': 'readonly',
                          '_ColumnDT_args' :
                              {'sqla_expr': func.date_format(Member.dob, '%Y-%m-%d'), 'search_method': 'yadcf_range_date'},
+                         },
+                        {'data': 'facebookalias', 'name': 'facebookalias', 'label': 'Facebook',
+                         'type': 'readonly',
+                         '_ColumnDT_args' :
+                             {'sqla_expr': MemberAlias.facebookalias, 'search_method': 'yadcf_range_date'},
                          },
                         {'data': 'svc_member_id', 'name': 'svc_member_id', 'label': 'Member ID',
                          'type': 'readonly',
