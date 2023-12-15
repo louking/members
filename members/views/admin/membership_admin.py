@@ -419,14 +419,13 @@ facebookalias_view.register()
 # expired_members endpoint
 ##########################################################################################
 
-expired_members_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,end_date,__readonly__'.split(',')
+expired_members_dbattrs = 'id,svc_member_id,given_name,family_name,gender,dob,email,hometown,end_date,facebookalias'.split(',')
 expired_members_formfields = 'rowid,svc_member_id,given_name,family_name,gender,dob,email,hometown,end_date,facebookalias'.split(',')
 expired_members_dbmapping = dict(zip(expired_members_dbattrs, expired_members_formfields))
 expired_members_formmapping = dict(zip(expired_members_formfields, expired_members_dbattrs))
 
 expired_members_formmapping['dob'] = lambda m: ymd.dt2asc(m.dob)
 expired_members_formmapping['end_date'] = lambda m: ymd.dt2asc(m.end_date)
-expired_members_formmapping['facebookalias'] = lambda m: m.member.memberalias.facebookalias if m.member.memberalias else None
 
 class ExpiredMember():
     '''
@@ -443,10 +442,11 @@ member2expired_member = Transform(
         'given_name': 'given_name',
         'gender': 'gender',
         'dob': 'dob',
+        'end_date': 'end_date',
         'hometown': 'hometown',
         'svc_member_id': 'svc_member_id',
         'email': 'email',
-        'member': lambda m: m
+        'facebookalias': 'facebookalias',
     }
 )
 class ExpiredMembers(DbCrudApiInterestsRolePermissions):
@@ -460,43 +460,78 @@ class ExpiredMembers(DbCrudApiInterestsRolePermissions):
         if self.sincedate:
             self.sincedated = ymd.asc2dt(self.sincedate).date()
         else:
-            self.sincedated = None
+            self.sincedated = datetime.today().date()
 
     def open(self):
         locinterest = localinterest()
-        members = Member.query.filter_by(interest=locinterest).all()
-
-        if self.sincedated:
-            expired_members_lookup = {}
-            for member in members:
-                # create/add memberend
+        # memberships = (
+        #     Member.query
+        #     .outerjoin(MemberAlias, Member.id==MemberAlias.member_id)
+        #     .join(Membership, Member.id==Membership.member_id)
+        #     .filter_by(interest=locinterest)
+        #     .filter(Membership.end_date>=self.sincedated)
+        # ).all()
+        stmt = (
+            select(
+                Membership.id, 
+                Member.svc_member_id, 
+                Member.family_name, 
+                Member.given_name, 
+                Member.middle_name, 
+                Member.gender, 
+                Member.dob, 
+                Member.hometown, 
+                Member.email,
+                MemberAlias.facebookalias,
+                Membership.member_id,
+                Membership.end_date
+            )
+            .outerjoin(MemberAlias, Member.id==MemberAlias.member_id)
+            .join(Membership, Member.id==Membership.member_id)
+            .order_by(Membership.member_id, Membership.end_date)
+            .filter_by(interest=locinterest)
+            .filter(Membership.end_date>=self.sincedated)            
+        )
+        memberships = db.session.execute(stmt).all()
+        membershipsi = iter(memberships)
+        
+        expired_members_lookup = {}
+        try:
+            membership = next(membershipsi)
+            while True:
+                # top of loop is new member
+                # create/add expired_member
                 expired_member = ExpiredMember()
-                member2expired_member.transform(member, expired_member)
-                expired_member.end_date = date(1970, 1, 1)
-                
+                member2expired_member.transform(membership, expired_member)
+                expired_member.end_date = membership.end_date
+
                 # check all the memberships for this member
-                for membership in member.memberships:
+                while True:
                     if membership.end_date > expired_member.end_date:
                         expired_member.end_date = membership.end_date
+                    
+                    # only use member record with latest membership
+                    member_dob = get_memberdob(membership)
+                    if member_dob not in expired_members_lookup or expired_member.end_date > expired_members_lookup[member_dob].end_date:
+                        expired_members_lookup[member_dob] = expired_member
+                    
+                    last_member_id = membership.member_id
+                    membership = next(membershipsi)
+                    if membership.member_id != last_member_id: break
                 
-                # only use member record with latest membership
-                member_dob = get_memberdob(member)
-                if member_dob not in expired_members_lookup or expired_member.end_date > expired_members_lookup[member_dob].end_date:
-                    expired_members_lookup[member_dob] = expired_member
-
-            # collect interesting expired members for display
-            expired_members = []
-            for member_dob in expired_members_lookup:
-                expired_member = expired_members_lookup[member_dob]
-                # save members whose end_dates are interesting
-                if expired_member.end_date >= self.sincedated and expired_member.end_date < date.today():
-                    expired_members.append(expired_member)
-
-            self.rows = iter(expired_members)
+        except StopIteration:
+            pass
         
-        else:
-            self.rows = iter([])
+        # collect interesting expired members for display
+        expired_members = []
+        for member_dob in expired_members_lookup:
+            expired_member = expired_members_lookup[member_dob]
+            # save members whose end_dates are interesting
+            if expired_member.end_date >= self.sincedated and expired_member.end_date < date.today():
+                expired_members.append(expired_member)
 
+        self.rows = iter(expired_members)
+        
 
 def expired_members_filters():
     pretablehtml = div()
