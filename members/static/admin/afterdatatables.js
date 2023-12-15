@@ -138,7 +138,8 @@ function set_effective_date(effective_date_id, todays_date_id) {
         var serverSide = _dt_table.settings()[0]['oFeatures']['bServerSide'];
         if (serverSide) {
             // add updated urlparams (with ondate) before sending the ajax request
-            _dt_table.one('preXhr.dt', function(e, settings, data) {
+            // WARNING: changed .one to .on to resolve #575 but this will leave dangling handlers
+            _dt_table.on('preXhr.dt', function(e, settings, data) {
                 Object.assign(data, urlparams);
             });
             _dt_table.ajax.reload();
