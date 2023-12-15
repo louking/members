@@ -82,7 +82,7 @@ def nav_menu():
     leadership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/leadership-task-admin-reference.html#')
     leadership_superadmin_view = add_view('https://members.readthedocs.io/en/{docversion}/super-admin-reference.html#')
     leadership_member_view = add_view('https://members.readthedocs.io/en/{docversion}/leadership-task-member-guide.html#')
-    membership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html#')
+    membership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/membership-admin-reference.html#')
     meetings_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-admin-reference.html#')
     meetings_member_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html#')
     racingteam_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/racingteam-admin-reference.html#')

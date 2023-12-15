@@ -2,4 +2,4 @@
 __version__ = '1.6.0.dev1'
 __docversion__ = __version__
 # uncomment for development
-# __docversion__ = 'latest'
+__docversion__ = 'latest'
