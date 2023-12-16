@@ -39,6 +39,8 @@ else:
     
 adminguide = 'https://members.readthedocs.io/en/{docversion}/membership-admin-guide.html'.format(docversion=__docversion__)
 
+module_roles = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN]
+
 ##########################################################################################
 # clubmembers endpoint
 ##########################################################################################
@@ -80,7 +82,7 @@ clubmembers_yadcf_options = [
 ]
 
 clubmembers_view = ClubMembers(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
+                    roles_accepted = module_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -233,7 +235,7 @@ def memberships_pretablehtml():
     return pretablehtml.render()
 
 memberships_view = MembershipsView(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
+                    roles_accepted = module_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -382,7 +384,7 @@ class MemberAgePicker(DteDbOptionsPickerBase):
         return col
 
 facebookalias_view = DbCrudApiInterestsRolePermissions(
-                    roles_accepted = [ROLE_SUPER_ADMIN],
+                    roles_accepted = module_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
@@ -551,7 +553,7 @@ def expired_members_filters():
     return pretablehtml.render()
 
 expired_members_view = ExpiredMembers(
-                    roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN],
+                    roles_accepted = module_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
                     db = db,
