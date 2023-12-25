@@ -79,9 +79,6 @@ def main():
     configfiles = [userconfigpath, memberconfigpath]
     app = create_app(Development(configfiles), configfiles)
 
-    # set up database
-    db.init_app(app)
-
     # set up app and request contexts so that taskdetails works
     # https://flask.palletsprojects.com/en/1.1.x/testing/
     with app.app_context(), app.test_request_context():
