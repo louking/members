@@ -81,7 +81,9 @@ members_formmapping = dict(zip(members_formfields, members_dbattrs))
 members_formmapping['div'] = _getdivision
 # see https://datatables.net/manual/data/orthogonal-data#API-interface (must include render option for the field)
 members_formmapping['family_name'] = lambda m: {'display': m.family_name, 'sort': m.family_name.lower() }
-members_formmapping['end_date'] = lambda m: mdy.dt2asc(m.memberdates[0].end_date)
+# need to find correct end_date in list of end_dates, even tho we did a join #587
+ondate_f = lambda: ymd.asc2dt(request.args.get('ondate', ymd.dt2asc(datetime.now()))).date()
+members_formmapping['end_date'] = lambda m: mdy.dt2asc([md.end_date for md in m.memberdates if md.start_date <= ondate_f() and md.end_date >= ondate_f()][0])
 
 class FrontendMembersView(DbCrudApiInterestsRolePermissions):
     # remove auth_required() decorator
