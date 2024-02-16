@@ -20,7 +20,7 @@ dill==0.3.5.1
 dnspython==2.2.1
 docutils==0.17.1
 dominate==2.7.0
-email-validator==1.2.1
+email-validator==2.1.0.post1
 esbonio==0.14.0
 et-xmlfile==1.1.0
 fabric==2.7.1
