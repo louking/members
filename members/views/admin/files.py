@@ -115,7 +115,7 @@ class FileServer(DbCrudApiInterestsRolePermissions):
         return send_from_directory(groupdir, fileid,
                                    mimetype=file.mimetype,
                                    # as_attachment=True,
-                                   attachment_filename=file.filename)
+                                   download_name=file.filename)
 
 fileserver = FileServer()
 fileserver.register()
