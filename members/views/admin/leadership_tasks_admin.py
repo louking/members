@@ -1064,7 +1064,7 @@ history_formmapping = dict(zip(history_formfields, history_dbattrs))
 
 history_formmapping['member'] = lambda tc: localuser2user(tc.user_id).name
 history_formmapping['position'] = lambda tc: tc.position.position if tc.position else ""
-history_formmapping['task'] = lambda tc: tc.task.task
+history_formmapping['task'] = lambda tc: tc.task.task if tc.task else ""
 history_formmapping['completion'] = lambda tc: dtrender.dt2asc(tc.completion)
 history_formmapping['update_time'] = lambda tc: dttimerender.dt2asc(tc.update_time)
 history_formmapping['updated_by'] = lambda tc: localuser2user(tc.updated_by).name

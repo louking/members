@@ -486,39 +486,42 @@ def get_taskfields(tc, task):
     :return: taskfields (list)
     '''
     taskfields = []
-    for ttf in task.fields:
-        f = ttf.taskfield
-        thistaskfield = {}
-        for key in TASKFIELD_KEYS.split(','):
-            thistaskfield[key] = getattr(f, key)
-            # displayvalue gets markdown translation
-            if key == 'displayvalue' and getattr(f, key):
-                thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
-        thistaskfield['fieldoptions'] = get_fieldoptions(f)
-        if tc:
-            # field may exist now but maybe didn't before
-            field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
+    
+    # check for task as this might be null https://github.com/louking/members/issues/590
+    if task:
+        for ttf in task.fields:
+            f = ttf.taskfield
+            thistaskfield = {}
+            for key in TASKFIELD_KEYS.split(','):
+                thistaskfield[key] = getattr(f, key)
+                # displayvalue gets markdown translation
+                if key == 'displayvalue' and getattr(f, key):
+                    thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
+            thistaskfield['fieldoptions'] = get_fieldoptions(f)
+            if tc:
+                # field may exist now but maybe didn't before
+                field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
 
-            # field was found
-            if field:
-                value = field.value
-                if f.inputtype != INPUT_TYPE_UPLOAD:
-                    thistaskfield['value'] = value
+                # field was found
+                if field:
+                    value = field.value
+                    if f.inputtype != INPUT_TYPE_UPLOAD:
+                        thistaskfield['value'] = value
+                    else:
+                        file = Files.query.filter_by(fileid=value).one()
+                        thistaskfield['value'] = a(file.filename,
+                                                href=url_for('admin.file',
+                                                                interest=g.interest,
+                                                                fileid=value),
+                                                target='_blank').render()
+                        thistaskfield['fileid'] = value
+
+                # field wasn't found
                 else:
-                    file = Files.query.filter_by(fileid=value).one()
-                    thistaskfield['value'] = a(file.filename,
-                                               href=url_for('admin.file',
-                                                            interest=g.interest,
-                                                            fileid=value),
-                                               target='_blank').render()
-                    thistaskfield['fileid'] = value
-
-            # field wasn't found
+                    thistaskfield['value'] = None
             else:
                 thistaskfield['value'] = None
-        else:
-            thistaskfield['value'] = None
-        taskfields.append(thistaskfield)
+            taskfields.append(thistaskfield)
 
     return taskfields
 
