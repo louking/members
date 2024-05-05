@@ -36,6 +36,21 @@ if system() != 'Windows':
 else:
     cachet = asctime('%#m/%#d/%Y %#I:%M %p')
 
+def _getgivenname(member):
+    # use local time
+    today = time.time()-time.timezone
+    todaydt = epoch2dt(today)
+
+    memberage = age(todaydt, member.dob)
+    
+    # for members 13 and under, display only initial for given_name
+    if memberage <= 13:
+        givenname = f'{member.given_name[0]}.'
+    else:
+        givenname = member.given_name
+    
+    return givenname
+
 def _getdivision(member):
     '''
     gets division as of Jan 1 
@@ -78,6 +93,7 @@ members_dbattrs = 'id,given_name,family_name,gender,hometown,memberdates.end_dat
 members_formfields = 'rowId,given_name,family_name,gender,hometown,end_date'.split(',')
 members_dbmapping = dict(zip(members_dbattrs, members_formfields))
 members_formmapping = dict(zip(members_formfields, members_dbattrs))
+members_formmapping['given_name'] = _getgivenname
 members_formmapping['div'] = _getdivision
 # see https://datatables.net/manual/data/orthogonal-data#API-interface (must include render option for the field)
 members_formmapping['family_name'] = lambda m: {'display': m.family_name, 'sort': m.family_name.lower() }
