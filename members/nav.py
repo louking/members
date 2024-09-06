@@ -18,6 +18,8 @@ define navigation bar based on privileges
 
 # pypi
 from flask import g, current_app, url_for, request
+import collections
+collections.MutableMapping = collections.abc.MutableMapping # https://stackoverflow.com/a/78863584/799921
 from flask_nav import Nav
 from flask_nav.elements import Navbar, View, Subgroup, Link, Separator
 from flask_nav.renderers import SimpleRenderer
