@@ -197,6 +197,7 @@ class RacingTeamInfoView(MethodView):
         except Exception as e:
             db.session.rollback()
             exc_type, exc_value, exc_traceback = exc_info()
+            current_app.logger.error(escape(repr(e)))
             current_app.logger.error(''.join(format_tb(exc_traceback)))
             error = format_exc()
             return jsonify({'status': 'error', 'error': escape(repr(e))})
@@ -383,6 +384,7 @@ class RacingTeamApplnView(MethodView):
         except Exception as e:
             db.session.rollback()
             exc_type, exc_value, exc_traceback = exc_info()
+            current_app.logger.error(escape(repr(e)))
             current_app.logger.error(''.join(format_tb(exc_traceback)))
             error = format_exc()
             return jsonify({'status': 'error', 'error': escape(repr(e))})
