@@ -211,7 +211,7 @@ class MembershipsView(DbCrudApiInterestsRolePermissions):
                 # create new memberdates record by copying data in memberdates
                 cols = [k for k in MemberDates.__table__.columns.keys() if k != 'id']
                 memberdatesdata = {c: getattr(memberdates, c) for c in cols}
-                newmemberdates = Member(**memberdatesdata)
+                newmemberdates = MemberDates(**memberdatesdata)
                 db.session.add(newmemberdates)
                 memberdates.end_date = membership.start_date - timedelta(1)
                 newmemberdates.start_date = membership.end_date + timedelta(1)
