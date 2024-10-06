@@ -1,0 +1,112 @@
+# see .env for image version env variables
+# see repo/settings/environments for image version env variables for github actions
+services:
+  db:
+    # https://github.com/docker-library/mysql/issues/275#issuecomment-636831964
+    image: mysql:${MYSQL_VER}
+    # # changed in mysql 8.4
+    # command: --mysql-native-password=ON
+    command: '--default-authentication-plugin=mysql_native_password'
+    # command: '--default-authentication-plugin=mysql_native_password --log_error_verbosity=3' # mysql
+    restart: always
+    # ports can be removed when all apps are under docker control
+    secrets:
+      - root-password
+      - users-password
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - backend-network
+    environment:
+      - MYSQL_DATABASE=users
+      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password
+      - MYSQL_USER=users
+      - MYSQL_PASSWORD_FILE=/run/secrets/users-password
+
+  web:
+    build: 
+      context: web
+      args:
+        - NGINX_VER=${NGINX_VER}
+        - PHPMYADMIN_VER=${PHPMYADMIN_VER}
+    restart: always
+    networks:
+      - frontend-network
+    ports:
+      - ${APP_PORT}:80
+    # uncomment to debug
+    # command: [nginx-debug, '-g', 'daemon off;']
+
+  phpmyadmin:
+    image: phpmyadmin:${PHPMYADMIN_VER}-fpm
+    restart: always
+    depends_on:
+      - db
+    networks:
+      - backend-network
+      - frontend-network
+    environment:
+      - PMA_ABSOLUTE_URI=http://phpmyadmin/phpmyadmin
+
+  crond:
+    build:
+      context: crond
+      args:
+        - ALPINE_VER=${ALPINE_VER}
+    restart: always
+    depends_on:
+      - db
+    networks:
+      - backend-network
+    secrets:
+      - root-password
+    volumes:
+      - ./config/msmtprc:/etc/msmtprc:ro
+    environment:
+      - TZ=America/New_York
+    # start crond with log level 8 in foreground, output to stderr
+    command: ["crond", "-f", "-d", "8"]
+    # use this to debug
+    # command: ["crond", "-f", "-d", "8", "-l", "2", "-L", "/dev/stdout"]
+
+  app:
+    build: 
+      context: app
+      args:
+        - PYTHON_VER=${PYTHON_VER}
+        - APP_DATABASE=${APP_DATABASE}
+    restart: always
+    depends_on:
+      - db
+    secrets:
+      - root-password
+      - users-password
+      - appdb-password
+    networks:
+      - backend-network
+      - frontend-network
+    volumes:
+      - ./config:/config:ro
+      - ${DB_INIT_DIR}:/initdb.d
+    environment:
+      - FLASK_DEBUG=True
+      - APP_DATABASE=${APP_DATABASE}
+      - APP_USER=${APP_DATABASE}
+      - APP_PASSWORD_FILE=/run/secrets/appdb-password
+    command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "app:app"]
+
+volumes:
+  db-data:
+
+secrets:
+  root-password:
+    file: config/db/root-password.txt
+  users-password:
+    file: config/db/users-password.txt
+  appdb-password:
+    file: config/db/appdb-password.txt
+
+networks:
+  backend-network:
+    name: docker-backend
+  frontend-network:
