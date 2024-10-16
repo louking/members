@@ -5,6 +5,7 @@ develop execution from run.py; production execution from members.wsgi
 '''
 # standard
 import os.path
+from os import environ
 
 # pypi
 from flask_migrate import Migrate
@@ -17,9 +18,11 @@ from members.model import db
 from members.applogging import setlogging
 from scripts import MembersCli, MembershipCli, TaskCli
 
-abspath = os.path.abspath(__file__)
-configpath = os.path.join(os.path.dirname(abspath), 'config', 'members.cfg')
-userconfigpath = os.path.join(os.path.dirname(abspath), 'config', 'users.cfg')
+appname = environ['APP_NAME']
+
+abspath = os.path.abspath('/config')
+configpath = os.path.join(abspath, f'{appname}.cfg')
+userconfigpath = os.path.join(abspath, 'users.cfg')
 # userconfigpath first so configpath can override
 configfiles = [userconfigpath, configpath]
 
@@ -41,5 +44,10 @@ migrate = Migrate(app, db, compare_type=True)
 members = MembersCli(app, db)
 membership = MembershipCli(app, db)
 task = TaskCli(app, db)
+
+# Needed only if serving web pages
+# implement proxy fix (https://github.com/sjmf/reverse-proxy-minimal-example)
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_port=1, x_proto=1, x_prefix=1)
 
 

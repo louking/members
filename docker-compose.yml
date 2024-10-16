@@ -12,16 +12,16 @@ services:
     # ports can be removed when all apps are under docker control
     secrets:
       - root-password
-      - users-password
+      - appdb-password
     volumes:
       - db-data:/var/lib/mysql
     networks:
       - backend-network
     environment:
-      - MYSQL_DATABASE=users
+      - MYSQL_DATABASE=${APP_DATABASE}
       - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password
-      - MYSQL_USER=users
-      - MYSQL_PASSWORD_FILE=/run/secrets/users-password
+      - MYSQL_USER=${APP_DATABASE}
+      - MYSQL_PASSWORD_FILE=/run/secrets/appdb-password
 
   web:
     build: 
@@ -90,6 +90,7 @@ services:
       - ${DB_INIT_DIR}:/initdb.d
     environment:
       - FLASK_DEBUG=True
+      - APP_NAME=${APP_NAME}
       - APP_DATABASE=${APP_DATABASE}
       - APP_USER=${APP_DATABASE}
       - APP_PASSWORD_FILE=/run/secrets/appdb-password
@@ -108,5 +109,5 @@ secrets:
 
 networks:
   backend-network:
-    name: docker-backend
+    name: ${APP_NAME}-backend
   frontend-network:

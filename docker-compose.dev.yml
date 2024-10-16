@@ -12,7 +12,7 @@ services:
     secrets:
       - root-password
       - users-password
-      - mysql-docker-password
+      - appdb-password
     networks:
       - backend-network
       - frontend-network
@@ -21,9 +21,9 @@ services:
       - ./config:/config:ro
     environment:
       - FLASK_DEBUG=True
-      - APP_DATABASE=mysql-docker
-      - APP_USER=mysql-docker
-      - APP_PASSWORD_FILE=/run/secrets/mysql-docker-password
+      - APP_DATABASE=${APP_DATABASE}
+      - APP_USER=${APP_DATABASE}
+      - APP_PASSWORD_FILE=/run/secrets/appdb-password
     tty: true # https://stackoverflow.com/a/55953120/799921
 
   app:
