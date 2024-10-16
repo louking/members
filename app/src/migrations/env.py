@@ -34,6 +34,8 @@ def get_engine(bind_key=None):
 config.set_main_option(
     'sqlalchemy.url', str(get_engine().url).replace('%', '%%'))
 bind_names = []
+# skip 'users' bind because this database migration is handled in https://github.com/louking/mysql-docker
+current_app.config['SQLALCHEMY_BINDS'].pop('users')
 if current_app.config.get('SQLALCHEMY_BINDS') is not None:
     bind_names = list(current_app.config['SQLALCHEMY_BINDS'].keys())
 else:
@@ -93,6 +95,8 @@ def run_migrations_offline():
         rec['url'] = context.config.get_section_option(name, "sqlalchemy.url")
 
     for name, rec in engines.items():
+        # skip all but default bind
+        if name: continue
         logger.info("Migrating database %s" % (name or '<default>'))
         file_ = "%s.sql" % name
         logger.info("Writing output to %s" % file_)
@@ -150,6 +154,8 @@ def run_migrations_online():
 
     try:
         for name, rec in engines.items():
+            # skip all but default bind
+            if name: continue
             logger.info("Migrating database %s" % (name or '<default>'))
             context.configure(
                 connection=rec['connection'],

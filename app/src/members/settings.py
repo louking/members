@@ -78,23 +78,27 @@ class RealDb(Config):
         for configfile in configfiles:
             config.update(getitems(configfile, 'database'))
         dbuser = config['dbuser']
-        password = config['dbpassword']
+        with open(f'/run/secrets/appdb-password') as pw:
+            password = pw.readline().strip()
         dbserver = config['dbserver']
         dbname = config['dbname']
         # app.logger.debug('using mysql://{uname}:*******@{server}/{dbname}'.format(uname=dbuser,server=dbserver,dbname=dbname))
         db_uri = 'mysql://{uname}:{pw}@{server}/{dbname}'.format(uname=dbuser, pw=password, server=dbserver,
                                                                  dbname=dbname)
         self.SQLALCHEMY_DATABASE_URI = db_uri
-        # https://flask-sqlalchemy.palletsprojects.com/en/2.x/binds/
-        userdbuser = config['userdbuser']
-        userpassword = config['userdbpassword']
-        userdbserver = config['userdbserver']
-        userdbname = config['userdbname']
-        userdb_uri = 'mysql://{uname}:{pw}@{server}/{dbname}'.format(uname=userdbuser, pw=userpassword, server=userdbserver,
-                                                                 dbname=userdbname)
-        self.SQLALCHEMY_BINDS = {
-            'users': userdb_uri
-        }
+        
+        # when user database is available, add bind
+        if 'usersdbname' in config:
+            # https://flask-sqlalchemy.palletsprojects.com/en/2.x/binds/
+            usersdbuser = config['usersdbuser']
+            with open(f'/run/secrets/users-password') as pw:
+                userspassword = pw.readline().strip()
+            usersdbserver = config['usersdbserver']
+            usersdbname = config['usersdbname']
+            usersdb_uri = f'mysql://{usersdbuser}:{userspassword}@{usersdbserver}/{usersdbname}'
+            self.SQLALCHEMY_BINDS = {
+                'users': usersdb_uri
+            }
 
 
 class Development(RealDb):

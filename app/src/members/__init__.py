@@ -5,6 +5,7 @@ members - package
 
 # standard
 import os.path
+from os import environ
 
 # pypi
 from flask import Flask, send_from_directory, g, session, request, url_for, render_template, current_app
@@ -29,6 +30,7 @@ security = None
 
 # hold application here
 app = None
+appname = environ['APP_NAME']
 
 # create application
 def create_app(config_obj, configfiles=None, init_for_operation=True):
@@ -36,12 +38,10 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
     apply configuration object, then configuration files
     '''
     global app
-    app = Flask('members')
+    # can't have hyphen in package name, so need to specify with underscore
+    app = Flask(appname.replace('-', '_'))
     app.config.from_object(config_obj)
     if configfiles:
-        # backwards compatibility
-        if type(configfiles) == str:
-            configfiles = [configfiles]
         for configfile in configfiles:
             appconfig = getitems(configfile, 'app')
             app.config.update(appconfig)
