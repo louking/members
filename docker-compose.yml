@@ -24,6 +24,7 @@ services:
       - MYSQL_PASSWORD_FILE=/run/secrets/appdb-password
 
   web:
+    image: louking/${APP_NAME}-web:${APP_VER}
     build: 
       context: web
       args:
@@ -49,6 +50,7 @@ services:
       - PMA_ABSOLUTE_URI=http://phpmyadmin/phpmyadmin
 
   crond:
+    image: louking/${APP_NAME}-crond:${APP_VER}
     build:
       context: crond
       args:
@@ -70,6 +72,7 @@ services:
     # command: ["crond", "-f", "-d", "8", "-l", "2", "-L", "/dev/stdout"]
 
   app:
+    image: louking/${APP_NAME}-app:${APP_VER}
     build: 
       context: app
       args:
@@ -90,10 +93,14 @@ services:
       - ${DB_INIT_DIR}:/initdb.d
     environment:
       - FLASK_DEBUG=True
+      - APP_VER=${APP_VER}
       - APP_NAME=${APP_NAME}
       - APP_DATABASE=${APP_DATABASE}
       - APP_USER=${APP_DATABASE}
       - APP_PASSWORD_FILE=/run/secrets/appdb-password
+    extra_hosts:
+      # see https://stackoverflow.com/a/67158212/799921
+      - "host.docker.internal:host-gateway"
     command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "app:app"]
 
 volumes:
@@ -109,5 +116,4 @@ secrets:
 
 networks:
   backend-network:
-    name: ${APP_NAME}-backend
   frontend-network:
