@@ -91,6 +91,9 @@ services:
     volumes:
       - ./config:/config:ro
       - ${DB_INIT_DIR}:/initdb.d
+      - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
+      - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}
+      - ${LOGGING_PATH_HOST}:${FLASK_LOGGING_PATH}
     environment:
       - FLASK_DEBUG=True
       - APP_VER=${APP_VER}
@@ -98,6 +101,9 @@ services:
       - APP_DATABASE=${APP_DATABASE}
       - APP_USER=${APP_DATABASE}
       - APP_PASSWORD_FILE=/run/secrets/appdb-password
+      - FLASK_UPLOADED_IMAGES_DEST=${FLASK_UPLOADED_IMAGES_DEST}
+      - FLASK_APP_FILE_FOLDER=${FLASK_APP_FILE_FOLDER}
+      - FLASK_LOGGING_PATH=${FLASK_LOGGING_PATH}
     extra_hosts:
       # see https://stackoverflow.com/a/67158212/799921
       - "host.docker.internal:host-gateway"

@@ -46,6 +46,9 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
             appconfig = getitems(configfile, 'app')
             app.config.update(appconfig)
 
+    # load any environment variables which start with FLASK_
+    app.config.from_prefixed_env(prefix='FLASK')
+    
     # tell jinja to remove linebreaks
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
