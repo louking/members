@@ -60,7 +60,7 @@ inflect==6.0.0
 invoke==1.7.1
 isort==5.10.1
 itsdangerous==2.1.2
-Jinja2==3.1.2
+Jinja2==3.1.4
 jsmin==3.0.1
 lazy-object-proxy==1.7.1
 line_profiler==4.1.3
