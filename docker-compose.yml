@@ -15,6 +15,7 @@ services:
       - appdb-password
     volumes:
       - db-data:/var/lib/mysql
+      - ${VAR_LOG_HOST}:/var/log
     networks:
       - backend-network
     environment:
@@ -33,6 +34,8 @@ services:
     restart: always
     networks:
       - frontend-network
+    volumes:
+      - ${VAR_LOG_HOST}:/var/log
     ports:
       - ${APP_PORT}:80
     # uncomment to debug
@@ -46,6 +49,8 @@ services:
     networks:
       - backend-network
       - frontend-network
+    volumes:
+      - ${VAR_LOG_HOST}:/var/log
     environment:
       - PMA_ABSOLUTE_URI=http://phpmyadmin/phpmyadmin
 
@@ -64,6 +69,7 @@ services:
       - root-password
     volumes:
       - ./config/msmtprc:/etc/msmtprc:ro
+      - ${VAR_LOG_HOST}:/var/log
     environment:
       - TZ=America/New_York
     # start crond with log level 8 in foreground, output to stderr
@@ -93,9 +99,11 @@ services:
       - ${DB_INIT_DIR}:/initdb.d
       - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
       - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}
+      - ${VAR_LOG_HOST}:/var/log
       - ${LOGGING_PATH_HOST}:${FLASK_LOGGING_PATH}
+      - ${ACCESS_LOG_HOST}:${ACCESS_LOG}
     environment:
-      - FLASK_DEBUG=True
+      - FLASK_DEBUG=${FLASK_DEBUG}
       - APP_VER=${APP_VER}
       - APP_NAME=${APP_NAME}
       - APP_DATABASE=${APP_DATABASE}
@@ -108,7 +116,7 @@ services:
       # see https://stackoverflow.com/a/67158212/799921
       - "host.docker.internal:host-gateway"
     # --timeout 120 increases default, required for task details and member summary views
-    command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+    command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "--log-level", "info", "--access-logfile", "${ACCESS_LOG}", "--timeout", "120", "app:app"]
 
 volumes:
   db-data:
