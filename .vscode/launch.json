@@ -31,8 +31,26 @@
             // "justMyCode": false,
         },
         {
+            "name": "Python: Remote Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {"host": "localhost", "port": 5678},
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/app/src",
+                    "remoteRoot": "/app"
+                },
+                // allow debugging of pip installed packages
+                {
+                    "localRoot": "${workspaceFolder}/.venv/Lib/site-packages",
+                    "remoteRoot": "/usr/local/lib/python3.12/site-packages"
+                }
+            ],
+            "justMyCode": false
+        },
+        {
             "name": "Python: flask membership update fsrc",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "flask",
             "justMyCode": false,
@@ -51,7 +69,7 @@
         },
         {
             "name": "Python: flask db upgrade",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "flask",
             "justMyCode": false,
@@ -67,7 +85,7 @@
         },
         {
             "name": "Python: leadership_emails",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "members.scripts.leadership_emails",
             "args": [
@@ -76,7 +94,7 @@
         },
         {
             "name": "Python: racingteam_inforesults_init",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "members.scripts.racingteam_inforesults_init",
             "args": [
@@ -85,7 +103,7 @@
         },
         {
             "name": "Python: racingteam_infovol_init",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "members.scripts.racingteam_infovol_init",
             "args": [
@@ -94,7 +112,7 @@
         },
         {
             "name": "Python: racingteam_appln_init",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "members.scripts.racingteam_appln_init",
             "args": [
@@ -103,7 +121,7 @@
         },
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
