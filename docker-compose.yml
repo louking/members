@@ -19,6 +19,7 @@ services:
     networks:
       - backend-network
     environment:
+      - TZ=${TZ}
       - MYSQL_DATABASE=${APP_DATABASE}
       - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password
       - MYSQL_USER=${APP_DATABASE}
@@ -36,6 +37,8 @@ services:
       - frontend-network
     volumes:
       - ${VAR_LOG_HOST}:/var/log
+    environment:
+      - TZ=${TZ}
     ports:
       - ${APP_PORT}:80
     # uncomment to debug
@@ -52,6 +55,7 @@ services:
     volumes:
       - ${VAR_LOG_HOST}:/var/log
     environment:
+      - TZ=${TZ}
       - PMA_ABSOLUTE_URI=http://phpmyadmin/phpmyadmin
 
   crond:
@@ -70,8 +74,11 @@ services:
     volumes:
       - ./config/msmtprc:/etc/msmtprc:ro
       - ${VAR_LOG_HOST}:/var/log
+      - ${BACKUP_FOLDER_HOST}/${APP_DATABASE}:/backup
     environment:
-      - TZ=America/New_York
+      - TZ=${TZ}
+      - APP_DATABASE=${APP_DATABASE}
+      - BACKUP=${BACKUP}
     # start crond with log level 8 in foreground, output to stderr
     command: ["crond", "-f", "-d", "8"]
     # use this to debug
@@ -103,6 +110,7 @@ services:
       - ${LOGGING_PATH_HOST}:${FLASK_LOGGING_PATH}
       - ${ACCESS_LOG_HOST}:${ACCESS_LOG}
     environment:
+      - TZ=${TZ}
       - FLASK_DEBUG=${FLASK_DEBUG}
       - APP_VER=${APP_VER}
       - APP_NAME=${APP_NAME}
@@ -116,7 +124,9 @@ services:
       # see https://stackoverflow.com/a/67158212/799921
       - "host.docker.internal:host-gateway"
     # --timeout 120 increases default, required for task details and member summary views
-    command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "--log-level", "info", "--access-logfile", "${ACCESS_LOG}", "--timeout", "120", "app:app"]
+    command: ["./dbupgrade_and_run.sh", "gunicorn", "--reload", "--bind", "0.0.0.0:5000", "--log-level", "info", 
+              "--access-logfile", "${ACCESS_LOG}", "--access-logformat", '%({x-forwarded-for}i)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"', 
+              "--timeout", "120", "app:app"]
 
 volumes:
   db-data:

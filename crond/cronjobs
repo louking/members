@@ -1,7 +1,7 @@
 MAILTO=technology@steeplechasers.org
 
 # backup db (fwiw, see https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Portable-Shell.html#Portable-Shell)
-40 01 * * * mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
+40 01 * * * test "$BACKUP" != "" && mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
 
 # # test mail
 # * * * * * echo "test mail"
