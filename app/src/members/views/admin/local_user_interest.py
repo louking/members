@@ -25,7 +25,7 @@ adminguide = 'https://members.readthedocs.io/en/{docversion}/super-admin-guide.h
 def interestattr_validate(action, formdata):
     results = []
 
-    datepattern = compile('^(19|20)\d\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
+    datepattern = compile('^(19|20)\\d\\d[-](0[1-9]|1[012])[-](0[1-9]|[12][0-9]|3[01])$')
     if formdata['initial_expiration'] and not datepattern.match(formdata['initial_expiration']):
         results.append({'name': 'initial_expiration', 'status': 'must be formatted as YYYY-MM-DD'})
 
