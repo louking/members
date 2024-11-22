@@ -27,9 +27,9 @@ userconfigpath = os.path.join(abspath, 'users.cfg')
 # userconfigpath first so configpath can override
 configfiles = [userconfigpath, configpath]
 
-# init_for_operation=False because when we create app this would use database and cause
+# init_for_operation=True because we want operational behavior
 # sqlalchemy.exc.OperationalError if one of the updating tables needs migration
-app = create_app(Production(configfiles), configfiles, init_for_operation=False)
+app = create_app(Production(configfiles), configfiles, init_for_operation=True)
 
 # set up scoped session
 with app.app_context():
@@ -40,11 +40,11 @@ with app.app_context():
     # turn on logging
     setlogging()
 
-# set up flask command processing (not needed within app_server.py)
-migrate = Migrate(app, db, compare_type=True)
-members = MembersCli(app, db)
-membership = MembershipCli(app, db)
-task = TaskCli(app, db)
+# # set up flask command processing (not needed within app_server.py)
+# migrate = Migrate(app, db, compare_type=True)
+# members = MembersCli(app, db)
+# membership = MembershipCli(app, db)
+# task = TaskCli(app, db)
 
 # Needed only if serving web pages
 # implement proxy fix (https://github.com/sjmf/reverse-proxy-minimal-example)

@@ -31,8 +31,14 @@ RUN apk add --no-cache mariadb-connector-c-dev \
 # we'll be doing mysql, mysqldump commands
 RUN apk add --no-cache mysql-client
 
+# use msmtp for sendmail, need volume with /etc/msmtprc defined
+RUN apk add --no-cache msmtp && rm /usr/sbin/sendmail && ln -s /usr/bin/msmtp /usr/sbin/sendmail
+
 # we're going to want to use bash
 RUN apk add bash
+
+# add cron stuff
+COPY cronjobs /etc/crontabs/root
 
 # copy the content of the local src directory to the working directory
 # this isn't needed when developing as there's a bind under volumes: in the docker-compose.dev.yml file

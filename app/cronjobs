@@ -1,0 +1,12 @@
+MAILTO=technology@steeplechasers.org
+MAILFROM=webmaster@steeplechasers.org:wq
+
+# backup db (see https://www.man7.org/linux/man-pages/man1/test.1.html)
+40 01 * * * test "$PROD" != "" && mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
+
+# # test mail
+# * * * * * echo "test mail"
+
+* * * * * test "$PROD" != "" && cd /app && flask --help
+
+# remember to end this file with an empty new line
