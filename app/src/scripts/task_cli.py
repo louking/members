@@ -111,6 +111,7 @@ taskdetails = TaskDetails(
 @with_appcontext
 @catch_errors
 def sendreminders(interest, nomembers, nomanagers):
+    """send reminders to members to update tasks, and notify managers"""
     with current_app.test_request_context():
         # g has to be set within app context
         g.interest = interest
