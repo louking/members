@@ -1,5 +1,5 @@
 MAILTO=technology@steeplechasers.org
-MAILFROM=noreply@steeplechasers.org
+MAILFROM=noreply@steeplechasers.org # doesn't seem to work
 
 # # test mail, flask operation
 # * * * * * test "$PROD" && cd /app && flask --help
