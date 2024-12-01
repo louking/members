@@ -84,11 +84,13 @@
             "jinja": true
         },
         {
-            "name": "Python: leadership_emails",
+            "name": "Python: flask task sendreminders",
             "type": "debugpy",
             "request": "launch",
-            "module": "members.scripts.leadership_emails",
+            "module": "flask",
             "args": [
+                "task",
+                "sendreminders",
                 "fsrc",
             ],
         },

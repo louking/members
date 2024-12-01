@@ -1,12 +1,33 @@
 MAILTO=technology@steeplechasers.org
-MAILFROM=webmaster@steeplechasers.org:wq
+MAILFROM=noreply@steeplechasers.org
+
+# # test mail, flask operation
+# * * * * * test "$PROD" && cd /app && flask --help
 
 # backup db (see https://www.man7.org/linux/man-pages/man1/test.1.html)
-40 01 * * * test "$PROD" != "" && mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
+40 01 * * * test "$PROD" && mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
 
-# # test mail
-# * * * * * echo "test mail"
+# # send leadership_emails on even Mondays
+00 02 * * 1 test "$PROD" && test `expr \`date +\%s\` / 86400 \% 2` -eq 0 && cd /app && flask task sendreminders fsrc
+# */5 * * * * test "$PROD" && cd /app && flask task sendreminders fsrc
 
-* * * * * test "$PROD" != "" && cd /app && flask --help
+# # generate reports and update invites nightly
+00 02 * * * test "$PROD" && cd /app && flask meetings nightlyreports fsrc && flask meetings updateinvites fsrc
+
+# # check configuration of task positions nightly
+00 02 * * * test "$PROD" && cd /app && flask task checkpositionconfig fsrc
+
+# note for this one this is done for all membertility instances
+# update continous reports every 2 minutes
+*/2 * * * * cd /app && flask meetings continuousreports fsrc
+
+# # update membership cache
+# MAILTO=membership@steeplechasers.org
+00 */8 * * * test "$PROD" && cd /app && flask membership update fsrc
+
+# # automate MailChimp list update for membership
+# MAILTO=mailchimpimportstats@steeplechasers.org
+# 00 02 * * * /home/steeplechasers/scripts/domailchimpimport_rsu
+## mailchimpimport_rsu /var/www/www.steeplechasers.org/api/steepsapi.cfg --stats
 
 # remember to end this file with an empty new line
