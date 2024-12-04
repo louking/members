@@ -33,29 +33,23 @@ from fabric import task
 from invoke import Exit
 
 APP_NAME = 'members'
-WSGI_SCRIPT = 'members.wsgi'
+DOCKER_NAME = 'members'
+
+qualifiers = ['prod', 'sandbox']
 
 @task
-def deploy(c, branchname='master'):
-    print('c.user={} c.host={} branchname={}'.format(c.user, c.host, branchname))
+def deploy(c, qualifier, branchname='master'):
+    if qualifier not in qualifiers:
+        raise Exit(f'deploy qualifier parameter must be one of {qualifiers}')
+        
+    print(f'c.user={c.user} c.host={c.host} branchname={branchname}')
 
-    venv_dir = '/var/www/{server}/venv'.format(server=c.host)
-    project_dir = '/var/www/{server}/{appname}/{appname}'.format(server=c.host, appname=APP_NAME)
+    project_dir = f'~/{DOCKER_NAME}-{qualifier}'
 
-    c.run('cd {} && git pull'.format(project_dir))
-    
-    if not c.run('cd {} && git show-ref --verify --quiet refs/heads/{}'.format(project_dir, branchname), warn=True):
-        raise Exit('branchname {} does not exist'.format(branchname))
+    for the_file in ['docker-compose.yml']:
+        if not c.run(f"cd {project_dir} && curl --fail -O 'https://raw.githubusercontent.com/louking/{APP_NAME}/{branchname}/{the_file}'", warn=True):
+            raise Exit(f'louking/{APP_NAME}/{branchname}/{the_file} does not exist')
 
-    c.run('cd {} && git checkout {}'.format(project_dir, branchname))
-    c.run('cd {} && cp -R ../../libs/js  {}/static'.format(project_dir, APP_NAME))
-    # must source bin/activate before each command which must be done under venv
-    # because each is a separate process
-    c.run('cd {} && source {}/bin/activate && pip install -r requirements.txt'.format(project_dir, venv_dir))
-    
-    versions_dir = '{}/migrations/versions'.format(project_dir)
-    if not c.run('test -d {}'.format(versions_dir), warn=True):
-        c.run('mkdir {}'.format(versions_dir))
-
-    c.run('cd {} && source {}/bin/activate && flask db upgrade'.format(project_dir, venv_dir, APP_NAME))
-    c.run('cd {} && touch {}'.format(project_dir, WSGI_SCRIPT))
+    # stop and build/start docker services
+    c.run(f'cd {project_dir} && docker compose down')
+    c.run(f'cd {project_dir} && docker compose up -d')
