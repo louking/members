@@ -85,6 +85,8 @@ class ViewDebug(MethodView):
                                'GMAPS_API_KEY', 'GMAPS_ELEV_API_KEY',
                                'APP_OWNER_PW',
                                'RSU_KEY', 'RSU_SECRET',
+                               'MC_KEY',
+                               'MAIL_PASSWORD',
                                ]:
                         value = '[obscured]'
                 appconfig.append({'label':key, 'value':value})

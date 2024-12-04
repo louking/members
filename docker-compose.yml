@@ -134,6 +134,9 @@ services:
       <<: *app-env
       PROD: ${PROD}
       SANDBOX: ${SANDBOX}
+    extra_hosts:
+      # see https://stackoverflow.com/a/67158212/799921
+      - "host.docker.internal:host-gateway"
     # start crond with log level 8 in foreground, output to stderr
     command: ["crond", "-f", "-d", "8"]
     # use this to debug

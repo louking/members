@@ -27,7 +27,6 @@ MAILFROM=noreply@steeplechasers.org # doesn't seem to work
 
 # # automate MailChimp list update for membership
 # MAILTO=mailchimpimportstats@steeplechasers.org
-# 00 02 * * * /home/steeplechasers/scripts/domailchimpimport_rsu
-## mailchimpimport_rsu /var/www/www.steeplechasers.org/api/steepsapi.cfg --stats
+# 00 02 * * * test "$PROD" && cd /app && flask membership import2mailchimp --stats fsrc
 
 # remember to end this file with an empty new line
