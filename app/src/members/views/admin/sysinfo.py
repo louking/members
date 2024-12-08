@@ -1,19 +1,12 @@
 '''
 sysinfo - debug views for web application
-==============================================
-
-    Date            Author          Reason
-    ----            ------          ------
-    03/04/20        Lou King        Create
-
-Copyright 2020 Lou King
 '''
 
 
 # standard
 
 # pypi
-from flask import current_app, make_response, request, render_template, session
+from flask import current_app, render_template, session
 from flask.views import MethodView
 from flask_security import roles_accepted
 
@@ -28,17 +21,14 @@ class testException(Exception): pass
 
 thisversion = __version__
 
-#######################################################################
+
 class ViewSysinfo(MethodView):
-#######################################################################
     # decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN, 'event-admin')(f)]
     url_rules = {
                 'sysinfo': ['/sysinfo',('GET',)],
                 }
 
-    #----------------------------------------------------------------------
     def get(self):
-    #----------------------------------------------------------------------
         try:
             # commit database updates and close transaction
             db.session.commit()
@@ -48,22 +38,16 @@ class ViewSysinfo(MethodView):
             # roll back database updates and close transaction
             db.session.rollback()
             raise
-#----------------------------------------------------------------------
 add_url_rules(bp, ViewSysinfo)
-# sysinfo_view = roles_accepted(ROLE_SUPER_ADMIN, 'event-admin')(ViewSysinfo.as_view('sysinfo'))
-# current_app.add_url_rule('/sysinfo',view_func=sysinfo_view,methods=['GET'])
-#----------------------------------------------------------------------
 
-#######################################################################
+
 class ViewDebug(MethodView):
-#######################################################################
     decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f)]
     url_rules = {
                 'debug': ['/_debuginfo',('GET',)],
                 }
-    #----------------------------------------------------------------------
+
     def get(self):
-    #----------------------------------------------------------------------
         try:
             appconfigpath = getattr(current_app,'configpath','<not set>')
             appconfigtime = getattr(current_app,'configtime','<not set>')
@@ -107,31 +91,21 @@ class ViewDebug(MethodView):
                                          version=thisversion,
                                          configpath=appconfigpath,
                                          configtime=appconfigtime,
-                                         sysvars=sysvars,
-                                         # owner=owner_permission.can(),
-                                         inhibityear=True,inhibitclub=True)
+                                         sysvars=sysvars)
         
         except:
             # roll back database updates and close transaction
             db.session.rollback()
             raise
-#----------------------------------------------------------------------
 add_url_rules(bp, ViewDebug)
-# debuginfo_view = roles_accepted(ROLE_SUPER_ADMIN)(ViewDebug.as_view('debug'))
-# # debuginfo_view = ViewDebug.as_view('debug')
-# current_app.add_url_rule('/_debuginfo',view_func=debuginfo_view,methods=['GET'])
-#----------------------------------------------------------------------
 
-#######################################################################
 class TestException(MethodView):
-#######################################################################
-    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)]
+    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f)]
     url_rules = {
                 'testexception': ['/xcauseexception',('GET',)],
                 }
-    #----------------------------------------------------------------------
+    
     def get(self):
-    #----------------------------------------------------------------------
         try:
             raise testException
                     
@@ -139,7 +113,4 @@ class TestException(MethodView):
             # roll back database updates and close transaction
             db.session.rollback()
             raise
-#----------------------------------------------------------------------
-# exception_view = roles_accepted(ROLE_SUPER_ADMIN)(TestException.as_view('testexception'))
-# current_app.add_url_rule('/xcauseexception',view_func=exception_view,methods=['GET'])
-#----------------------------------------------------------------------
+add_url_rules(bp, TestException)
