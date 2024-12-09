@@ -31,21 +31,6 @@ configfiles = [userconfigpath, configpath]
 # sqlalchemy.exc.OperationalError if one of the updating tables needs migration
 app = create_app(Production(configfiles), configfiles, init_for_operation=True)
 
-# set up scoped session
-with app.app_context():
-# this causes SQLALCHEMY_BINDS not to work ('user' bind missing)
-#     db.session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=db.engine))
-#     db.query = db.session.query_property()
-
-    # turn on logging
-    setlogging()
-
-# # set up flask command processing (not needed within app_server.py)
-# migrate = Migrate(app, db, compare_type=True)
-# members = MembersCli(app, db)
-# membership = MembershipCli(app, db)
-# task = TaskCli(app, db)
-
 # Needed only if serving web pages
 # implement proxy fix (https://github.com/sjmf/reverse-proxy-minimal-example)
 from werkzeug.middleware.proxy_fix import ProxyFix

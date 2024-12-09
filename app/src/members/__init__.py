@@ -48,7 +48,12 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
 
     # load any environment variables which start with FLASK_
     app.config.from_prefixed_env(prefix='FLASK')
-    
+
+    with app.app_context():
+        # turn on logging
+        from .applogging import setlogging
+        setlogging()
+
     # tell jinja to remove linebreaks
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
@@ -158,11 +163,7 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
     with app.app_context():
         # import navigation after views created
         from . import nav
-
-        # turn on logging
-        from .applogging import setlogging
-        setlogging()
-        
+       
         # set up scoped session
         from sqlalchemy.orm import scoped_session, sessionmaker
         # see https://github.com/pallets/flask-sqlalchemy/blob/706982bb8a096220d29e5cef156950237753d89f/flask_sqlalchemy/__init__.py#L990
