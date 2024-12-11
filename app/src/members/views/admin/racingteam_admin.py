@@ -232,6 +232,8 @@ rt_inforesults_view = RacingTeamInfoResultsView(
          },
         {'data': 'surface', 'name': 'surface', 'label': 'Surface',
          },
+        {'data': 'time', 'name': 'time', 'label': 'Time',
+         },
         {'data': 'agegrade', 'name': 'agegrade', 'label': 'Age Grade',
          },
         {'data': 'awards', 'name': 'awards', 'label': 'Awards',
