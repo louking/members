@@ -80,9 +80,7 @@ services:
       - ${DB_INIT_DIR}:/initdb.d
       - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
       - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}
-      - ${VAR_LOG_HOST}:/var/log
-      - ${LOGGING_PATH_HOST}:${FLASK_LOGGING_PATH}
-      - ${ACCESS_LOG_HOST}:${ACCESS_LOG}
+      - ${APP_LOGGING_HOST}:${APP_LOGGING_PATH}
       - ${GSUITE_SERVICE_KEY_FILE_HOST}:${FLASK_GSUITE_SERVICE_KEY_FILE}:ro
     environment: &app-env
       TZ: ${TZ}
@@ -124,10 +122,6 @@ services:
       - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
       - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}
       - ${VAR_LOG_HOST}:/var/log
-      # don't compete with members.log from app, causes OSError: [Errno 16] Resource busy: '/var/log/members.log' 
-      # any errors or output from cron tasks will be sent by email
-      # - ${LOGGING_PATH_HOST}:${FLASK_LOGGING_PATH}
-      - ${ACCESS_LOG_HOST}:${ACCESS_LOG}
       - ${GSUITE_SERVICE_KEY_FILE_HOST}:${FLASK_GSUITE_SERVICE_KEY_FILE}:ro
       - ${BACKUP_FOLDER_HOST}/${APP_DATABASE}:/backup
     environment: 
