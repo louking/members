@@ -388,6 +388,8 @@ rt_applnresults_view = RacingTeamApplnResultsView(
          },
         {'data': 'surface', 'name': 'surface', 'label': 'Surface',
          },
+        {'data': 'time', 'name': 'time', 'label': 'Time',
+         },
         {'data': 'agegrade', 'name': 'agegrade', 'label': 'Age Grade',
          },
         {'data': 'url', 'name': 'url', 'label': 'Results Link',
