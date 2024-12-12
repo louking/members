@@ -51,5 +51,5 @@ def deploy(c, qualifier, branchname='master'):
             raise Exit(f'louking/{APP_NAME}/{branchname}/{the_file} does not exist')
 
     # stop and build/start docker services
-    c.run(f'cd {project_dir} && docker compose down')
+    c.run(f'cd {project_dir} && docker compose pull')
     c.run(f'cd {project_dir} && docker compose up -d')
