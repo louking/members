@@ -146,6 +146,24 @@ def update(interest, membershipfile):
         
         # sort memberships by member (family_name, given_name, gender, dob), expiration_date
         memberships.sort(key=lambda m: (m['FamilyName'], m['GivenName'], m['Gender'], m['DOB'], m['ExpirationDate']))
+        
+        # optionally deduplicate memberships (RunSignup sometimes sends duplicate)
+        if current_app.config.get('MEMBERSHIP_UPDATE_DEDUP', True):
+            # the following will work because: each year gets a unique
+            # membership id for the membership (multiple people), and each
+            # member has a unique member id
+            thislogger.info(f"deduplicating memberships from RunSignup")
+            deduped = []
+            for i in range(0, len(memberships)-1):
+                if (    i==len(memberships)-1 
+                        or memberships[i]['MemberID'] != memberships[i+1]['MemberID']
+                        or memberships[i]['MembershipID'] != memberships[i+1]['MembershipID']):
+                    deduped.append(memberships[i])
+                else:
+                    thislogger.info(f"duplicate removed for membership_id={memberships[i]['MembershipID']} user_id/member_id={memberships[i]['MemberID']}")
+            
+            # replace memberships with deduplicated list
+            memberships = deduped
 
         # set up member, membership transforms to create db records
         # transform: member record from membership "file" format
@@ -271,7 +289,7 @@ def update(interest, membershipfile):
                         endasc = isodate.dt2asc(thismship.end_date)
                         memberkey = f'{m["FamilyName"]},{m["GivenName"]},{m["DOB"]}'
                         # TODO: check for #562 improve membertility member cache processing
-                        thislogger.warn(f'overlap detected for {memberkey}: end={endasc} was start={oldstartasc} now start={newstartasc}')
+                        thislogger.warning(f'overlap detected for {memberkey}: end={endasc} was start={oldstartasc} now start={newstartasc}')
                         thismship.start_date = newstart
 
                 # calculate contigous range for membership records
