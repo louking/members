@@ -152,15 +152,15 @@ def update(interest, membershipfile):
             # the following will work because: each year gets a unique
             # membership id for the membership (multiple people), and each
             # member has a unique member id
-            thislogger.info(f"deduplicating memberships from RunSignup")
+            thislogger.debug(f"deduplicating memberships from RunSignup")
             deduped = []
-            for i in range(0, len(memberships)-1):
+            for i in range(len(memberships)):
                 if (    i==len(memberships)-1 
                         or memberships[i]['MemberID'] != memberships[i+1]['MemberID']
                         or memberships[i]['MembershipID'] != memberships[i+1]['MembershipID']):
                     deduped.append(memberships[i])
                 else:
-                    thislogger.info(f"duplicate removed for membership_id={memberships[i]['MembershipID']} user_id/member_id={memberships[i]['MemberID']}")
+                    thislogger.debug(f"duplicate removed for membership_id={memberships[i]['MembershipID']} user_id/member_id={memberships[i]['MemberID']}")
             
             # replace memberships with deduplicated list
             memberships = deduped
