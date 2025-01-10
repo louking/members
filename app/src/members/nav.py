@@ -110,6 +110,7 @@ def nav_menu():
             if (current_user.has_role(ROLE_MEETINGS_ADMIN)
                     or current_user.has_role(ROLE_LEADERSHIP_ADMIN)
                     or current_user.has_role(ROLE_MEMBERSHIP_ADMIN)
+                    or current_user.has_role(ROLE_RACINGTEAM_ADMIN)
                     or current_user.has_role(ROLE_SUPER_ADMIN)):
                 orgadmin = Subgroup('Organization')
                 navbar.items.append(orgadmin)

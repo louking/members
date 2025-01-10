@@ -26,14 +26,14 @@ from loutilities.user.model import User, Interest, Role
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.tables import get_request_action, get_request_data, page_url_for, SEPARATOR
 from loutilities.user.roles import ROLE_SUPER_ADMIN
-from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN
+from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_RACINGTEAM_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions, DteDbOptionsPickerBase
 
 class ParameterError(Exception): pass
 
 debug = False
 
-organization_roles = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN]
+organization_roles = [ROLE_SUPER_ADMIN, ROLE_MEMBERSHIP_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_RACINGTEAM_ADMIN]
 adminguide = 'https://members.readthedocs.io/en/{docversion}/organization-admin-guide.html'.format(
     docversion=__docversion__)
 
