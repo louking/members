@@ -17,6 +17,9 @@ WORKDIR /app
 # Install pip requirements
 COPY requirements.txt .
 
+# special configuration for mysql client - https://stackoverflow.com/a/78683658
+COPY client.my.cnf /home/appuser/.my.cnf
+
 # needed for mysqlclient package to compile
 # adapted from https://github.com/gliderlabs/docker-alpine/issues/181#issuecomment-444857401
 #   and https://github.com/gliderlabs/docker-alpine/issues/181#issuecomment-348608168
