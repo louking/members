@@ -1,8 +1,3 @@
-###########################################################################################
-# fabfile  -- deployment using Fabric
-#
-#   Copyright 2019 Lou King
-###########################################################################################
 '''
 fabfile  -- deployment using Fabric
 =================================================================
@@ -12,16 +7,16 @@ expecting fabric.json with following content
         "connect_kwargs": {
             "key_filename": sshkeyfilename (export OpenSSH key from puttygen)
         },
-        "user": "membersmgr"
+        "user": "appuser"
     }
 
 execute as follows
 
-    fab -H <target-host> deploy
+    fab -H <target-host> deploy [prod, sandbox
 
 or 
 
-    fab -H <target1>,<target2> deploy
+    fab -H <target1>,<target2> deploy [prod, sandbox]
 
 if you need to check out a particular branch
 
