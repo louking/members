@@ -25,7 +25,10 @@
       </tr>
     </tbody>
   </table>
-  <a href="{{ url_for('admin.testexception') }}">cause exception</a>
+  
+  {% if sysvars %}
+    <a href="{{ url_for('admin.testexception') }}">cause exception</a>
+  {% endif %}
   
   <br><br>
   {% for tablename,items in sysvars %}
