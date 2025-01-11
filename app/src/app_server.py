@@ -9,15 +9,10 @@ import os.path
 from os import environ
 
 # pypi
-from flask_migrate import Migrate
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 # homegrown
 from members import create_app
 from members.settings import Production
-from members.model import db
-from members.applogging import setlogging
-from scripts import MembersCli, MembershipCli, TaskCli
 
 appname = environ['APP_NAME']
 

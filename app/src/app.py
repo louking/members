@@ -10,7 +10,6 @@ from os import environ
 
 # pypi
 from flask_migrate import Migrate
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 # homegrown
 from members import create_app
