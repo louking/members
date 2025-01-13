@@ -5,7 +5,8 @@ MAILFROM=noreply@steeplechasers.org # doesn't seem to work
 # * * * * * test "$PROD" && cd /app && flask --help
 
 # backup db (see https://www.man7.org/linux/man-pages/man1/test.1.html)
-40 01 * * * test "$PROD" && mysqldump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
+40 01 * * * test "$PROD" && mariadb-dump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
+*/30 * * * * test "$DEV" && mariadb-dump -h db -u root -p"$(cat /run/secrets/root-password)" ${APP_DATABASE} | gzip > /backup/${APP_DATABASE}-$(date +%Y-%m-%d).sql.gz
 
 # # send leadership_emails on even Mondays
 00 02 * * 1 test "$PROD" && test `expr \`date +\%s\` / 86400 \% 2` -eq 0 && cd /app && flask task sendreminders fsrc
