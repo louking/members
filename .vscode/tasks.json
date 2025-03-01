@@ -58,6 +58,23 @@
         },
         {
             "type": "docker-compose",
+            "label": "docker-compose: up dev",
+            "dependsOn": [
+                "build app"
+            ],
+            "dockerCompose": {
+                "up": {
+                  "detached": true,
+                  "build": false,
+                },
+                "files": [
+                  "${workspaceFolder}/docker-compose.yml",
+                  "${workspaceFolder}/docker-compose.dev.yml",
+                ]
+          },
+        },
+        {
+            "type": "docker-compose",
             "label": "docker-compose: up",
             "dependsOn": [
                 "build app"
