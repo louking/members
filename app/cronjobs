@@ -23,7 +23,7 @@ MAILFROM=noreply@steeplechasers.org # doesn't seem to work
 */2 * * * * cd /app && flask meetings continuousreports fsrc
 
 # # update membership cache
-# MAILTO=membership@steeplechasers.org
+MAILTO=membership@steeplechasers.org
 00 */8 * * * test "$PROD" && cd /app && flask membership update fsrc
 
 # automate MailChimp list update for membership
