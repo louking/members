@@ -28,7 +28,7 @@ from fabric import task
 from invoke import Exit
 
 APP_NAME = 'members'
-DOCKER_NAME = 'members'
+PROJECT_NAME = 'members'
 
 qualifiers = ['prod', 'sandbox']
 
@@ -39,11 +39,11 @@ def deploy(c, qualifier, branchname='master'):
         
     print(f'c.user={c.user} c.host={c.host} branchname={branchname}')
 
-    project_dir = f'~/{DOCKER_NAME}-{qualifier}'
+    project_dir = f'~/{APP_NAME}-{qualifier}'
 
     for the_file in ['docker-compose.yml']:
-        if not c.run(f"cd {project_dir} && curl --fail -O 'https://raw.githubusercontent.com/louking/{APP_NAME}/{branchname}/{the_file}'", warn=True):
-            raise Exit(f'louking/{APP_NAME}/{branchname}/{the_file} does not exist')
+        if not c.run(f"cd {project_dir} && curl --fail -O 'https://raw.githubusercontent.com/louking/{PROJECT_NAME}/{branchname}/{the_file}'", warn=True):
+            raise Exit(f'louking/{PROJECT_NAME}/{branchname}/{the_file} does not exist')
 
     # stop and build/start docker services
     c.run(f'cd {project_dir} && docker compose pull')
