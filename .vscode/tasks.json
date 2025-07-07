@@ -58,6 +58,24 @@
         },
         {
             "type": "docker-compose",
+            "label": "docker-compose (loutilities): dev",
+            "dependsOn": [
+                "build app"
+            ],
+            "dockerCompose": {
+                "up": {
+                  "detached": true,
+                  "build": false,
+                },
+                "files": [
+                  "${workspaceFolder}/docker-compose.yml",
+                  "${workspaceFolder}/docker-compose.dev.yml",
+                  "${workspaceFolder}/docker-compose.loutilities.yml",
+                ]
+          },
+        },
+        {
+            "type": "docker-compose",
             "label": "docker-compose: up dev",
             "dependsOn": [
                 "build app"
