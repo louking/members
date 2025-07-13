@@ -1,0 +1,107 @@
+#awards-table {
+    flex-wrap: wrap;
+}
+
+.awards-row {
+    flex-wrap: wrap;
+    display: flex;
+}
+
+.awards-group {
+    margin-right: 1px;
+    flex-wrap: wrap;
+    display: flex;
+;}
+
+.awards-header {
+    font-weight: bold;
+    /* color: darkblue; */
+}
+
+.awards-cell {
+    display: flex;
+    width: 230px;
+    padding: 5px;
+    margin: 0px;
+    outline: 1px solid #333; /* Use outline instead of border */
+    outline-offset: -1px; /* Pulls the outline inwards, preventing overlap */
+    height: inherit;
+    align-items: center;
+    gap: 5px;
+}
+
+.awards-cell.picked_up {
+    background-color: lightgrey;
+}
+
+/* https://g.co/gemini/share/2cc0869cd697 */
+.awards-cell.picked_up * {
+    color: grey;
+}
+
+.awards-checkarea {
+    display: flex;
+    flex-basis: 90%;
+    flex-shrink: 0;
+    gap: 5px;
+    box-sizing: border-box;
+    align-items: center;
+    cursor: pointer;
+}
+
+.awards-checkbox {
+    flex-basis: calc(10% / 0.9);
+    display: flex;
+}
+
+.awards-award {
+    flex-grow: 1;
+}
+
+.awards-award > p {
+    margin: 0px;
+}
+
+.awards-notes-span {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.awards-bib {
+    color: black;
+}
+
+.awards-name {
+    color: grey;
+}
+
+/* .icon stolen from fontawesome .fas */
+.icon {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+
+/* see https://stackoverflow.com/questions/19255296/is-there-a-way-to-use-svg-as-content-in-a-pseudo-element-before-or-after */
+.unchecked-circle::before {
+    content: url('/static/icons/radio-button-unchecked.svg');
+}
+
+.checked-circle::before {
+    content: url('/static/icons/check-circle.svg');
+}
+
+.add-comment::before {
+    content: url('/static/icons/add-comment.svg');
+}
+
+.insert-comment::before {
+    content: url('/static/icons/insert-comment.svg');
+}

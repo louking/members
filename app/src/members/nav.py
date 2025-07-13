@@ -32,6 +32,7 @@ from .version import __docversion__
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
+from loutilities.user.roles import ROLE_AWARDS_ADMIN
 from loutilities.user.roles import ROLE_RACINGTEAM_ADMIN
 
 thisnav = Nav()
@@ -87,6 +88,7 @@ def nav_menu():
     membership_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/membership-admin-reference.html#')
     meetings_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-admin-reference.html#')
     meetings_member_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html#')
+    awards_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/awards-admin-reference.html#')
     racingteam_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/racingteam-admin-reference.html#')
 
     # create context help menu items for views which can't be navigated to from the main menu
@@ -170,6 +172,12 @@ def nav_menu():
                 membershipadmin.items.append(View('Membership Stats', 'frontend.membershipstats', interest=g.interest))
                 membership_admin_view(membershipadmin, 'Expired Members', 'admin.expired_members', interest=g.interest)
                 membership_admin_view(membershipadmin, 'Facebook Aliases', 'admin.facebookaliases', interest=g.interest)
+
+            # awards admin stuff
+            if current_user.has_role(ROLE_AWARDS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                awardsadmin = Subgroup('Awards')
+                navbar.items.append(awardsadmin)
+                awards_admin_view(awardsadmin, 'Races', 'admin.awardraces', interest=g.interest)
 
             # racingteam admin stuff
             if current_user.has_role(ROLE_RACINGTEAM_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):

@@ -30,6 +30,9 @@ from . import leadership_tasks_member
 # membership module
 from . import membership_admin
 
+# awards module
+from . import awards_admin
+
 # racingteam module
 from . import racingteam_admin
 

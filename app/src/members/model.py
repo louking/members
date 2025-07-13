@@ -9,6 +9,10 @@ from collections import OrderedDict
 
 # pypi
 from flask import g
+from sqlalchemy import text
+from sqlalchemy.schema import FetchedValue
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import func
 
 # home grown
 # need to use a single SQLAlchemy() instance, so pull from loutilities.user.model
@@ -1024,7 +1028,105 @@ class RacingTeamVolunteer(Base):
     __mapper_args__ = {
         'version_id_col': version_id
     }
+
+class AwardsRace(Base):
+    __tablename__ = 'awards_race'
+    id          = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('awards_races'))
+    # runsignup race id
+    rsu_race_id = Column(Integer)
+    name        = Column(Text)
+    events = relationship('AwardsEvent', back_populates='race', cascade='all, delete')
     
+    # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time = Column(DateTime,
+                         server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                         server_onupdate=FetchedValue()
+                         )
+
+class AwardsEvent(Base):
+    __tablename__ = 'awards_event'
+    id          = Column(Integer(), primary_key=True)
+    interest_id   = Column(Integer, ForeignKey('localinterest.id'))
+    interest      = relationship('LocalInterest', backref=backref('awards_events'))
+
+    race_id       = Column(Integer, ForeignKey('awards_race.id'))
+    race          = relationship('AwardsRace', back_populates='events', cascade='all, delete')
+    rsu_event_id  = Column(Integer)  # runsignup event_id
+    name          = Column(Text)
+    date          = Column(Text)  # date of event, e.g. '2023-01-01'
+    divisions     = relationship('AwardsDivision', back_populates='event', cascade='all, delete')
+    
+    # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time = Column(DateTime,
+                         server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                         server_onupdate=FetchedValue()
+                         )
+
+    @hybrid_property
+    def eventyear(self):
+        return (self.date[0:4]+' ' if self.date else '') + self.name
+    
+    @eventyear.inplace.expression
+    @classmethod
+    def _eventyear_expression(cls):
+        return (cls.date[0:4]+' ' if cls.date else '') + cls.name
+
+class AwardsDivision(Base):
+    __tablename__ = 'awards_div'
+    id          = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('awards_divisions'))
+
+    event_id = Column(Integer, ForeignKey('awards_event.id'))
+    event = relationship('AwardsEvent', back_populates='divisions', cascade='all, delete')
+    
+    rsu_div_id  = Column(Integer)  # race_division_id from runsignup
+    priority    = Column(Integer)  # priority of division in awards
+    
+    name        = Column(Text)  # name for division, e.g. 'Male 40-49'
+    shortname   = Column(Text)  # short name for division, e.g. 'M40-49'
+    min_age     = Column(Integer)  # minimum age for division
+    max_age     = Column(Integer)  # maximum age for division
+    gender      = Column(Text)     # M, F, X (non-binary)
+    num_awards  = Column(Integer)  # number of awards for this division, e.g. 3 for 1st, 2nd, 3rd
+    
+    awardees    = relationship('AwardsAwardee', back_populates='div', cascade='all, delete')
+    
+    # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time = Column(DateTime,
+                         server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                         server_onupdate=FetchedValue()
+                         )
+
+class AwardsAwardee(Base):
+    __tablename__ = 'awards_awardee'
+    id          = Column(Integer(), primary_key=True)
+    interest_id    = Column(Integer, ForeignKey('localinterest.id'))
+    interest       = relationship('LocalInterest', backref=backref('awards_awardees'))
+    
+    div_id         = Column(Integer, ForeignKey('awards_div.id'))
+    div            = relationship('AwardsDivision', back_populates='awardees', cascade='all, delete')
+    event_id       = Column(Integer, ForeignKey('awards_event.id'))
+    
+    rsu_result_id  = Column(Integer)  # runsignup result_id for this awardee's result
+    order          = Column(Integer)  # order within division, e.g. 1st, 2nd, 3rd
+    awardee_name   = Column(Text)
+    awardee_bib    = Column(Integer)
+    picked_up      = Column(Boolean, default=False)
+    notes          = Column(Text)
+    
+    prev_awardee_id = Column(Integer, ForeignKey('awards_awardee.id'))  # previous awardee for this division/order, if any
+    prev_awardee    = relationship('AwardsAwardee')
+    
+    # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
+    update_time = Column(DateTime,
+                         server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+                         server_onupdate=FetchedValue()
+                         )
+
+
 # supporting functions
 def update_local_tables():
     '''

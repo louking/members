@@ -1,0 +1,24 @@
+{% extends "layout.jinja2" %}
+{% block pagename %}
+    {{ pagename }}
+{% endblock %}
+{% block css %}
+<link rel="stylesheet" type="text/css" href={{ url_for('static', filename='admin/raceawards.css')}}>
+{% endblock %}
+{% block scripts %}
+<script>
+let AWARDS_POLL_PERIOD={{ awards_poll_period }};
+</script>
+
+<script type="text/javascript" src="{{ url_for('static', filename='admin/raceawards.js') }}"></script>
+{% endblock %}
+{% block body %}
+    {{ raceawards_filters|safe }}
+
+    <div id="awards-note-container" style="display: none;">
+        <input type="text" id="awards-note-input" placeholder="Add note...">
+        <button id="awards-save-note">Save</button>
+    </div>
+
+    <div id="awards-table"></div>
+{% endblock %}

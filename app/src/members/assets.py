@@ -93,6 +93,7 @@ frontend_common_js = Bundle(
 
     'utils.js', # from loutilities
 
+    'mutex-promise.js',                     # from loutilities
     'editor.select2.mymethods.js',          # from loutilities
     'datatables.js',                        # from loutilities
     'datatables.dataRender.ellipsis.js',    # from loutilities
@@ -234,6 +235,7 @@ asset_bundles = {
         Bundle('layout.js', filters='jsmin'),
 
         # must be before datatables
+        Bundle('mutex-promise.js', filters='jsmin'),                     # from loutilities
         Bundle('editor-saeditor.js', filters='jsmin'),                   # from loutilities
         Bundle('js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver), filters='jsmin'),
         Bundle('admin/nunjucks/templates.js', filters='jsmin'),

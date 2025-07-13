@@ -958,3 +958,15 @@ function mymotionvote_motionvote(url) {
     }
 }
 
+/**
+ * action for Award Races - Awards button
+ * @returns {function(*, *, *, *): void}
+ */
+function award_races_awards_button(newdataurl) {
+    return function ( e, dt, node, config ) {
+        // similar to https://editor.datatables.net/examples/api/duplicateButton.html,
+        var data = dt.rows( {selected: true} ).data()[0];
+        window.location.href = newdataurl + '?race_id=' + data.rowid
+    }
+}
+
