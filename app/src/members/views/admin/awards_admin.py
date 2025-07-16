@@ -39,32 +39,51 @@ awardraces_dbmapping = dict(zip(awardraces_dbattrs, awardraces_formfields))
 awardraces_formmapping = dict(zip(awardraces_formfields, awardraces_dbattrs))
 
 class AwardRaceView(DbCrudApiInterestsRolePermissions):
-    def createrow(self, formdata):
+    def create_race(self, formdata):
         with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
             race = rsu.getrace(formdata['rsu_race_id'])
-            rsu_race_id = formdata['rsu_race_id']
             formdata['name'] = race['name']
             racerow = super().createrow(formdata)
-            race_id = self.created_id
+        return racerow, race
+        
+    def get_race(self, thisid, formdata):
+        with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
+            race = rsu.getrace(formdata['rsu_race_id'])
+            racerow = super().updaterow(thisid, formdata)
+        return racerow, race
+
+    def update_divisions(self, race_id, race):
+        # retrieve all events and divisions for this race
+        stored_race = AwardsRace.query.filter_by(interest=localinterest(), id=race_id).one()
+        stored_events = stored_race.events
+        stored_events_d = {e.rsu_event_id: {'event': e} for e in stored_events}
+        for stored_event in stored_events:
+            stored_divisions = stored_event.divisions
+            stored_events_d[stored_event.rsu_event_id]['divisions'] = {d.rsu_div_id: d for d in stored_divisions}
+
+        with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
             
-            # add the events, skip any that are outside the awards window or have no divisions
-            for event in race['events']:
-                eventstart = rsudt.asc2dt(event['start_time'])
+            # add new events, skip any that are outside the awards window or have no divisions
+            for event_id in race['events']:
+                eventstart = rsudt.asc2dt(event_id['start_time'])
                 if datetime.now() - eventstart > timedelta(days=current_app.config['AWARDS_WINDOW']):
                     continue
                 
-                rsu_event_id = event['event_id']
-                eventname = event['name']
-                eventdate = eventstart.date().isoformat()
+                rsu_race_id = race['race_id']
+                rsu_event_id = event_id['event_id']
                 
                 # if no divisions, skip
                 divisions = rsu.getracedivisions(rsu_race_id, rsu_event_id)
                 if not divisions:
                     continue
 
-                # create the event if it doesn't already exist (it shouldn't exist, but just in case)
-                eventrow = db.session.query(AwardsEvent).filter_by(
-                    interest_id=localinterest().id, race_id=race_id, rsu_event_id=rsu_event_id).first()
+                # create or update event
+                eventname = event_id['name']
+                eventdate = eventstart.date().isoformat()
+                
+                stored_event = stored_events_d.pop(rsu_event_id, None)
+                eventrow = stored_event['event'] if stored_event else None
+
                 if eventrow:
                     # update the existing event
                     eventrow.name = eventname
@@ -81,26 +100,33 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                     db.session.add(eventrow)
                 db.session.flush()
                 
-                # create the divisions
-                for division in divisions:
-                    rsu_division_id = division['race_division_id']
-                    priority = division['division_priority']
-                    divname = division['division_name']
-                    shortname = division['division_short_name']
-                    num_awards = division['show_top_num']
-                    min_age = division.get('auto_selection_criteria', {}).get('min_age', None)
-                    max_age = division.get('auto_selection_criteria', {}).get('max_age', None)
-                    gender = division.get('auto_selection_criteria', {}).get('gender', None)
+                # create or update divisions
+                for division_id in divisions:
+                    rsu_division_id = division_id['race_division_id']
+                    priority = division_id['division_priority']
+                    divname = division_id['division_name']
+                    shortname = division_id['division_short_name']
+                    num_awards = division_id['show_top_num']
+                    min_age = division_id.get('auto_selection_criteria', {}).get('min_age', None)
+                    max_age = division_id.get('auto_selection_criteria', {}).get('max_age', None)
+                    gender = division_id.get('auto_selection_criteria', {}).get('gender', None)
                     
-                    # create the division if it doesn't already exist (it shouldn't exist, but just in case)
-                    divisionrow = db.session.query(AwardsDivision).filter_by(
-                        interest_id=localinterest().id, event_id=eventrow.id, rsu_div_id=rsu_division_id).first()
+                    # create the division if it doesn't already exist
+                    divisionrow = stored_event['divisions'].pop(rsu_division_id, None) if stored_event else None
+                    
                     if divisionrow:
                         # update the existing division
                         divisionrow.priority = priority
                         divisionrow.name = divname
                         divisionrow.shortname = shortname
+                        
+                        # if number of awards for this division has been
+                        # reduced, remove any awardees for new non-awards
+                        if num_awards < divisionrow.num_awards:
+                            # TODO: 
+                            pass
                         divisionrow.num_awards = num_awards
+                        
                         divisionrow.min_age = min_age
                         divisionrow.max_age = max_age
                         divisionrow.gender = gender
@@ -119,10 +145,32 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                             gender=gender,
                         )
                         db.session.add(divisionrow)
+                    
+                    # save changes
                     db.session.flush()
+                    
+                # delete any remaining divisions
+                if stored_event:
+                    for division_id in stored_event['divisions']:
+                        current_app.logger.debug(f'deleting {stored_event['divisions'][division_id]}')
+                        db.session.delete(stored_event['divisions'][division_id])
+
+            # delete any remaining events
+            for event_id in stored_events_d:
+                current_app.logger.debug(f'deleting {stored_events_d[event_id]['event']}')
+                db.session.delete(stored_events_d[event_id]['event'])
                 
-        return racerow
+    def createrow(self, formdata):
+        racerow, race = self.create_race(formdata)
+        self.update_divisions(self.created_id, race)
         
+        return racerow
+
+    def updaterow(self, thisid, formdata):
+        racerow, race = self.get_race(thisid, formdata)
+        self.update_divisions(thisid, race)
+        
+        return racerow
 
 awardraces_view = AwardRaceView(
     roles_accepted=awards_roles,

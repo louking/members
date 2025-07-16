@@ -1052,7 +1052,7 @@ class AwardsEvent(Base):
     interest      = relationship('LocalInterest', backref=backref('awards_events'))
 
     race_id       = Column(Integer, ForeignKey('awards_race.id'))
-    race          = relationship('AwardsRace', back_populates='events', cascade='all, delete')
+    race          = relationship('AwardsRace', back_populates='events')
     rsu_event_id  = Column(Integer)  # runsignup event_id
     name          = Column(Text)
     date          = Column(Text)  # date of event, e.g. '2023-01-01'
@@ -1080,7 +1080,7 @@ class AwardsDivision(Base):
     interest            = relationship('LocalInterest', backref=backref('awards_divisions'))
 
     event_id = Column(Integer, ForeignKey('awards_event.id'))
-    event = relationship('AwardsEvent', back_populates='divisions', cascade='all, delete')
+    event = relationship('AwardsEvent', back_populates='divisions')
     
     rsu_div_id  = Column(Integer)  # race_division_id from runsignup
     priority    = Column(Integer)  # priority of division in awards
@@ -1107,7 +1107,7 @@ class AwardsAwardee(Base):
     interest       = relationship('LocalInterest', backref=backref('awards_awardees'))
     
     div_id         = Column(Integer, ForeignKey('awards_div.id'))
-    div            = relationship('AwardsDivision', back_populates='awardees', cascade='all, delete')
+    div            = relationship('AwardsDivision', back_populates='awardees')
     event_id       = Column(Integer, ForeignKey('awards_event.id'))
     
     rsu_result_id  = Column(Integer)  # runsignup result_id for this awardee's result
