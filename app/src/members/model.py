@@ -1118,7 +1118,7 @@ class AwardsAwardee(Base):
     notes          = Column(Text)
     
     prev_awardee_id = Column(Integer, ForeignKey('awards_awardee.id'))  # previous awardee for this division/order, if any
-    prev_awardee    = relationship('AwardsAwardee')
+    prev_awardee    = relationship('AwardsAwardee', uselist=False)
     
     # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
     update_time = Column(DateTime,

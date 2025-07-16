@@ -108,6 +108,12 @@ function updateawards() {
                         $checkbox.addClass('unchecked-circle');
                     }
 
+                    if (award.prev_picked_up) {
+                        $cell.addClass('prev_picked_up');
+                    } else {
+                        $cell.removeClass('prev_picked_up');
+                    }
+
                     let $notes = $cell.find('.awards-notes');
                     if (award.notes) {
                         $notes.removeClass('add-comment');
@@ -179,6 +185,13 @@ function toggle_picked_up() {
                     $checkbox.removeClass('checked-circle');
                     $checkbox.addClass('unchecked-circle');
                 }
+
+                if (json.prev_picked_up) {
+                    $cell.addClass('prev_picked_up');
+                } else {
+                    $cell.removeClass('prev_picked_up');
+                }
+
             }
             awards_mutex.unlock();
         })

@@ -300,7 +300,7 @@ class RaceAwardsApi(RaceAwardsBase):
         try:
             # get the results for this event from RunSignUp
             with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
-                # results_sets = rsu.getresultsets(event.rsu_race_id, event.rsu_event_id)
+                # current_app.logger.debug(f'retrieving results for race {event.race.rsu_race_id} event {event.rsu_event_id}')
                 rsu_results_headers = rsu.geteventresults(event.race.rsu_race_id, event.rsu_event_id, '')
                 rsu_results = rsu_results_headers['results']
                 rsu_headers = rsu_results_headers['headers']
@@ -310,9 +310,6 @@ class RaceAwardsApi(RaceAwardsBase):
             rsu_div_ids = [d.rsu_div_id for d in db_divisions]
             rsu_div_lookup = {d.rsu_div_id: d for d in db_divisions}
             
-            # get the awards for this event
-            # for db_division in db_divisions:
-
             # get the awardees for the event from the database
             awardees = AwardsAwardee.query.filter_by(event_id=event.id).all()
             
@@ -350,18 +347,30 @@ class RaceAwardsApi(RaceAwardsBase):
                             break
                             
                         elif award_placement[(rsu_div_id, order)].rsu_result_id != result['result_id']:
-                            # if the awardee is already in the database and picked up, update the awardee
+                            # if the awardee is already in the database and picked up, save the previous awardee
+                            current_app.logger.debug(f'overwriting result (div, place) {(rsu_div_id, order)} result_id {award_placement[(rsu_div_id, order)].rsu_result_id} with {result['result_id']}')
+
+                            # if wasn't picked up, don't point to the last awardee
+                            # also don't point to last awardee if the bib number didn't change
+                            #   not sure why this happens, but needs to be covered
                             prev_awardee = award_placement[(rsu_div_id, order)]
+                            picked_up = False
+                            if prev_awardee.awardee_bib == result['bib']:
+                                picked_up = prev_awardee.picked_up
+                                prev_awardee = None
+                            elif not prev_awardee.picked_up:
+                                prev_awardee = None
+                            current_app.logger.debug(f'{result['first_name']} {result['last_name']}: picked_up {picked_up} prev_awardee {prev_awardee}')
                             awardee = AwardsAwardee(
                                 interest=localinterest(),
                                 div=div,
                                 event_id=event.id,
                                 order=order,
-                                awardee_name=result['name'],
+                                awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
                                 awardee_bib=result['bib'],
-                                picked_up=False,  # default to not picked up
+                                picked_up=picked_up,  # see logic above
                                 rsu_result_id=result['result_id'],  # store the RunSignUp result ID
-                                prev_awardee=prev_awardee  # link to the previous awardee
+                                prev_awardee=prev_awardee  # link to the previous awardee if the award had been picked up
                             )
                             db.session.add(awardee)
                             db.session.flush()
@@ -444,7 +453,7 @@ class RaceAwardsApi(RaceAwardsBase):
                         'name': award.awardee_name,
                         'bib': award.awardee_bib,
                         'picked_up': award.picked_up,
-                        'prev_picked_up': award.prev_awardee.picked_up if award.prev_awardee else False,
+                        'prev_picked_up': award.prev_awardee.picked_up if not award.picked_up and award.prev_awardee else False,
                         'notes': award.notes,
                     })
 
@@ -488,10 +497,10 @@ class AwardPickUpApi(RaceAwardsBase):
         if awardee:
             if not was_picked_up:
                 awardee.picked_up = True
-                retdata = jsonify({'status': 'success', 'picked_up': True})
+                retdata = jsonify({'status': 'success', 'picked_up': True, 'prev_picked_up': False})
             else:
                 awardee.picked_up = False
-                retdata = jsonify({'status': 'success', 'picked_up': False})
+                retdata = jsonify({'status': 'success', 'picked_up': False, 'prev_picked_up': True if awardee.prev_awardee else False})
         
             db.session.commit()
             
