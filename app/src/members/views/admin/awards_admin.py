@@ -7,16 +7,19 @@ awards - awards views
 from datetime import datetime, timedelta
 from traceback import format_exception_only, format_exc
 from itertools import zip_longest
+from csv import DictWriter
+from io import StringIO
 
 # pypi
-from flask import current_app, request, url_for, g, jsonify, abort, render_template, flash
+from flask import current_app, request, url_for, g, jsonify, abort, render_template, flash, Response
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import select, option
+from dominate.tags import select, option, button
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN
 from loutilities.timeu import asctime
 from loutilities.filters import filtercontainerdiv, filterdiv
+from loutilities.transform import Transform
 from running.runsignup import RunSignUp
 from sqlalchemy import and_
 
@@ -276,6 +279,8 @@ class RaceAwardsView(RaceAwardsBase):
                                 option(f'{row.eventyear}', value=row.id, selected='true')
                             else: 
                                 option(f'{row.eventyear}', value=row.id)
+                
+                button('CSV', id='awards-csv-button', url=url_for('admin._awardcsv', interest=g.interest))
 
             return render_template('raceawards.jinja2',
                                 pagename=f'{self.race.name} Awards',
@@ -310,8 +315,8 @@ class RaceAwardsApi(RaceAwardsBase):
             rsu_div_ids = [d.rsu_div_id for d in db_divisions]
             rsu_div_lookup = {d.rsu_div_id: d for d in db_divisions}
             
-            # get the awardees for the event from the database
-            awardees = AwardsAwardee.query.filter_by(event_id=event.id).all()
+            # get the active awardees for the event from the database
+            awardees = AwardsAwardee.query.filter_by(event_id=event.id, active=True).all()
             
             # create dictionaries of awardees for quick lookup
             award_placement = {(a.div.rsu_div_id, a.order): a for a in awardees}
@@ -334,6 +339,7 @@ class RaceAwardsApi(RaceAwardsBase):
                                 div=div,
                                 event_id=event.id,
                                 order=order,
+                                active=True,
                                 awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
                                 awardee_bib=result['bib'],
                                 picked_up=False,  # default to not picked up
@@ -354,6 +360,7 @@ class RaceAwardsApi(RaceAwardsBase):
                             # also don't point to last awardee if the bib number didn't change
                             #   not sure why this happens, but needs to be covered
                             prev_awardee = award_placement[(rsu_div_id, order)]
+                            prev_awardee.active = False
                             picked_up = False
                             if prev_awardee.awardee_bib == result['bib']:
                                 picked_up = prev_awardee.picked_up
@@ -366,6 +373,7 @@ class RaceAwardsApi(RaceAwardsBase):
                                 div=div,
                                 event_id=event.id,
                                 order=order,
+                                active=True,
                                 awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
                                 awardee_bib=result['bib'],
                                 picked_up=picked_up,  # see logic above
@@ -443,7 +451,7 @@ class RaceAwardsApi(RaceAwardsBase):
                         'max': division.max_age,
                     })
                 
-                awards = AwardsAwardee.query.filter_by(div=division).order_by(AwardsAwardee.order).all()
+                awards = AwardsAwardee.query.filter_by(div=division, active=True).order_by(AwardsAwardee.order).all()
                 for award in awards:
                     awardsresp['awards'].append({
                         'awardee_id': award.id,
@@ -511,7 +519,7 @@ class AwardPickUpApi(RaceAwardsBase):
         db.session.commit()
         return retdata
         
-bp.add_url_rule('/<interest>/_pickedup/rest', view_func=AwardPickUpApi.as_view('_pickedup'),
+bp.add_url_rule('/<interest>/_awardpickedup/rest', view_func=AwardPickUpApi.as_view('_awardpickedup'),
                 methods=['POST'])
 
 class AwardNotesApi(RaceAwardsBase):
@@ -558,6 +566,56 @@ class AwardNotesApi(RaceAwardsBase):
         db.session.commit()
         return retdata
         
-bp.add_url_rule('/<interest>/_notes/rest', view_func=AwardNotesApi.as_view('_notes'),
+bp.add_url_rule('/<interest>/_awardnotes/rest', view_func=AwardNotesApi.as_view('_awardnotes'),
                 methods=['GET', 'POST'])
+
+
+class AwardCsvApi(RaceAwardsBase):
+    def permission(self):
+        permission = super().permission()
+        if permission:
+            event_id = request.args.get('event_id', None)
+            self.event = AwardsEvent.query.filter_by(interest=self.interest, id=event_id).first()
+            if not self.event: return False
+        
+        return permission
+    
+    def get(self):
+        if not self.permission():
+            return jsonify({'status': 'fail', 'error': 'not permitted'})
+        
+        awardees = AwardsAwardee.query.filter_by(interest=self.interest, event_id=self.event.id).all()
+        filename = f'{self.event.date}-{self.event.race.name}-{self.event.name}-awards.csv'
+        
+        fieldnames = 'name,bib,division,place,status,notes'.split(',')
+        si = StringIO()
+        cw = DictWriter(si, fieldnames)
+        cw.writeheader()
+        
+        db2csv = Transform(
+            sourceattr=True, targetattr=False,
+            mapping={
+                'name': 'awardee_name',
+                'bib':  'awardee_bib',
+                'division': lambda r: r.div.shortname,
+                'place': 'order',
+                'status': lambda r: ('picked up' if r.picked_up and r.active 
+                                     else 'distribution error' if r.picked_up and not r.active
+                                     else 'pending pickup' if r.active
+                                     else 'withdrawn'),
+                'notes': 'notes'
+            })
+        
+        for awardee in awardees:
+            csvrow = {}
+            db2csv.transform(awardee, csvrow)
+            cw.writerow(csvrow)
+        
+        output = si.getvalue()
+        response = Response(output, mimetype="text/csv")
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return response
+        
+bp.add_url_rule('/<interest>/_awardcsv', view_func=AwardCsvApi.as_view('_awardcsv'),
+                methods=['GET'])
 

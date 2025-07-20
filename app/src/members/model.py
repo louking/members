@@ -1110,6 +1110,7 @@ class AwardsAwardee(Base):
     div            = relationship('AwardsDivision', back_populates='awardees')
     event_id       = Column(Integer, ForeignKey('awards_event.id'))
     
+    active         = Column(Boolean)  # True if award is active
     rsu_result_id  = Column(Integer)  # runsignup result_id for this awardee's result
     order          = Column(Integer)  # order within division, e.g. 1st, 2nd, 3rd
     awardee_name   = Column(Text)

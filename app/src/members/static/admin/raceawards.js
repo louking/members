@@ -166,7 +166,7 @@ function toggle_picked_up() {
             urlparams['event_id'] = $('#events').val();
             urlparams['awardee_id'] = $cell.attr('awardee_id');
             urlparams['was_picked_up'] = $cell.hasClass('picked_up');
-            let url = `/admin/${interest}/_pickedup/rest` + '?' + setParams(urlparams);
+            let url = `/admin/${interest}/_awardpickedup/rest` + '?' + setParams(urlparams);
 
             return $.post(url)
         })
@@ -220,7 +220,7 @@ function popup_note_dialog() {
             let urlparams = allUrlParams();
             urlparams['event_id'] = $('#events').val();
             urlparams['awardee_id'] = $cell.attr('awardee_id');
-            let url = `/admin/${interest}/_notes/rest` + '?' + setParams(urlparams);
+            let url = `/admin/${interest}/_awardnotes/rest` + '?' + setParams(urlparams);
 
             return $.get(url)
         })
@@ -259,7 +259,7 @@ function save_note() {
             urlparams['event_id'] = $('#events').val();
             urlparams['awardee_id'] = $cell.attr('awardee_id');
             urlparams['notes'] = $('#awards-note-input').val().trim();
-            let url = `/admin/${interest}/_notes/rest` + '?' + setParams(urlparams);
+            let url = `/admin/${interest}/_awardnotes/rest` + '?' + setParams(urlparams);
 
             return $.post(url)
         })
@@ -323,5 +323,12 @@ $(function() {
             $('#awards-note-container').hide();
         }
     });
+
+    $('#awards-csv-button').button().click(function() {
+        let $this = $(this);
+        let urlparams = allUrlParams();
+        urlparams['event_id'] = $('#events').val();
+        window.location.href = $this.attr('url') + '?' + setParams(urlparams);
+    })
 
 })
