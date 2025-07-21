@@ -97,6 +97,7 @@ def nav_menu():
         meetings_member_view.nomenu_help('RSVP', 'admin.rsvp', interest=g.interest)
         meetings_admin_view.nomenu_help('Meeting', 'admin.meeting', interest=g.interest)
         meetings_admin_view.nomenu_help('Meeting Status', 'admin.meetingstatus', interest=g.interest)
+        awards_admin_view.nomenu_help('Race Awards', 'admin.raceawards', interest=g.interest)
 
     if current_user.is_authenticated:
         navbar.items.append(View('Home', 'admin.home', interest=g.interest))
