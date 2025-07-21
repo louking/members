@@ -16,6 +16,10 @@ Glossary
     agenda item
         single :term:`agenda` item to be covered in a meeting, or row on :ref:`Meeting view`
 
+    awards admin
+        :term:`members <member>` with this :term:`security role` serve in a supervisory position and
+        can create races for award management and manage award distribution
+
     discussion item
         a topic which needs to be brought up at a :term:`meeting`. When a discussion item is created from
         :ref:`My Status Report view`, this automatically creates an :term:`agenda item`

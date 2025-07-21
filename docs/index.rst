@@ -36,6 +36,7 @@ Welcome to membertility's documentation!
    meetings-module
    leadership-task-module
    membership-module
+   awards-module
    racingteam-module
    super-admin-module
    membertility-definitions
