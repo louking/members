@@ -86,6 +86,7 @@ button.
     :align: center
 
 |
+
 .. note::
     On a phone, these will be stacked vertically
 
