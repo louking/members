@@ -126,8 +126,9 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                         # if number of awards for this division has been
                         # reduced, remove any awardees for new non-awards
                         if num_awards < divisionrow.num_awards:
-                            # TODO: 
-                            pass
+                            for awardee in divisionrow.awardees:
+                                if awardee.order > num_awards:
+                                    awardee.active = False
                         divisionrow.num_awards = num_awards
                         
                         divisionrow.min_age = min_age
@@ -587,7 +588,7 @@ class AwardCsvApi(RaceAwardsBase):
         awardees = AwardsAwardee.query.filter_by(interest=self.interest, event_id=self.event.id).all()
         filename = f'{self.event.date}-{self.event.race.name}-{self.event.name}-awards.csv'
         
-        fieldnames = 'name,bib,division,place,status,notes'.split(',')
+        fieldnames = 'name,bib,division,place,status,notes,updated'.split(',')
         si = StringIO()
         cw = DictWriter(si, fieldnames)
         cw.writeheader()
@@ -603,7 +604,8 @@ class AwardCsvApi(RaceAwardsBase):
                                      else 'distribution error' if r.picked_up and not r.active
                                      else 'pending pickup' if r.active
                                      else 'withdrawn'),
-                'notes': 'notes'
+                'notes': 'notes',
+                'updated': lambda r: r.update_time.isoformat(sep=' ') if r.update_time else '',
             })
         
         for awardee in awardees:
