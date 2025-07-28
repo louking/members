@@ -75,7 +75,7 @@ clicking on |icon-insert-comment| will display the note and allow the user to
 edit it.
 
 To download the current state of the award distribution, click on the **CSV**
-button. 
+button. The CSV file is described in :ref:`Race Awards CSV file`.
 
 .. note::
     If the divisions are changed in RunSignup after this view is displayed, from
@@ -95,3 +95,34 @@ button.
 .. |icon-radio-button-unchecked| image:: images/icon-radio-button-unchecked.*
 .. |icon-insert-comment| image:: images/icon-insert-comment.*
 
+.. _Race Awards CSV file:
+
+Race Awards CSV file
+---------------------
+The race awards CSV file contains the following columns:
+
+    :name:
+        the name of the awardee
+
+    :bib:
+        the bib number of the awardee
+
+    :division:
+        the division of the awardee
+
+    :place:
+        the place of the awardee within the division
+
+    :status:
+        the status of the award, which can be one of:
+
+        - **picked up**: the award has been picked up by the awardee
+        - **pending pickup**: the award has not yet been picked up
+        - **distribution error**: the award was picked up, but the awardee is not the correct awardee for that award
+        - **withdrawn**: the award has been withdrawn from the awardee due to division reconfiguration
+
+    :notes:
+        any notes recorded about the award
+
+    :updated:
+        the date and time that the award record was last updated, formatted as YYYY-MM-DD HH:mm:ss
