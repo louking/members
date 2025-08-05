@@ -321,7 +321,6 @@ class RaceAwardsApi(RaceAwardsBase):
             
             # create dictionaries of awardees for quick lookup
             award_placement = {(a.div.rsu_div_id, a.order): a for a in awardees}
-            result_lookup = {a.rsu_result_id: a for a in awardees}
             
             # loop through results from RunSignUp. Add AwardsAwardee for any awardees that are not in the database
             for result in rsu_results:
@@ -332,8 +331,11 @@ class RaceAwardsApi(RaceAwardsBase):
                     # check if the result deserves an award for this division
                     order = result[f'division-{rsu_div_id}-placement']
                     if order and order <= div.num_awards:          
+                        name = f'{result['first_name']} {result['last_name']}'  # full name
+
                         # add result if the result is not already in the division results
                         if (rsu_div_id, order) not in award_placement:
+                            current_app.logger.debug(f'new (div, place) ({div.shortname}, {order}) {name} result_id {result['result_id']}')
                             # create a new awardee
                             awardee = AwardsAwardee(
                                 interest=localinterest(),
@@ -341,7 +343,7 @@ class RaceAwardsApi(RaceAwardsBase):
                                 event_id=event.id,
                                 order=order,
                                 active=True,
-                                awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
+                                awardee_name=name,
                                 awardee_bib=result['bib'],
                                 picked_up=False,  # default to not picked up
                                 rsu_result_id=result['result_id'],  # store the RunSignUp result ID
@@ -354,44 +356,49 @@ class RaceAwardsApi(RaceAwardsBase):
                             break
                             
                         elif award_placement[(rsu_div_id, order)].rsu_result_id != result['result_id']:
+                            current_app.logger.debug(f'updated result_id (div, place) ({div.shortname}, {order}) {name} result_id {award_placement[(rsu_div_id, order)].rsu_result_id} with {result['result_id']}')
+                            
                             # if the awardee is already in the database and picked up, save the previous awardee
-                            current_app.logger.debug(f'overwriting result (div, place) {(rsu_div_id, order)} result_id {award_placement[(rsu_div_id, order)].rsu_result_id} with {result['result_id']}')
-
-                            # if wasn't picked up, don't point to the last awardee
-                            # also don't point to last awardee if the bib number didn't change
-                            #   not sure why this happens, but needs to be covered
                             prev_awardee = award_placement[(rsu_div_id, order)]
-                            prev_awardee.active = False
-                            picked_up = False
+
+                            # if the bib number didn't change, just update the rsu result id
                             if prev_awardee.awardee_bib == result['bib']:
+                                current_app.logger.debug(f'updating (div, place) ({div.shortname}, {order}) {name} result_id {award_placement[(rsu_div_id, order)].rsu_result_id} with {result['result_id']}')
+                                
+                                # update result_id for existing record
+                                prev_awardee.rsu_result_id = result['result_id']
+                            
+                            # if the bib number changed, create a new awardee and link to previous if it had been picked up
+                            else:
                                 picked_up = prev_awardee.picked_up
-                                prev_awardee = None
-                            elif not prev_awardee.picked_up:
-                                prev_awardee = None
-                            current_app.logger.debug(f'{result['first_name']} {result['last_name']}: picked_up {picked_up} prev_awardee {prev_awardee}')
-                            awardee = AwardsAwardee(
-                                interest=localinterest(),
-                                div=div,
-                                event_id=event.id,
-                                order=order,
-                                active=True,
-                                awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
-                                awardee_bib=result['bib'],
-                                picked_up=picked_up,  # see logic above
-                                rsu_result_id=result['result_id'],  # store the RunSignUp result ID
-                                prev_awardee=prev_awardee  # link to the previous awardee if the award had been picked up
-                            )
-                            db.session.add(awardee)
+                                current_app.logger.debug(f'overwriting result (div, place) ({div.shortname}, {order}) {name} result_id {award_placement[(rsu_div_id, order)].rsu_result_id} with {result['result_id']} for '
+                                                         f'{result['first_name']} {result['last_name']}: picked_up {picked_up} prev_awardee {prev_awardee}')
+                                
+                                prev_awardee.active = False
+                                if not picked_up:
+                                    prev_awardee = None
+                                    
+                                awardee = AwardsAwardee(
+                                    interest=localinterest(),
+                                    div=div,
+                                    event_id=event.id,
+                                    order=order,
+                                    active=True,
+                                    awardee_name=f'{result['first_name']} {result['last_name']}',  # full name
+                                    awardee_bib=result['bib'],
+                                    picked_up=False,
+                                    rsu_result_id=result['result_id'],  # store the RunSignUp result ID
+                                    prev_awardee=prev_awardee  # link to the previous awardee if the award had been picked up
+                                )
+                                db.session.add(awardee)
+                                award_placement[(rsu_div_id, order)] = awardee
+
+                            # flush whether we just updated the existing awardee or created a new one
                             db.session.flush()
-                            award_placement[(rsu_div_id, order)] = awardee
 
                             # we've awarded this result, so we can stop checking other divisions
                             break
-                                        
-                if awardee:
-                    # if we created a new awardee, add it to the result lookup
-                    result_lookup[result['result_id']] = awardee
-            
+                                                    
             db.session.commit()
         
         except Exception as e:
