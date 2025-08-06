@@ -14,14 +14,13 @@ from io import StringIO
 from flask import current_app, request, url_for, g, jsonify, abort, render_template, flash, Response
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import select, option, button
+from dominate.tags import select, option, button, input_, i
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN
 from loutilities.timeu import asctime
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.transform import Transform
 from running.runsignup import RunSignUp
-from sqlalchemy import and_
 
 # home grown
 from . import bp
@@ -280,6 +279,10 @@ class RaceAwardsView(RaceAwardsBase):
                                 option(f'{row.eventyear}', value=row.id, selected='true')
                             else: 
                                 option(f'{row.eventyear}', value=row.id)
+                
+                with filterdiv('filter-bib-container', 'Bib'):
+                    input_(type='text', id='bib-filter', placeholder='Bib number', style='width: 100px;')
+                    i(cls='icon search-off', id='bib-search-off', title='Clear Bib Filter')
                 
                 button('CSV', id='awards-csv-button', url=url_for('admin._awardcsv', interest=g.interest))
 

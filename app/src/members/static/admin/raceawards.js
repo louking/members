@@ -89,7 +89,7 @@ function updateawards() {
                 // fill in awards
                 for (let i=0; i<json.data.awards.length; i++) {
                     let award = json.data.awards[i];
-                    let winner = `<span class='awards-bib'>${award.bib}</span>&ensp;<span class='awards-name'>${award.name}</span>`;
+                    let winner = `<span class='awards-bib bib-${award.bib}'>${award.bib}</span>&ensp;<span class='awards-name'>${award.name}</span>`;
                     let $winner = $(winner);
                     let $award = $(`#${award.rsu_div_id}-${award.place}`);
                     $award.html($winner);
@@ -309,6 +309,29 @@ $(function() {
     });
 
     update_interval = start_award_updates();
+
+    // handle bib filtering
+    $('#bib-filter').on('change', function() {
+        let that = this;
+        let bib = $(that).val().trim();
+        if (bib) {
+            $('#bib-search-off').show();
+            $('.awards-cell').hide();
+            $('.awards-bib').each(function() {
+                if ($(this).text().includes(bib)) {
+                    $(this).closest('.awards-cell').show();
+                }
+            });
+        } else {
+            $('#bib-search-off').hide();
+            $('.awards-cell').show();
+        }
+    })
+    $('#bib-search-off').hide().click(function() {
+        $('#bib-filter').val('');
+        $(this).hide();
+        $('.awards-cell').show();
+    });
 
     // this couples with $('.awards-notes').click( function where divisions are created
     $('#awards-save-note').click(save_note);

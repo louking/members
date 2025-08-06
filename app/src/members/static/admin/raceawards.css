@@ -15,7 +15,6 @@
 
 .awards-header {
     font-weight: bold;
-    /* color: darkblue; */
 }
 
 .awards-cell {
@@ -91,6 +90,7 @@
     font-variant: normal;
     text-rendering: auto;
     line-height: 1;
+    vertical-align: middle;
 }
 
 /* see https://stackoverflow.com/questions/19255296/is-there-a-way-to-use-svg-as-content-in-a-pseudo-element-before-or-after */
@@ -108,4 +108,17 @@
 
 .insert-comment::before {
     content: url('/static/icons/insert-comment.svg');
+}
+
+.search-off::before {
+    content: url('/static/icons/search-off.svg');
+}
+
+/* this looks like the jquery-ui select2 */
+#bib-filter {
+    background-color: #fff;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    height: 28px;
+    box-sizing: border-box;
 }
