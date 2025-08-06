@@ -60,8 +60,12 @@ automatically when the awards are updated in RunSignup.
 
 When an award winner picks up their award, click anywhere in the cell to the
 left of the |icon-add-comment| icon. The |icon-radio-button-unchecked| will
-change to |icon-check-circle| and the cell with turn grey. This indicates that
+change to |icon-check-circle| and the cell will turn grey. This indicates that
 the award has been picked up.
+
+To find the cell for a specific award winner, use the **Bib** filter to search
+for their bib number. To clear the bib filter, click on the |icon-search-off|
+icon which appears to the right of the bib filter.
 
 If an award was marked as picked up, but subsequently the results were changed
 such that that award had been given to the wrong person, the new award winner
@@ -94,6 +98,7 @@ button. The CSV file is described in :ref:`Race Awards CSV file`.
 .. |icon-check-circle| image:: images/icon-check-circle.*
 .. |icon-radio-button-unchecked| image:: images/icon-radio-button-unchecked.*
 .. |icon-insert-comment| image:: images/icon-insert-comment.*
+.. |icon-search-off| image:: images/icon-search-off.*
 
 .. _Race Awards CSV file:
 

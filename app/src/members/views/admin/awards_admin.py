@@ -281,8 +281,8 @@ class RaceAwardsView(RaceAwardsBase):
                                 option(f'{row.eventyear}', value=row.id)
                 
                 with filterdiv('filter-bib-container', 'Bib'):
-                    input_(type='text', id='bib-filter', placeholder='Bib number', style='width: 100px;')
-                    i(cls='icon search-off', id='bib-search-off', title='Clear Bib Filter')
+                    input_(type='text', id='bib-filter', placeholder='Search', style='width: 100px;')
+                    i(cls='icon search-off', id='bib-search-off', title='Clear Bib Search')
                 
                 button('CSV', id='awards-csv-button', url=url_for('admin._awardcsv', interest=g.interest))
 
