@@ -1,3 +1,4 @@
+aiodns==3.6.0
 alabaster==0.7.12
 alembic==1.8.1
 annotated-types==0.7.0
@@ -26,10 +27,12 @@ dill==0.3.5.1
 dnspython==2.7.0
 docutils==0.17.1
 dominate==2.7.0
+email-normalize==2.0.0
 email-validator==2.1.0.post1
 esbonio==0.14.0
 et-xmlfile==1.1.0
 fabric==3.2.2
+fasteners==0.20
 Flask==3.0.3
 Flask-Assets==2.1.0
 Flask-BabelEx==0.9.4
@@ -42,6 +45,7 @@ Flask-Reuploaded==1.2.0
 Flask-Security-Too==5.5.2
 Flask-SQLAlchemy==3.0.5
 Flask-WTF==1.2.1
+fluent-discourse==1.0.1
 fmt==0.3.1
 FormEncode==2.0.1
 google-api-core==2.25.1
@@ -91,6 +95,7 @@ proto-plus==1.26.1
 protobuf==6.31.1
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
+pycares==4.11.0
 pycparser==2.21
 pydantic==2.9.2
 pydantic_core==2.23.4
@@ -106,13 +111,14 @@ python-editor==1.0.4
 python-slugify==6.1.2
 pytz==2022.1
 pytz-deprecation-shim==0.1.0.post0
+rauth==0.7.3
 requests==2.32.4
 requests-oauthlib==1.3.1
 rich==13.9.4
 rsa==4.9
 rstcheck==6.2.4
 rstcheck-core==1.2.1
-runtilities==2.2.1
+runtilities==2.3.0
 setuptools==78.1.1
 shellingham==1.4.0
 six==1.16.0
@@ -146,6 +152,7 @@ typing_extensions==4.12.2
 tzdata==2022.1
 tzlocal==4.2
 unicodecsv==0.14.1
+UniversalClient==0.6.4
 uritemplate==4.1.1
 urllib3==2.5.0
 validators==0.20.0
