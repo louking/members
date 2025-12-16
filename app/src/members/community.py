@@ -9,10 +9,10 @@ from email_normalize import normalize
 from fasteners import InterProcessLock
 
 # homegrown
-from .sync import GroupManager
+from .sync import SyncManager
 
 
-class RsuRaceGroupManager(GroupManager):
+class RsuRaceSyncManager(SyncManager):
     """put participants into internal group from RunSignup
     
     expects the following to be set in config:
@@ -42,14 +42,14 @@ class RsuRaceGroupManager(GroupManager):
             return {}
         
         if len(events) > 1:
-            current_app.logger.warning(f'RsuRaceGroupManager.get_users_from_service(): multiple events found for race {self.raceid}, using first one')
+            current_app.logger.warning(f'RsuRaceSyncManager.get_users_from_service(): multiple events found for race {self.raceid}, using first one')
             
         event_id = events[0]['event_id']
         page = 1
         participants = {}
         while True:
             # https://runsignup.com/API/race/:race_id/participants/GET
-            current_app.logger.debug(f'RsuRaceGroupManager.get_users_from_service(): retrieving event {event_id} participants page {page}')
+            current_app.logger.debug(f'RsuRaceSyncManager.get_users_from_service(): retrieving event {event_id} participants page {page}')
             resp = self.rsu.race._(self.raceid).participants.params({'event_id': event_id, 'page':page}).get()
             pageparticipants = resp.json()[0].pop('participants', [])
             
@@ -67,7 +67,7 @@ class RsuRaceGroupManager(GroupManager):
         return participants
     
 
-class CommunityGroupManager(GroupManager):
+class CommunitySyncManager(SyncManager):
     """put participants into discourse community group
     
     expects the following to be set in config:
@@ -125,7 +125,7 @@ class CommunityGroupManager(GroupManager):
                 break
         if not self.communitygroupid:
             raise ValueError(f'Community group {self.communitygroupname} not found in Discourse')
-        current_app.logger.debug(f'CommunityGroupManager.start_import(): community group {self.communitygroupname} has id {self.communitygroupid}')
+        current_app.logger.debug(f'CommunitySyncManager.start_import(): community group {self.communitygroupname} has id {self.communitygroupid}')
         
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
         resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_INVITES_QUERY_FSRC']).run.post()
@@ -167,10 +167,10 @@ class CommunityGroupManager(GroupManager):
             userid = member['id']
             user = self.id2users.get(userid)
             if not user:
-                current_app.logger.error(f'CommunityGroupManager.get_users_from_group(): user id {userid} in group {self.communitygroupname} not found in user list')
+                current_app.logger.error(f'CommunitySyncManager.get_users_from_group(): user id {userid} in group {self.communitygroupname} not found in user list')
                 continue
             groupusers[userid] = user
-        current_app.logger.debug(f'CommunityGroupManager.get_users_from_group(): found {len(groupusers)} users in community group {self.communitygroupname}')
+        current_app.logger.debug(f'CommunitySyncManager.get_users_from_group(): found {len(groupusers)} users in community group {self.communitygroupname}')
         
         # include invites targeted for our group
         for invite in self.invites.values():
@@ -192,36 +192,36 @@ class CommunityGroupManager(GroupManager):
             self.remove_userids.add(groupuserkey)
         else:
             self.remove_group_invites.add(groupuserkey)
-        current_app.logger.debug(f'CommunityGroupManager.remove_user_from_group(): removed user id {groupuserkey} from group {self.communitygroupname}')
+        current_app.logger.debug(f'CommunitySyncManager.remove_user_from_group(): removed user id {groupuserkey} from group {self.communitygroupname}')
         
     def finish_import(self):    
         """finalize import process"""
         
         # add users to group
         if self.add_userids:
-            current_app.logger.debug(f'CommunityGroupManager.finish_import(): adding users {self.add_userids} to group {self.communitygroupname}')
+            current_app.logger.debug(f'CommunitySyncManager.finish_import(): adding users {self.add_userids} to group {self.communitygroupname}')
             try:
                 # https://docs.discourse.org/#tag/Groups/operation/addGroupMembers
                 self.discourse.groups._(self.communitygroupid).members.json.put({
                     'usernames': ','.join([self.id2users[uid]['username'] for uid in list(self.add_userids)])
                 })
             except DiscourseError as e:
-                current_app.logger.error(f'CommunityGroupManager.finish_import(): error adding users to group {self.communitygroupname}: {e}')
+                current_app.logger.error(f'CommunitySyncManager.finish_import(): error adding users to group {self.communitygroupname}: {e}')
         
         # remove users from group
         if self.remove_userids:
-            current_app.logger.debug(f'CommunityGroupManager.finish_import(): removing users {self.remove_userids} from group {self.communitygroupname}')
+            current_app.logger.debug(f'CommunitySyncManager.finish_import(): removing users {self.remove_userids} from group {self.communitygroupname}')
             try:
                 # https://docs.discourse.org/#tag/Groups/operation/removeGroupMembers
                 self.discourse.groups._(self.communitygroupid).members.json.delete({
                     'usernames': ','.join([self.id2users[uid]['username'] for uid in list(self.remove_userids)])
                 })
             except DiscourseError as e:
-                current_app.logger.error(f'CommunityGroupManager.finish_import(): error removing users from group {self.communitygroupname}: {e}')
+                current_app.logger.error(f'CommunitySyncManager.finish_import(): error removing users from group {self.communitygroupname}: {e}')
         
         # remove group from invites
         if self.remove_group_invites:
-            current_app.logger.debug(f'CommunityGroupManager.finish_import(): removing group {self.communitygroupname} from invites {self.remove_group_invites}')
+            current_app.logger.debug(f'CommunitySyncManager.finish_import(): removing group {self.communitygroupname} from invites {self.remove_group_invites}')
             for email in self.remove_group_invites:
                 invite = self.invites[email]
                 invite_id = invite['id']
@@ -235,7 +235,7 @@ class CommunityGroupManager(GroupManager):
                 # still have other groups, so update invite
                 if len(invite_group_ids) != 0:
                     group_ids = ','.join([str(g) for g in invite_group_ids])
-                    current_app.logger.debug(f'RsuRaceCommunityGroupManager.finish_import(): updating '
+                    current_app.logger.debug(f'RsuRaceCommunitySyncManager.finish_import(): updating '
                                                 f'Discourse invite for email {email} to remove '
                                                 f'group {self.communitygroupname} final group_ids {group_ids}')
                     # interface reverse engineered from Discourse web app
@@ -250,7 +250,7 @@ class CommunityGroupManager(GroupManager):
                 
                 # no other groups, so delete invite
                 else:
-                    current_app.logger.debug(f'RsuRaceCommunityGroupManager.finish_import(): deleting Discourse invite for email {email} since no more groups remain')
+                    current_app.logger.debug(f'RsuRaceCommunitySyncManager.finish_import(): deleting Discourse invite for email {email} since no more groups remain')
                     try:
                         self.discourse.invites.json.delete({'id': invite_id})
                     except DiscourseError as e:
@@ -260,13 +260,13 @@ class CommunityGroupManager(GroupManager):
         # release interprocess lock to prevent multiple imports at once
         self.lock.release()
 
-class RsuRaceCommunityGroupManager(RsuRaceGroupManager, CommunityGroupManager):
+class RsuRaceCommunitySyncManager(RsuRaceSyncManager, CommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
     def __init__(self, interest, raceid, communitygroupname):
         """initialize Rsu, Discourse, and base classes"""
-        CommunityGroupManager.__init__(self, interest, communitygroupname)
-        RsuRaceGroupManager.__init__(self, raceid)
+        CommunitySyncManager.__init__(self, interest, communitygroupname)
+        RsuRaceSyncManager.__init__(self, raceid)
 
     def get_group_key_from_service_user(self, svcuser):
         """get unique key for service user used by internal group
@@ -303,7 +303,7 @@ class RsuRaceCommunityGroupManager(RsuRaceGroupManager, CommunityGroupManager):
         if groupuserkey:
             # by adding this here, the user will be added to the group in finish_import
             self.add_userids.add(groupuserkey)
-            current_app.logger.debug(f'RsuRaceCommunityGroupManager.add_user_to_group(): added user id {groupuserkey} to group {self.communitygroupname}')
+            current_app.logger.debug(f'RsuRaceCommunitySyncManager.add_user_to_group(): added user id {groupuserkey} to group {self.communitygroupname}')
             
         # if user does not exist in Discourse yet
         # send an invite request if it hasn't already been sent
@@ -323,7 +323,7 @@ class RsuRaceCommunityGroupManager(RsuRaceGroupManager, CommunityGroupManager):
                 if self.communitygroupid not in invite_group_ids:
                     invite_group_ids.append(self.communitygroupid)
                     group_ids = ','.join([str(g) for g in invite_group_ids])
-                    current_app.logger.debug(f'RsuRaceCommunityGroupManager.add_user_to_group(): updating '
+                    current_app.logger.debug(f'RsuRaceCommunitySyncManager.add_user_to_group(): updating '
                                              f'Discourse invite for email {email} to add '
                                              f'group {self.communitygroupname} final group_ids {group_ids}')
                     # interface reverse engineered from Discourse web app

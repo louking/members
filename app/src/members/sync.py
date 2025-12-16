@@ -5,7 +5,7 @@ from flask import current_app
 
 from logging import DEBUG, WARNING
 
-class GroupManager(object):
+class SyncManager(object):
     def __init__(self):
         pass
     
