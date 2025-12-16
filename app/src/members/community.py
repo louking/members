@@ -9,7 +9,7 @@ from email_normalize import normalize
 from fasteners import InterProcessLock
 
 # homegrown
-from .groups import GroupManager
+from .sync import GroupManager
 
 
 class RsuRaceGroupManager(GroupManager):
