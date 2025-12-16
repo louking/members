@@ -119,6 +119,7 @@ services:
     volumes:
       - ./config:/config:ro
       - ./config/msmtprc:/etc/msmtprc:ro
+      - ./config/cronjobs:/etc/crontabs/appuser
       - ${DB_INIT_DIR}:/initdb.d
       - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
       - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}

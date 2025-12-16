@@ -40,9 +40,6 @@ RUN apk add --no-cache msmtp && rm /usr/sbin/sendmail && ln -s /usr/bin/msmtp /u
 # we're going to want to use bash
 RUN apk add bash
 
-# add cron stuff for appuser execution
-COPY cronjobs /etc/crontabs/appuser
-
 # copy the content of the local src directory to the working directory
 # this isn't needed when developing as there's a bind under volumes: in the docker-compose.dev.yml file
 COPY src .
