@@ -11,7 +11,7 @@ from click import argument, group, option
 
 # homegrown
 from scripts import catch_errors, ParameterError
-from members.community import RsuRaceCommunitySyncManager
+from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager
 
 # needs to be before any commands
 @group()
@@ -33,6 +33,23 @@ def syncrace(interest, raceid, communitygroupname, debug, debugrequests):
     [raceid] participants within interest [interest]
     """
     grpmgr = RsuRaceCommunitySyncManager(interest, raceid, communitygroupname)
+    grpmgr.import_group(debug=debug, debugrequests=debugrequests)
+
+
+@community.command()
+@argument('interest')
+@argument('clubid')
+@argument('communitygroupname')
+@option('--debug', is_flag=True, help='enable debug logging')
+@option('--debugrequests', is_flag=True, help='enable requests debug logging')
+@with_appcontext
+@catch_errors
+def syncclub(interest, clubid, communitygroupname, debug, debugrequests):
+    """
+    Sync community group [communitygroupname] membership from RunSignup
+    membership organization [clubid] members within interest [interest]
+    """
+    grpmgr = RsuClubCommunitySyncManager(interest, clubid, communitygroupname)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
 
 
