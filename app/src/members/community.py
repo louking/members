@@ -306,41 +306,11 @@ class CommunitySyncManager(SyncManager):
         # release interprocess lock to prevent multiple imports at once
         self.lock.release()
 
-class RsuUserCommunitySyncManager(CommunitySyncManager):
-    """puts users from RunSignup into discourse community group
-    
-    RunSignup user records are expected to have 'user' dict with 'email' key
-    """
-
-    def get_group_key_from_service_user(self, svcuser):
-        """get unique key for service user used by internal group
-        
-        :param svcuser: race participant record
-        :rtype: normalized email address
-        """
-        
-        # find email in race participant record, normalize it, and use that as the key
-        email = normalize(svcuser['user']['email']).normalized_address
-        return self.email2user[email]['user_id'] if email in self.email2user else None
-    
-
-    def check_update_user_in_group(self, svcuser, groupuser):
-        """this is called when the user is found in the group already. There
-        shouldn't be anything that's needed to do to update, but is here for
-        completeness.
-
-        Args:
-            svcuser (RSU Participant/Member): race participant or member record record from RunSignup
-            groupuser (discourse user): user record from Discourse
-        """
-        super().check_update_user_in_group(svcuser, groupuser)
-    
-
     def add_user_to_group(self, svcuser, groupuserkey):
         """add user to internal group
 
         Args:
-            svcuser (RSU Participant/Member): race participant or member record record from RunSignup
+            svcuser: user record from service, which includes email
             groupuserkey (discourse user): userid from Discourse, or None if no user yet
         """
         # if user exists in Discourse
@@ -352,7 +322,7 @@ class RsuUserCommunitySyncManager(CommunitySyncManager):
         # if user does not exist in Discourse yet
         # send an invite request if it hasn't already been sent
         else:
-            email = svcuser['user']['email']
+            email = self.get_email(svcuser)
             normemail = normalize(email).normalized_address
             
             # handle if invite has already been sent
@@ -393,6 +363,45 @@ class RsuUserCommunitySyncManager(CommunitySyncManager):
                 except DiscourseError as e:
                     current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error creating Discourse invite for email {email}: {e}')
                 # TODO: do we need to update our local invite tracking info?
+
+    def check_update_user_in_group(self, svcuser, groupuser):
+        """this is called when the user is found in the group already. There
+        shouldn't be anything that's needed to do to update, but is here for
+        completeness.
+
+        Args:
+            svcuser: user record from service, which includes email
+            groupuser (discourse user): user record from Discourse
+        """
+        super().check_update_user_in_group(svcuser, groupuser)
+    
+
+class RsuUserCommunitySyncManager(CommunitySyncManager):
+    """puts users from RunSignup into discourse community group
+    
+    RunSignup user records are expected to have 'user' dict with 'email' key
+    """
+
+    def get_email(self, svcuser):
+        """get email from service user record (non-normalized)
+        
+        :param svcuser: record from service which contains email
+        
+        :rtype: email address
+        """
+        return svcuser['user']['email']
+    
+    def get_group_key_from_service_user(self, svcuser):
+        """get unique key for service user used by internal group
+        
+        :param svcuser: race participant record
+        :rtype: normalized email address
+        """
+        
+        # find email in race participant record, normalize it, and use that as the key
+        email = normalize(self.get_email(svcuser)).normalized_address
+        return self.email2user[email]['user_id'] if email in self.email2user else None
+    
                                 
 class RsuRaceCommunitySyncManager(RsuRaceSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
