@@ -584,24 +584,6 @@ def get_position_taskgroups(position, taskgroups):
         get_taskgroup_taskgroups(taskgroup, taskgroups)
         if taskgroupsdebug: current_app.logger.debug('get_position_taskgroups() return from get_taskgroup_taskgroups()')
 
-def get_tags_users(tags, users, ondate):
-    '''
-    get users which have specified tags (following position)
-
-    :param tags: list of tags to search for
-    :param users: input and output set of localusers
-    :param ondate: date for which positions are effective for this member
-    :return: None
-    '''
-
-    # collect all the users which have the indicated tags
-    for tag in tags:
-        for position in tag.positions:
-            for member in members_active(position, ondate):
-                users.add(member)
-        for user in tag.users:
-            users.add(user)
-
 def get_tags_positions(tags):
     '''
     get positions which have specified tags

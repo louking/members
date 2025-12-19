@@ -27,7 +27,7 @@ from ...model import Email
 from ...model import localinterest_query_params
 from ...model import invite_response_all, invite_attend_type_all
 from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE, MEETING_RENEW_OPTIONS
-from ...helpers import positions_active, members_active
+from ...helpers import positions_active, members_active, get_tags_users
 from ...meeting_invites import generateinvites, get_invites, generatereminder, send_meeting_email, send_discuss_email
 from ...meeting_invites import MEETING_INVITE_EMAIL, MEETING_REMINDER_EMAIL, MEETING_EMAIL
 from ...model import MEETING_OPTIONS, MEETING_OPTION_SEPARATOR, MEETING_OPTION_RSVP, MEETING_OPTION_ONLINEMOTIONS
@@ -39,7 +39,7 @@ from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVote
 from .meetings_common import motions_childelementargs, adminguide
 from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, invite_statusreport
 from .meetings_common import meeting_has_option, meeting_has_button
-from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_positions
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
 

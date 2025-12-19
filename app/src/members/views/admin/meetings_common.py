@@ -31,8 +31,8 @@ from ...model import MemberStatusReport, StatusReport
 from ...model import INVITE_RESPONSE_NO_RESPONSE, MEETING_OPTION_SEPARATOR
 from ...model import MEETING_OPTION_HASSTATUSREPORTS, MEETING_OPTION_RSVP, MEETING_OPTION_HASDISCUSSIONS
 from ...version import __docversion__
-from ...helpers import positions_active
-from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_users, get_tags_positions
+from ...helpers import positions_active, get_tags_users
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_positions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.tables import rest_url_for, CHILDROW_TYPE_TABLE, DteDbRelationship
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions

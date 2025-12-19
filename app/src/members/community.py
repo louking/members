@@ -2,15 +2,17 @@
 """
 
 # pypi
-from flask import current_app
+from flask import current_app, g
 from running.runsignup import RunSignupFluent
 from fluent_discourse import Discourse, DiscourseError
 from email_normalize import normalize
 from fasteners import InterProcessLock
+from datetime import date
 
 # homegrown
 from .sync import SyncManager
-
+from .helpers import get_tags_users
+from .model import Tag, localinterest_query_params
 
 class RsuRaceSyncManager(SyncManager):
     """put participants into internal group from RunSignup
@@ -142,6 +144,17 @@ class CommunitySyncManager(SyncManager):
             )
         except KeyError as e:
             raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
+    
+    def get_group_key_from_service_user(self, svcuser):
+        """get unique key for service user used by internal group
+        
+        :param svcuser: record from service which contains email
+        :rtype: normalized email address
+        """
+        
+        # find email in race participant record, normalize it, and use that as the key
+        email = normalize(self.get_email(svcuser)).normalized_address
+        return self.email2user[email]['user_id'] if email in self.email2user else None
     
     def start_import(self):
         """runtime start for import from Community perspective
@@ -391,18 +404,47 @@ class RsuUserCommunitySyncManager(CommunitySyncManager):
         """
         return svcuser['user']['email']
     
-    def get_group_key_from_service_user(self, svcuser):
-        """get unique key for service user used by internal group
-        
-        :param svcuser: race participant record
-        :rtype: normalized email address
-        """
-        
-        # find email in race participant record, normalize it, and use that as the key
-        email = normalize(self.get_email(svcuser)).normalized_address
-        return self.email2user[email]['user_id'] if email in self.email2user else None
+
+class DbTagCommunitySyncManager(CommunitySyncManager):
+    """puts users associated with a position tag into discourse community group
     
-                                
+    Args:
+        interest (str): interest short name
+        tagname (str): tag name to filter users by
+        communitygroupname (str): Discourse community group name
+    """
+
+    def __init__(self, interest, tagname, communitygroupname):
+        """set up for tag-based user retrieval"""
+        self.tagname = tagname
+        g.interest = interest
+        CommunitySyncManager.__init__(self, interest, communitygroupname)
+        
+    def get_email(self, svcuser):
+        """get email from service user record (un-normalized)
+        
+        :param svcuser: record from service which contains email
+        
+        :rtype: email address
+        """
+        return svcuser.email
+
+    def get_users_from_service(self):
+        """get users associated with a position tag from the database
+        
+        :rtype: dict of LocalUser records, indexed by email (un-normalized)"""
+        tag = Tag.query.filter_by(tag=self.tagname, **localinterest_query_params()).one()
+        tags = [tag]
+        dbusers = set()
+        ondate = date.today()
+
+        get_tags_users(tags, dbusers, ondate)
+        users = {user.email: user for user in dbusers}
+        current_app.logger.debug(f'{self.get_users_from_service.__qualname__}(): found {len(users)} users associated with tag "{self.tagname}"')
+        
+        return users
+
+
 class RsuRaceCommunitySyncManager(RsuRaceSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
