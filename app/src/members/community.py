@@ -5,7 +5,6 @@
 from flask import current_app, g
 from running.runsignup import RunSignupFluent
 from fluent_discourse import Discourse, DiscourseError
-from email_normalize import normalize
 from fasteners import InterProcessLock
 from datetime import date
 
@@ -149,12 +148,13 @@ class CommunitySyncManager(SyncManager):
         """get unique key for service user used by internal group
         
         :param svcuser: record from service which contains email
-        :rtype: normalized email address
+        :rtype: email address
         """
         
-        # find email in race participant record, normalize it, and use that as the key
-        email = normalize(self.get_email(svcuser)).normalized_address
-        return self.email2user[email]['user_id'] if email in self.email2user else None
+        # find email in race participant record and use that as the key
+        # if not a current user, return email because there may be a pending invite
+        email = self.get_email(svcuser)
+        return self.email2user[email]['user_id'] if email in self.email2user else email
     
     def start_import(self):
         """runtime start for import from Community perspective
@@ -212,7 +212,7 @@ class CommunitySyncManager(SyncManager):
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
         resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_USER_EMAIL_QUERY_FSRC']).run.post()
         emailrows = [dict(zip(resp['columns'], row)) for row in resp['rows']]
-        self.email2user = {row['normalized_email']: row for row in emailrows}
+        self.email2user = {row['email']: row for row in emailrows}
         id2emails = {}
         for row in emailrows:
             id2emails.setdefault(row['user_id'], [])
@@ -222,6 +222,8 @@ class CommunitySyncManager(SyncManager):
         groupmembers = self.discourse.groups._(self.communitygroupname).members.json.get()
         
         groupusers = {}
+        nusers = 0
+        ninvites = 0
         for member in groupmembers['members']:
             userid = member['id']
             user = self.id2users.get(userid)
@@ -229,15 +231,17 @@ class CommunitySyncManager(SyncManager):
                 current_app.logger.error(f'{self.get_users_from_group.__qualname__}(): user id {userid} in group {self.communitygroupname} not found in user list')
                 continue
             groupusers[userid] = user
-        current_app.logger.debug(f'{self.get_users_from_group.__qualname__}(): found {len(groupusers)} users in community group {self.communitygroupname}')
+            nusers += 1
         
         # include invites targeted for our group
         for invite in self.invites.values():
             invitegroups = self.invitegroups.get(invite['id'], [])
             if invitegroups and self.communitygroupid in invitegroups:
-                normemail = normalize(invite['email']).normalized_address
-                groupusers[normemail] = invite
+                groupusers[invite['email']] = invite
+                ninvites += 1
                 
+        current_app.logger.debug(f'{self.get_users_from_group.__qualname__}(): found {len(groupusers)} ({nusers} users, {ninvites} invites) for community group {self.communitygroupname}')
+
         return groupusers
 
     def remove_user_from_group(self, groupuserkey):
@@ -324,10 +328,10 @@ class CommunitySyncManager(SyncManager):
 
         Args:
             svcuser: user record from service, which includes email
-            groupuserkey (discourse user): userid from Discourse, or None if no user yet
+            groupuserkey (discourse user): userid from Discourse, or email address if no user yet
         """
         # if user exists in Discourse
-        if groupuserkey:
+        if groupuserkey and type(groupuserkey) is int:
             # by adding this here, the user will be added to the group in finish_import
             self.add_userids.add(groupuserkey)
             current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): added user id {groupuserkey} to group {self.communitygroupname}')
@@ -336,12 +340,11 @@ class CommunitySyncManager(SyncManager):
         # send an invite request if it hasn't already been sent
         else:
             email = self.get_email(svcuser)
-            normemail = normalize(email).normalized_address
             
             # handle if invite has already been sent
-            if normemail in self.invites:
+            if email in self.invites:
                 # check what groups this invite is for -- if it's already for our group, skip
-                invite = self.invites[normemail]
+                invite = self.invites[email]
                 invite_id = invite['id']
                 invite_group_ids = self.invitegroups.get(invite_id, [])
     
@@ -396,7 +399,7 @@ class RsuUserCommunitySyncManager(CommunitySyncManager):
     """
 
     def get_email(self, svcuser):
-        """get email from service user record (non-normalized)
+        """get email from service user record
         
         :param svcuser: record from service which contains email
         
@@ -421,7 +424,7 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
         CommunitySyncManager.__init__(self, interest, communitygroupname)
         
     def get_email(self, svcuser):
-        """get email from service user record (un-normalized)
+        """get email from service user record
         
         :param svcuser: record from service which contains email
         
@@ -432,7 +435,7 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
     def get_users_from_service(self):
         """get users associated with a position tag from the database
         
-        :rtype: dict of LocalUser records, indexed by email (un-normalized)"""
+        :rtype: dict of LocalUser records, indexed by email"""
         tag = Tag.query.filter_by(tag=self.tagname, **localinterest_query_params()).one()
         tags = [tag]
         dbusers = set()
