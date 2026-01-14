@@ -61,7 +61,7 @@ class RsuRaceSyncManager(SyncManager):
             
             # collect all the participants on this page
             for p in pageparticipants:
-                participants[p['user']['email']] = p
+                participants[p['user']['email'].lower()] = p
             
             # next page
             page += 1
@@ -106,7 +106,7 @@ class RsuClubSyncManager(SyncManager):
             
             # collect all the members on this page
             for m in pagemembers:
-                members[m['user']['email']] = m
+                members[m['user']['email'].lower()] = m
             
             # next page
             page += 1
@@ -403,9 +403,9 @@ class RsuUserCommunitySyncManager(CommunitySyncManager):
         
         :param svcuser: record from service which contains email
         
-        :rtype: email address
+        :rtype: email address (lower case)
         """
-        return svcuser['user']['email']
+        return svcuser['user']['email'].lower()
     
 
 class DbTagCommunitySyncManager(CommunitySyncManager):
