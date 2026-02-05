@@ -92,7 +92,7 @@ passlib==1.7.4
 pathlib2==2.3.7.post1
 platformdirs==2.5.2
 proto-plus==1.26.1
-protobuf==6.31.1
+protobuf==6.33.5
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycares==4.11.0
