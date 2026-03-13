@@ -85,10 +85,10 @@
                   "detached": true,
                   "build": false,
                 },
-                "files": [
-                  "${workspaceFolder}/docker-compose.yml",
-                  "${workspaceFolder}/docker-compose.dev.yml",
-                ]
+                // "files": [
+                //   "${workspaceFolder}/docker-compose.yml",
+                //   "${workspaceFolder}/docker-compose.dev.yml",
+                // ]
           },
         },
         {
@@ -117,10 +117,10 @@
                 "down": {
                 //   "services": ["app"]
                 },
-                "files": [
-                  "${workspaceFolder}/docker-compose.yml",
-                  "${workspaceFolder}/docker-compose.debug.yml"
-                ]
+                // "files": [
+                //   "${workspaceFolder}/docker-compose.yml",
+                //   "${workspaceFolder}/docker-compose.debug.yml"
+                // ]
           },
         },
     ]
