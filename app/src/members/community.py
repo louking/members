@@ -171,7 +171,15 @@ class CommunitySyncManager(SyncManager):
         self.remove_group_invites = set()
 
         # https://docs.discourse.org/#tag/Admin/operation/adminListUsers
-        userrows = self.discourse.admin.users.json.get()
+        
+        page = 1
+        userrows = []
+        while True:
+            resp = self.discourse.admin.users.json.get({'page': page})
+            if not resp:
+                break
+            userrows.extend(resp)
+            page += 1
         self.id2users = {row['id']: row for row in userrows}
 
         # save group id for current group
