@@ -550,11 +550,35 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         formmapping['member_positions'] = 'member_positions'
         formmapping['member'] = lambda tu: tu.member.name
         formmapping['task'] = lambda tu: tu.task.task
-        formmapping['lastcompleted'] = lambda tu: lastcompleted(tu.task, tu.member)
-        formmapping['status'] = lambda tu: get_status(self, tu.member, tu.task)
-        formmapping['order'] = lambda tu: get_order(self, tu.member, tu.task)
-        formmapping['expires'] = lambda tu: get_expires(self, tu.member, tu.task)
-        formmapping['fields'] = lambda tu: 'yes' if tu.task.fields else ''
+
+        # ------------------------------------------------------------------
+        # Cached formmapping lambdas
+        #
+        # Previously each of lastcompleted / status / order / expires called
+        # get_task_completion() independently — up to 3 live DB queries per
+        # row.  Now all four read from the bulk-loaded in-memory cache that
+        # init_position_taskgroup_cache() populates, and status/order/expires
+        # share a single _get_status() call via get_status_order_expires().
+        #
+        # tu.localuser is set on TaskMember in open(), so user2localuser()
+        # is never called during iteration either.
+        # ------------------------------------------------------------------
+        def _lastcompleted(tu):
+            tc = self.get_task_completion_cached(tu.task, tu.localuser)
+            return dtrender.dt2asc(tc.completion) if tc else None
+
+        def _soe(tu):
+            # status / order / expires — compute once, cache on tu to avoid
+            # calling get_status_order_expires three times per row.
+            if not hasattr(tu, '_soe_cache'):
+                tu._soe_cache = self.get_status_order_expires(tu.task, tu.localuser)
+            return tu._soe_cache
+
+        formmapping['lastcompleted'] = _lastcompleted
+        formmapping['status']  = lambda tu: _soe(tu)['status']
+        formmapping['order']   = lambda tu: _soe(tu)['order']
+        formmapping['expires'] = lambda tu: _soe(tu)['expires']
+        formmapping['fields']  = lambda tu: 'yes' if tu.task.fields else ''
         formmapping['addlfields'] = lambda tu: taskdetails_addlfields(tu.task, tu.member)
 
         super().__init__(formmapping=formmapping, **kwargs)
@@ -581,46 +605,51 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         locinterest = localinterest()
         localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
 
-        # collect all the members who should be in task details view (i.e., they are allowe do do task checklist)
+        # collect all the members who should be in task details view
         localusers = [lu for lu in localusersdb if has_oneof_roles(localuser2user(lu), TASK_CHECKLIST_ROLES_ACCEPTED)]
 
-        # initialize cache
+        # initialize cache — this now also bulk-loads all TaskCompletions
         ondate = request.args.get('ondate', date.today())
         self.init_position_taskgroup_cache(localusersdb, ondate)
 
-        # retrieve member data from localusers
-        members = []
-        for localuser in localusers:
-            # None can be returned, but it seems like this should happen only if the User table was manipulated
-            # manually without adjusting the LocalUser table accordingly.
-            # This should only happen in development testing of member management
-            user = User.query.filter_by(id=localuser.user_id).one_or_none()
+        # build a localuser_id -> User map from what we already have, avoiding
+        # repeated User.query calls inside the loop below
+        localuser_to_user = {}
+        for lu in localusers:
+            user = User.query.filter_by(id=lu.user_id).one_or_none()
             if user:
-                members.append({'localuser':localuser, 'member': user})
+                localuser_to_user[lu.id] = user
 
         tasksmembers = []
-        for member in members:
-            # collect all the tasks which are referenced by positions and taskgroups for this member
-            tasks = get_member_tasks(member['localuser'], ondate)
+        for localuser in localusers:
+            user = localuser_to_user.get(localuser.id)
+            if not user:
+                # User table was manipulated without adjusting LocalUser; skip
+                continue
 
-            # create/add taskmember to list for all tasks
-            active_positions = self.get_activepositions(member['localuser'])
+            tasks = get_member_tasks(localuser, ondate)
+
+            active_positions = self.get_activepositions(localuser)
             for task in iter(tasks):
-                membertaskid = self.setid(member['localuser'].id, task.id)
-                taskmember = TaskMember(
-                    id=membertaskid,
-                    task=task, task_taskgroups=task.taskgroups,
-                    member=member['member'],
-                    member_positions=active_positions,
-                )
+                membertaskid = self.setid(localuser.id, task.id)
 
-                # drill down to get all the taskgroups
+                # Collect all taskgroups this member belongs to
                 member_taskgroups = set()
                 for position in active_positions:
                     member_taskgroups |= self.get_position_taskgroups(position)
-                member_taskgroups |= self.get_localuser_taskgroups(member['localuser'])
-                taskmember.member_taskgroups = member_taskgroups
+                member_taskgroups |= self.get_localuser_taskgroups(localuser)
 
+                taskmember = TaskMember(
+                    id=membertaskid,
+                    task=task,
+                    task_taskgroups=task.taskgroups,
+                    member=user,
+                    # Store localuser directly so formmapping lambdas never
+                    # need to call user2localuser() during iteration.
+                    localuser=localuser,
+                    member_positions=active_positions,
+                    member_taskgroups=member_taskgroups,
+                )
                 tasksmembers.append(taskmember)
 
         self.rows = iter(tasksmembers)
@@ -651,8 +680,10 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         ondate = request.args.get('ondate', date.today())
         taskmember = TaskMember(
             id=thisid,
-            task=task, task_taskgroups=task.taskgroups,
+            task=task,
+            task_taskgroups=task.taskgroups,
             member=member['member'],
+            localuser=luser,
             member_positions=positions_active(member['localuser'], ondate),
         )
 
@@ -664,6 +695,13 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
             get_taskgroup_taskgroups(taskgroup, member_taskgroups)
         taskmember.member_taskgroups = member_taskgroups
 
+        # updaterow uses the live (post-write) DB path so status/order/expires
+        # reflect the new completion just saved.  Temporarily override the
+        # cache-based lambdas by patching the soe cache directly.
+        tc_new = get_task_completion(task, member['member'])
+        from .viewhelpers import _get_status as _gs
+        taskmember._soe_cache = _gs(self, luser, task, tc_new)
+
         return self.dte.get_response_data(taskmember)
 
     def refreshrows(self, ids):
@@ -671,36 +709,44 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         refresh row(s) from database
 
         :param ids: comma separated ids of row to be refreshed
-        :rtype: list of returned rows for rendering, e.g., from DataTablesEditor.get_response_data()
+        :rtype: list of returned rows for rendering
         '''
         theseids = ids.split(',')
         responsedata = []
         ondate = request.args.get('ondate', date.today())
         
-        # initialize cache
+        # initialize cache so get_status_order_expires works correctly
         locinterest = localinterest()
         localusersdb = LocalUser.query.filter_by(interest=locinterest).all()
         self.init_position_taskgroup_cache(localusersdb, ondate)
         
         for thisid in theseids:
-            # id is made up of localuser.id, task.id
             localuserid, taskid = self.getids(thisid)
             localuser = LocalUser.query.filter_by(id=localuserid).one()
             task = Task.query.filter_by(id=taskid).one()
 
-            member = {'localuser': localuser, 'member': User.query.filter_by(id=localuser.user_id).one()}
+            user = User.query.filter_by(id=localuser.user_id).one()
+
+            member_taskgroups = set()
+            for position in positions_active(localuser, ondate):
+                get_position_taskgroups(position, member_taskgroups)
+            for taskgroup in localuser.taskgroups:
+                get_taskgroup_taskgroups(taskgroup, member_taskgroups)
 
             taskuser = TaskMember(
                 id=thisid,
-                task=task, task_taskgroups=task.taskgroups,
-                member=member['member'],
-                member_positions=positions_active(member['localuser'], ondate),
-                member_taskgroups=member['localuser'].taskgroups,
+                task=task,
+                task_taskgroups=task.taskgroups,
+                member=user,
+                localuser=localuser,
+                member_positions=positions_active(localuser, ondate),
+                member_taskgroups=member_taskgroups,
             )
 
             responsedata.append(self.dte.get_response_data(taskuser))
 
         return responsedata
+
 
 class ReadOnlySelect2(DteDbRelationship):
     def col_options(self):
@@ -712,15 +758,11 @@ class ReadOnlySelect2(DteDbRelationship):
 def taskdetails_validate(action, formdata):
     results = []
 
-    # kludge to get task.id
-    # NOTE: this is only called from 'edit' / put function, and there will be only one id
     thisid = list(get_request_data(request.form).keys())[0]
 
-    # id is made up of localuser.id, task.id
     localuserid, taskid = taskdetails_view.getids(thisid)
     task = Task.query.filter_by(id=taskid).one()
 
-    # build list of fields which could override completion date (should only be one)
     override_completion = []
     for tasktaskfield in task.fields:
         taskfield = tasktaskfield.taskfield
@@ -770,7 +812,7 @@ taskdetails_yadcf_options = [
 taskdetails_view = TaskDetails(
                     roles_accepted = [ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN],
                     local_interest_model = LocalInterest,
-                    app = bp,   # use blueprint instead of app
+                    app = bp,
                     db = db,
                     model = Task,
                     template = 'datatables.jinja2',
@@ -785,7 +827,6 @@ taskdetails_view = TaskDetails(
                     endpointvalues={'interest': '<interest>'},
                     rule = '/<interest>/taskdetails',
                     dbmapping = taskdetails_dbmapping,
-                    # formmapping = taskdetails_formmapping,
                     checkrequired = True,
                     validate = taskdetails_validate,
                     clientcolumns = [
@@ -805,14 +846,12 @@ taskdetails_view = TaskDetails(
                          },
                         {'data': 'lastcompleted', 'name': 'lastcompleted', 'label': 'Last Completed',
                          'type': 'datetime',
-                         # 'ed': {'opts':{'maxDate':date.today().isoformat()}}
                          },
                         {'data': 'expires', 'name': 'expires', 'label': 'Expiration Date',
                          'type': 'readonly',
                          'className': 'status-field',
                          },
                         {'data': 'member_positions', 'name': 'member_positions', 'label': 'Member Positions',
-                         # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(
@@ -824,7 +863,6 @@ taskdetails_view = TaskDetails(
                              }}
                          },
                         {'data': 'member_taskgroups', 'name': 'member_taskgroups', 'label': 'Member Task Groups',
-                         # 'type': 'readonly',
                          '_treatment': {
                              'relationship': {
                                  'optionspicker' : ReadOnlySelect2(
@@ -844,7 +882,6 @@ taskdetails_view = TaskDetails(
                                         dbfield = 'task_taskgroups', uselist = True,
                                         queryparams = localinterest_query_params,
                                  )
-
                             }}
                          },
                         {'data': 'fields', 'name': 'fields', 'label': 'Add\'l Fields',
@@ -872,12 +909,10 @@ taskdetails_view = TaskDetails(
                         'scrollXInner': "100%",
                         'scrollY': True,
                         'rowCallback': {'eval': 'set_cell_status_class'},
-                        # note id is column 0 to datatables, col 2 (display order) hidden
                         'order': [['member:name', 'asc'], ['order:name', 'asc'], ['expires:name', 'asc']],
                     },
                     edoptions={
                         'i18n':
-                            # "edit" window shows "Task" in title
                             {'edit':
                                 {
                                     'title': 'Task',

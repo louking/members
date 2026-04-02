@@ -19,13 +19,16 @@ from loutilities.user.tablefiles import FieldUpload
 
 # homegrown
 from . import bp
-from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData
+from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData, TaskCompletion
 from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...version import __docversion__
 from .viewhelpers import lastcompleted, get_status, get_order, get_expires
 from .viewhelpers import create_taskcompletion, get_task_completion, get_member_tasks
 from .viewhelpers import PositionTaskgroupCacheMixin
 from .viewhelpers import TASK_CHECKLIST_ROLES_ACCEPTED
+from .viewhelpers import dtrender, _get_status
+
+from ...helpers import positions_active
 
 debug = False
 timingdebug = False
@@ -73,16 +76,12 @@ def addlfields(task):
         thistaskfield = {}
         for key in 'taskfield,fieldname,displaylabel,displayvalue,inputtype,fieldinfo,priority,uploadurl'.split(','):
             thistaskfield[key] = getattr(f, key)
-            # displayvalue gets markdown translation
             if key == 'displayvalue' and getattr(f, key):
                 thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
         thistaskfield['fieldoptions'] = get_options(f)
 
         if tc:
-            # field may exist now but maybe didn't before
             field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
-
-            # field was found
             if field:
                 value = field.value
                 if f.inputtype != INPUT_TYPE_UPLOAD:
@@ -94,8 +93,6 @@ def addlfields(task):
                                                             interest=g.interest,
                                                             fileid=value),
                                                target='_blank').render()
-
-            # field wasn't found
             else:
                 thistaskfield['value'] = None
 
@@ -106,14 +103,11 @@ def addlfields(task):
 def taskchecklist_pretablehtml():
     pretablehtml = div()
     with pretablehtml:
-        # hide / show hidden rows
         with filtercontainerdiv(style='margin-bottom: 4px;'):
             datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
-
             with datefilter:
                 input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
-
     return pretablehtml.render()
 
 taskchecklist_dbattrs = 'id,task,description,priority,__readonly__,__readonly__,__readonly__,__readonly__,__readonly__'.split(',')
@@ -127,7 +121,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
     def __init__(self, formmapping=taskchecklist_formmapping, **kwargs):
         self.kwargs = kwargs
         args = dict(
-            app=bp,  # use blueprint instead of app
+            app=bp,
             db=db,
             model=Task,
             local_interest_model=LocalInterest,
@@ -139,18 +133,16 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
             endpointvalues={'interest': '<interest>'},
             rule='/<interest>/taskchecklist',
             dbmapping=taskchecklist_dbmapping,
-            # formmapping=taskchecklist_formmapping,
             pretablehtml=taskchecklist_pretablehtml,
             validate = self._validate,
             clientcolumns=[
-                {'data': '',  # needs to be '' else get exception converting options from meetings render_template
-                 # TypeError: '<' not supported between instances of 'str' and 'NoneType'
+                {'data': '',
                  'name': 'view-task',
                  'className': 'view-task shrink-to-fit',
                  'orderable': False,
                  'defaultContent': '',
                  'label': '',
-                 'type': 'hidden',  # only affects editor modal
+                 'type': 'hidden',
                  'title': 'View',
                  'render': {'eval': 'render_icon("fas fa-eye")'},
                  },
@@ -187,7 +179,7 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
                  'className': 'status-field',
                  },
             ],
-            servercolumns=None,  # not server side
+            servercolumns=None,
             idSrc='rowid',
             buttons=[
                 {
@@ -226,32 +218,80 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
         )
         args.update(kwargs)
 
-        # update formmapping here, 
-        # a) because super().__init__ makes a copy of formmapping, so must be done before __init__ called
-        # b) because self.open() stores some information used by some of these functions
-        # NOTE: the lambda functions are not called until after self.open() is called
+        # ------------------------------------------------------------------
+        # Cached formmapping lambdas
+        #
+        # For the single-user checklist view the cache covers one member, so
+        # the two bulk queries become very fast.  The key gain is eliminating
+        # the triple get_task_completion() call (one each for status / order /
+        # expires) that previously fired on every row.
+        #
+        # _soe_cache is stored per task object (keyed by task.id) so that
+        # the three lambda reads (status, order, expires) each trigger only
+        # one _get_status() call.
+        # ------------------------------------------------------------------
         formmapping['description'] = mdrow
-        formmapping['addlfields'] = addlfields
-        formmapping['lastcompleted'] = lambda task: lastcompleted(task, current_user)
-        formmapping['status'] = lambda task: get_status(self, current_user, task)
-        formmapping['order'] = lambda task: get_order(self, current_user, task)
-        formmapping['expires'] = lambda task: get_expires(self, current_user, task)
+        formmapping['addlfields']  = addlfields
+
+        def _lastcompleted(task):
+            tc = self._get_task_completion_for(task)
+            return dtrender.dt2asc(tc.completion) if tc else None
+
+        def _soe(task):
+            if not hasattr(self, '_soe_task_cache'):
+                self._soe_task_cache = {}
+            if task.id not in self._soe_task_cache:
+                localuser = self._get_localuser()
+                tc = self._get_task_completion_for(task)
+                self._soe_task_cache[task.id] = _get_status(self, localuser, task, tc)
+            return self._soe_task_cache[task.id]
+
+        formmapping['lastcompleted'] = _lastcompleted
+        formmapping['status']  = lambda task: _soe(task)['status']
+        formmapping['order']   = lambda task: _soe(task)['order']
+        formmapping['expires'] = lambda task: _soe(task)['expires']
 
         super().__init__(formmapping=formmapping, **args)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_task_completion_for(self, task):
+        """Return latest TaskCompletion from the in-memory cache for the
+        current user and given task.  Falls back gracefully if the cache
+        hasn't been built yet (e.g., called from _validate before open).
+        """
+        if hasattr(self, '_completions_by_user_task') or hasattr(self, '_completions_by_position_task'):
+            localuser = self._get_localuser()
+            return self.get_task_completion_cached(task, localuser)
+        # fallback — should only happen outside of open() iteration
+        return get_task_completion(task, current_user)
+
+    def _get_localuser(self):
+        # TODO: process request.args to see if different user is needed
+        return LocalUser.query.filter_by(user_id=current_user.id, **self.queryparams).one()
+
+    # ------------------------------------------------------------------
+    # View lifecycle
+    # ------------------------------------------------------------------
 
     def open(self):
         start = time()
 
-        # collect all the tasks to send to client
         member = self._get_localuser()
 
-        # collect all the tasks which are referenced by positions and taskgroups for this member
         ondate = request.args.get('ondate', date.today())
         tasks = get_member_tasks(member, ondate)
-        
-        # cache some information which is needed frequently (by get_status, get_order, get_expires)
+
+        # init_position_taskgroup_cache now bulk-loads all TaskCompletions
+        # for this member, so status/order/expires require zero DB queries
+        # per row during iteration.
         self.init_position_taskgroup_cache([member], ondate)
-        
+
+        # Reset the per-open soe cache
+        self._soe_task_cache = {}
+
         self.rows = iter(tasks)
         if timingdebug: current_app.logger.debug(f',open() execution time,{time()-start:0.3f}')
         
@@ -262,8 +302,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
         return row
     
     def close(self):
-        # from .viewhelpers import profiler
-        # profiler.print_stats()
         return super().close()
     
     def updaterow(self, thisid, formdata):
@@ -273,28 +311,37 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
 
         create_taskcompletion(thistask, localuser, self.localinterest, formdata)
 
-        # TODO: need to add completion date, or status, or display class to the tasks returned
-        return self.dte.get_response_data(thistask)
+        # Invalidate the per-task soe cache for this task so the response
+        # reflects the new completion rather than the pre-write cached value.
+        if hasattr(self, '_soe_task_cache'):
+            self._soe_task_cache.pop(thistask.id, None)
 
-    def _get_localuser(self):
-        # TODO: process request.args to see if different user is needed
-        return LocalUser.query.filter_by(user_id=current_user.id, **self.queryparams).one()
+        # Also invalidate the completion cache entry so _get_task_completion_for
+        # returns the new record.  Re-query and update in-place.
+        if thistask.isbyposition and thistask.position_id:
+            from ...model import TaskCompletion as TC
+            tc_new = TC.query.filter_by(task=thistask, position=thistask.position).order_by(TC.update_time.desc()).first()
+            if hasattr(self, '_completions_by_position_task'):
+                self._completions_by_position_task[(thistask.position_id, thistask.id)] = tc_new
+        else:
+            from ...model import TaskCompletion as TC
+            tc_new = TC.query.filter_by(task=thistask, user=localuser).order_by(TC.update_time.desc()).first()
+            if hasattr(self, '_completions_by_user_task'):
+                self._completions_by_user_task[(localuser.id, thistask.id)] = tc_new
+
+        return self.dte.get_response_data(thistask)
 
     def _validate(self, action, formdata):
         results = []
 
-        # kludge to get task.id
-        # NOTE: this is only called from 'edit' / put function, and there will be only one id
         thisid = list(get_request_data(request.form).keys())[0]
         thistask = Task.query.filter_by(id=thisid).one()
 
-        # build lists of required and shared fields
         required = []
         one_of = []
         override_completion = []
         for tasktaskfield in thistask.fields:
             taskfield = tasktaskfield.taskfield
-            # ignore display-only fields
             if taskfield.inputtype == INPUT_TYPE_DISPLAY:
                 continue
             if tasktaskfield.need == NEED_REQUIRED:
@@ -304,12 +351,10 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
             if taskfield.override_completion:
                 override_completion.append(taskfield.fieldname)
 
-        # verify required fields were supplied
         for field in required:
             if not formdata[field]:
                 results.append({'name': field, 'status': 'please supply'})
 
-        # verify one of the one_of fields was supplied
         onefound = False
         for field in one_of:
             if formdata[field]:
@@ -318,7 +363,6 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
             for field in one_of:
                 results.append({'name':field, 'status': 'one of these must be supplied'})
 
-        # verify fields which override completion date (should only be one if configured properly)
         for field in override_completion:
             if formdata[field] > date.today().isoformat():
                 results.append({'name':field, 'status': 'cannot specify date later than today'})
@@ -328,4 +372,3 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
 
 taskchecklist_view = TaskChecklist()
 taskchecklist_view.register()
-

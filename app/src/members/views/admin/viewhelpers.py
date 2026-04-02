@@ -95,12 +95,16 @@ class LocalUserPicker(DteDbRelationship):
 
 
 def get_task_completion(task, user):
+    '''
+    Uncached DB lookup of latest TaskCompletion for a task/user.
+    Retained for use in updaterow() and refreshrows() where the cache
+    may be stale after a write.  In open() / nexttablerow() paths, use
+    the cache on the view instead (PositionTaskgroupCacheMixin.get_task_completion_cached).
+    '''
     start = time()
-    # if completion is by position and this user is in the task's position, return the latest task completion for this position
     localuser = user2localuser(user)
     if task.isbyposition:
         taskcompletion = TaskCompletion.query.filter_by(task=task, position=task.position).order_by(TaskCompletion.update_time.desc()).first()
-    # if by member, return the latest task completion for the indicated user
     else:
         taskcompletion = TaskCompletion.query.filter_by(task=task, user=localuser).order_by(TaskCompletion.update_time.desc()).first()
     if timingdebug: current_app.logger.debug(f',get_task_completion() execution time,,,{time()-start:0.3f}')
@@ -145,7 +149,12 @@ def has_all_roles(user, roles):
 class PositionTaskgroupCacheMixin():
     # @profile
     def init_position_taskgroup_cache(self, localusers, ondate):
-        """initialize cache of positions and taskgroups
+        """Initialize cache of positions, taskgroups, and — critically —
+        all TaskCompletion records needed for this set of users.
+
+        The TaskCompletion bulk-load eliminates the N+1 query pattern that
+        previously fired up to 3 individual DB round-trips per (member, task)
+        pair (once each for status, order, and expires).
 
         Args:
             localusers (list): list of LocalUser records
@@ -158,6 +167,15 @@ class PositionTaskgroupCacheMixin():
         localusertask2positions = {}
         localusers_cache = {}
         self.localusertask2earliest = {}
+
+        # ------------------------------------------------------------------ #
+        # Caches populated here and used by get_task_completion_cached()      #
+        # key: (localuser_id, task_id)  -> latest TaskCompletion or None      #
+        # key: (position_id,  task_id)  -> latest TaskCompletion or None      #
+        # ------------------------------------------------------------------ #
+        self._completions_by_user_task = {}
+        self._completions_by_position_task = {}
+
         for localuser in localusers:
             localusers_cache[localuser.id] = localuser
             self.activepositions[localuser.id] = positions_active(localuser, ondate)
@@ -170,21 +188,103 @@ class PositionTaskgroupCacheMixin():
                     if taskgroup.id not in self.taskgroup2tasks:
                         self.taskgroup2tasks[taskgroup.id] = set()
                         get_taskgroup_tasks(taskgroup, self.taskgroup2tasks[taskgroup.id])
-                    # this is used to calculate earliest start date for tasks for this user in these positions
                     for task in self.taskgroup2tasks[taskgroup.id]:
                         localusertask2positions.setdefault((localuser.id, task.id), []).append(position)
-            
+
         # find earliest start date for any positions held by each user for given task
         for localuser_id, task_id in localusertask2positions:
             earliest = dtrender.asc2dt('2999-12-31').date()
             for position in localusertask2positions[localuser_id, task_id]:
                 localuser = localusers_cache[localuser_id]
-                # member_positions returns list sorted by startdate
                 thisstart = member_positions(localuser, position)[0].startdate
                 if thisstart < earliest:
                     earliest = thisstart
-            self.localusertask2earliest[localuser_id, task_id] = earliest        
-            
+            self.localusertask2earliest[localuser_id, task_id] = earliest
+
+        # ------------------------------------------------------------------ #
+        # Bulk-load TaskCompletions                                            #
+        # Two queries replace up to 3 * M * T individual queries.             #
+        # ------------------------------------------------------------------ #
+        localuser_ids = [lu.id for lu in localusers]
+
+        if localuser_ids:
+            # All user-based completions for these users, newest-first so that
+            # the first record we see for each (user, task) pair is the latest.
+            user_completions = (
+                TaskCompletion.query
+                .filter(TaskCompletion.user_id.in_(localuser_ids))
+                .order_by(
+                    TaskCompletion.user_id,
+                    TaskCompletion.task_id,
+                    TaskCompletion.update_time.desc(),
+                )
+                .all()
+            )
+            for tc in user_completions:
+                key = (tc.user_id, tc.task_id)
+                if key not in self._completions_by_user_task:   # keep only the latest
+                    self._completions_by_user_task[key] = tc
+
+        # Collect every position_id that is active for any of these users
+        all_position_ids = set()
+        for lu in localusers:
+            for pos in self.activepositions.get(lu.id, []):
+                all_position_ids.add(pos.id)
+
+        if all_position_ids:
+            position_completions = (
+                TaskCompletion.query
+                .filter(TaskCompletion.position_id.in_(list(all_position_ids)))
+                .order_by(
+                    TaskCompletion.position_id,
+                    TaskCompletion.task_id,
+                    TaskCompletion.update_time.desc(),
+                )
+                .all()
+            )
+            for tc in position_completions:
+                key = (tc.position_id, tc.task_id)
+                if key not in self._completions_by_position_task:
+                    self._completions_by_position_task[key] = tc
+
+    def get_task_completion_cached(self, task, localuser):
+        """Return the latest TaskCompletion from the in-memory cache.
+
+        This is the cache-aware drop-in for viewhelpers.get_task_completion()
+        to be used during open() / nexttablerow() iteration.  It performs
+        zero DB queries.
+
+        Args:
+            task (Task): Task instance
+            localuser (LocalUser): LocalUser instance
+
+        Returns:
+            TaskCompletion | None
+        """
+        if task.isbyposition:
+            if task.position_id is None:
+                return None
+            return self._completions_by_position_task.get((task.position_id, task.id))
+        else:
+            return self._completions_by_user_task.get((localuser.id, task.id))
+
+    def get_status_order_expires(self, task, localuser):
+        """Return status, display-order, and expiry for a (task, localuser) pair.
+
+        Calls _get_status() exactly once per row instead of the previous pattern
+        of three separate calls (get_status / get_order / get_expires) that each
+        independently re-fetched the TaskCompletion from the DB.
+
+        Args:
+            task (Task): Task instance
+            localuser (LocalUser): LocalUser instance
+
+        Returns:
+            dict: {'status': str, 'order': int, 'expires': str|None}
+        """
+        tc = self.get_task_completion_cached(task, localuser)
+        return _get_status(self, localuser, task, tc)
+
     def get_activepositions(self, localuser):
         """return list of active positions for a user
     
@@ -194,8 +294,7 @@ class PositionTaskgroupCacheMixin():
         Returns:
             list: [position, position, ...]
         """
-        activepositions = self.activepositions[localuser.id]
-        return activepositions
+        return self.activepositions[localuser.id]
     
     def get_position_taskgroups(self, position):
         """return set of taskgroups for a position
@@ -336,7 +435,6 @@ def _get_expiration(view, localuser, task, taskcompletion):
 
             earliest = view.get_earliestposition(localuser, task)
             if earliest:
-                # return earliest start date for this user in any position which requires this task
                 expires = dtrender.dt2asc(earliest)
             
             # seems like this shouldn't be reachable
@@ -352,6 +450,12 @@ def _get_expiration(view, localuser, task, taskcompletion):
 
 # @profile
 def _get_status(view, localuser, task, taskcompletion):
+    '''
+    Core status/order/expiry calculation.  All callers should pass the
+    TaskCompletion they already have; this function does no DB I/O.
+
+    Returns a dict with keys 'status', 'order', 'expires'.
+    '''
     # task is optional
     if task.isoptional:
         if not taskcompletion:
@@ -400,6 +504,13 @@ def _get_status(view, localuser, task, taskcompletion):
 
     return {'status': thisstatus, 'order': STATUS_DISPLAYORDER.index(thisstatus), 'expires': thisexpires}
 
+
+# ---------------------------------------------------------------------------
+# Public helpers — still available for call sites that do their own DB lookup
+# (e.g. updaterow / refreshrows).  These retain the original signatures so
+# nothing outside this module needs to change except the hot paths in open().
+# ---------------------------------------------------------------------------
+
 def get_status(view, user, task):
     start = time()
     taskcompletion = get_task_completion(task, user)
@@ -431,13 +542,8 @@ def create_taskcompletion(task, localuser, localinterest, formdata):
         updated_by=localuser.id,
     )
 
-    # normal case is task is completed for the individual, so record the individual's completion
     taskcompletion.user = localuser
     
-    # if it's by position, record the position's completion
-    # if user doesn't have this position, then skip recording the position as this is for the individual
-    #  >> this is an odd case, not sure if it's needed, actually, but may be some reason for this case
-    # if task.isbyposition and task.position in localuser.positions:
     if task.isbyposition:
         taskcompletion.position = task.position
     
@@ -447,8 +553,6 @@ def create_taskcompletion(task, localuser, localinterest, formdata):
     # save the additional fields
     for ttf in task.fields:
         f = ttf.taskfield
-        # it's possible the field isn't there but the value
-        # set by the user earlier would be there (fieldname + '-val')
         if f.fieldname in formdata:
             value = formdata[f.fieldname]
         else:
@@ -494,15 +598,12 @@ def get_taskfields(tc, task):
             thistaskfield = {}
             for key in TASKFIELD_KEYS.split(','):
                 thistaskfield[key] = getattr(f, key)
-                # displayvalue gets markdown translation
                 if key == 'displayvalue' and getattr(f, key):
                     thistaskfield[key] = markdown(getattr(f, key), extensions=['md_in_html', 'attr_list'])
             thistaskfield['fieldoptions'] = get_fieldoptions(f)
             if tc:
-                # field may exist now but maybe didn't before
                 field = InputFieldData.query.filter_by(field=f, taskcompletion=tc).one_or_none()
 
-                # field was found
                 if field:
                     value = field.value
                     if f.inputtype != INPUT_TYPE_UPLOAD:
@@ -515,8 +616,6 @@ def get_taskfields(tc, task):
                                                                 fileid=value),
                                                 target='_blank').render()
                         thistaskfield['fileid'] = value
-
-                # field wasn't found
                 else:
                     thistaskfield['value'] = None
             else:
@@ -535,7 +634,6 @@ def get_member_tasks(member, ondate):
     '''
     tasks = set()
 
-    # collect all the tasks which are referenced by positions and taskgroups for this member
     for position in positions_active(member, ondate):
         for taskgroup in position.taskgroups:
             get_taskgroup_tasks(taskgroup, tasks)
@@ -563,13 +661,7 @@ def get_taskgroup_taskgroups(taskgroup, taskgroups):
     :return: None
     '''
     taskgroups |= {taskgroup} | set(taskgroup.taskgroups)
-    # for tg in taskgroup.taskgroups:
-    #     taskgroups |= {tg}
     if taskgroupsdebug: current_app.logger.debug(f'get_taskgroup_taskgroups(): taskgroups before recursion {taskgroups}')
-    ## the recursion isn't needed apparently
-    # for tg in taskgroup.taskgroups:
-    #     get_taskgroup_taskgroups(tg, taskgroups)
-    # if taskgroupsdebug: current_app.logger.debug(f'get_taskgroup_taskgroups(): taskgroups after recursion {taskgroups}')
 
 def get_position_taskgroups(position, taskgroups):
     '''
@@ -591,7 +683,6 @@ def get_tags_positions(tags):
     :param tags: list of tags to search for
     :return: set(position, ...)
     '''
-    # collect all the positions which have the indicated tags
     positions = set()
     for tag in tags:
         positions |= set(tag.positions)
