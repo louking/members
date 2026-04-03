@@ -22,8 +22,7 @@ from . import bp
 from ...model import db, LocalInterest, LocalUser, Task, Files, InputFieldData, TaskCompletion
 from ...model import FIELDNAME_ARG, NEED_ONE_OF, NEED_REQUIRED, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...version import __docversion__
-from .viewhelpers import lastcompleted, get_status, get_order, get_expires
-from .viewhelpers import create_taskcompletion, get_task_completion, get_member_tasks
+from .viewhelpers import create_taskcompletion, get_task_completion
 from .viewhelpers import PositionTaskgroupCacheMixin
 from .viewhelpers import TASK_CHECKLIST_ROLES_ACCEPTED
 from .viewhelpers import dtrender, _get_status
@@ -282,12 +281,17 @@ class TaskChecklist(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMix
         member = self._get_localuser()
 
         ondate = request.args.get('ondate', date.today())
-        tasks = get_member_tasks(member, ondate)
 
-        # init_position_taskgroup_cache now bulk-loads all TaskCompletions
-        # for this member, so status/order/expires require zero DB queries
-        # per row during iteration.
+        # init_position_taskgroup_cache bulk-loads everything needed:
+        # UserPosition, Position.taskgroups, LocalUser.taskgroups, Task
+        # (with eager-loaded taskgroups+fields), and TaskCompletion.
+        # get_tasks_for_localuser() then reads entirely from that cache —
+        # replacing the separate get_member_tasks() call that previously
+        # called positions_active() and traversed the taskgroup graph a
+        # second time independently.
         self.init_position_taskgroup_cache([member], ondate)
+
+        tasks = self.get_tasks_for_localuser(member)
 
         # Reset the per-open soe cache
         self._soe_task_cache = {}

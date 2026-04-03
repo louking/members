@@ -327,7 +327,7 @@ class TaskCompletion(Base):
     }
 
     # lookups by task_id, position_id need to be fast
-    __tableargs__ = (
+    __table_args__ = (
         Index('taskcompletion_taskid_positionid_idx', task_id, position_id),
         Index('taskcompletion_taskid_localuserid_idx', task_id, user_id),
     )
@@ -820,7 +820,7 @@ class Member(Base):
 
     # lookups by family_name, given_name, gender, dob need to be fast
     # note length is required for family_name, given_name, gender in order to create index
-    __tableargs__ = (Index('member_name_gender_dob_idx', family_name, given_name, gender, dob), 
+    __table_args__ = (Index('member_name_gender_dob_idx', family_name, given_name, gender, dob), 
                      Index('member_member_id', svc_member_id),
                     )
 
@@ -855,7 +855,7 @@ class Membership(Base):
 
     # lookups by svc_membership_id need to be fast
     # note length is required for svc_membership_id in order to create index
-    __tableargs__ = (Index('membership_svc_membership_id_idx', svc_membership_id), )
+    __table_args__ = (Index('membership_svc_membership_id_idx', svc_membership_id), )
 
     # track last update - https://docs.sqlalchemy.org/en/13/dialects/mysql.html#mysql-timestamp-onupdate
     update_time         = Column(DateTime,
