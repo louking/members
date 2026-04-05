@@ -473,8 +473,12 @@ class PositionWizardApi(MethodView):
 
             # terminate all future user/positions in this position as we're basing our update on effectivedate assertion by admin
             # delete all of these which are strictly in the future
+            # NOTE: only do this for members currently active on effectivedate; purely future members (startdate > effectivedate)
+            # are not shown in the wizard UI and must not be deleted (fixes issue #622)
             currfuturemembers = members_active_currfuture(self.position, onorafter=effectivedate)
             for member in currfuturemembers:
+                if member not in currmembers:
+                    continue
                 ups = member_positions(member, self.position, onorafter=effectivedate)
                 for up in ups:
                     if up.startdate > effectivedatedt:
