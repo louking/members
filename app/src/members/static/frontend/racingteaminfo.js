@@ -245,6 +245,12 @@ $('#error-notification').append('<p style="font-style:italic;">Error details: '+
 $('#error-notification').show();
 }
 
+// setEmailFromName - sets hidden common_email field based on selected name
+function setEmailFromName() {
+  var name = $('#common_name').val();
+  $('#common_email').val(nameEmails[name] || '');
+}
+
 // setAgeAndAgeGrade
 function setAgeAndAgeGrade() {
   setAge();
@@ -270,6 +276,7 @@ function updateAge(name, racedate) {
 
   urlparams = {
     name: name,
+    email: $('#common_email').val(),
     racedate: racedate,
   };
 
@@ -326,6 +333,7 @@ function updateAgeGrade(name, racedate, dist, units, surface, time) {
   // get age grade from back end
   urlparams = {
     name: name,
+    email: $('#common_email').val(),
     racedate: racedate,
     dist: dist,
     units: units,

@@ -35,7 +35,7 @@
       
         <div class="row">
           <div class="input-field col s12">
-            <select id="common_name" name="common_name" class="common validate" required aria-required="true" onchange="setAgeAndAgeGrade()">
+            <select id="common_name" name="common_name" class="common validate" required aria-required="true" onchange="setEmailFromName(); setAgeAndAgeGrade()">
               <option value="" required disabled selected>select name</option>
               {% for name in names %}
                 <option value="{{ name }}">{{ name }}</option>
@@ -44,6 +44,7 @@
             <label>Name *</label>
           </div>
         </div>
+        <input type="hidden" id="common_email" name="common_email">
        
         <div class="row">
           {# <div class="col s12">
@@ -212,9 +213,10 @@
     <script src="https://ajax.aspnetcdn.com/ajax/jquery.validate/1.15.0/jquery.validate.min.js"></script>
     #}
     
-    <script>    
+    <script>
     // pass config to javascript
     var config = {{ config }};
+    var nameEmails = {{ name_emails | tojson }};
 
   </script>
   <script src="/static/frontend/racingteaminfo.js"></script>    

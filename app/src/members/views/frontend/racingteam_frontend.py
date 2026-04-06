@@ -82,10 +82,10 @@ class RacingTeamInfoView(MethodView):
         configdict['agegradeapi'] = url_for('frontend._rt_getagegrade', interest=g.interest)
         
         namesdb = RacingTeamMember.query.filter_by(is_active=True, **localinterest_query_params()).all()
-        names = [n.localuser.name for n in namesdb]
-        names.sort()
+        name_emails = {n.localuser.name: n.localuser.email for n in namesdb}
+        names = sorted(name_emails.keys())
 
-        return render_template('racing-info.jinja2', config=configdict, names=names, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
+        return render_template('racing-info.jinja2', config=configdict, names=names, name_emails=name_emails, assets_js='frontendmaterialize_js', assets_css= 'frontendmaterialize_css')
 
     def post(self):
         try:
@@ -96,7 +96,8 @@ class RacingTeamInfoView(MethodView):
             
             formdata = results['python']
             name = formdata['common_name']
-            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            email = request.form.get('common_email', '')
+            localuser = LocalUser.query.filter_by(name=name, email=email, active=True, **localinterest_query_params()).one()
             member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             config = RacingTeamConfig.query.filter_by(**localinterest_query_params()).one_or_none()
             interest = Interest.query.filter_by(interest=g.interest).one()
@@ -396,7 +397,8 @@ class RacingTeamAgeGenderApi(MethodView):
     def get(self):
         try:
             name = request.args['name']
-            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            email = request.args.get('email', '')
+            localuser = LocalUser.query.filter_by(name=name, email=email, active=True, **localinterest_query_params()).one()
             member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             racedatedt = isodate.asc2dt(request.args['racedate'])
             memberage = age(racedatedt, member.dateofbirth)
@@ -415,7 +417,8 @@ class RacingTeamAgeGradeApi(MethodView):
     def get(self):
         try:
             name = request.args['name']
-            localuser = LocalUser.query.filter_by(name=name, active=True, **localinterest_query_params()).one()
+            email = request.args.get('email', '')
+            localuser = LocalUser.query.filter_by(name=name, email=email, active=True, **localinterest_query_params()).one()
             member = RacingTeamMember.query.filter_by(localuser=localuser, **localinterest_query_params()).one()
             racedatedt = isodate.asc2dt(request.args['racedate'])
             memberage = age(racedatedt, member.dateofbirth)
