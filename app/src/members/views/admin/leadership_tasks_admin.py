@@ -718,6 +718,19 @@ class TaskDetails(DbCrudApiInterestsRolePermissions, PositionTaskgroupCacheMixin
         from .viewhelpers import _get_status as _gs
         taskmember._soe_cache = _gs(self, luser, task, tc_new)
 
+        # _lastcompleted also reads from the completion caches, which only
+        # exist after init_position_taskgroup_cache() runs (i.e. during open).
+        # Seed just the one entry needed so the lookup doesn't AttributeError.
+        if not hasattr(self, '_completions_by_user_task'):
+            self._completions_by_user_task = {}
+        if not hasattr(self, '_completions_by_position_task'):
+            self._completions_by_position_task = {}
+        if task.isbyposition:
+            if task.position_id is not None:
+                self._completions_by_position_task[(task.position_id, task.id)] = tc_new
+        else:
+            self._completions_by_user_task[(luser.id, task.id)] = tc_new
+
         return self.dte.get_response_data(taskmember)
 
     def refreshrows(self, ids):
