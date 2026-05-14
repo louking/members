@@ -33,7 +33,7 @@ esbonio==0.14.0
 et-xmlfile==1.1.0
 fabric==3.2.2
 fasteners==0.20
-Flask==3.0.3
+Flask==3.1.3
 Flask-Assets==2.1.0
 Flask-BabelEx==0.9.4
 Flask-Login==0.6.3
