@@ -80,6 +80,7 @@ services:
     volumes:
       - ./config:/config:ro
       - ${DB_INIT_DIR}:/initdb.d
+      - ${JS_COMMON_HOST}:/app/${APP_NAME}/static/js:ro
       - ${UPLOADED_IMAGES_DEST_HOST}:${FLASK_UPLOADED_IMAGES_DEST}
       - ${APP_FILE_FOLDER_HOST}:${FLASK_APP_FILE_FOLDER}
       - ${APP_LOGGING_HOST}:${APP_LOGGING_PATH}
