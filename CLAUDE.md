@@ -119,7 +119,10 @@ Uses Fabric (`fabfile.py`) for remote deployment via docker compose pull + up.
 
 Three files to change:
 
-1. **`app/requirements.txt`** — replace `mysqlclient==x.x.x` with `PyMySQL==1.1.3`
+1. **`app/requirements.txt`** — remove `mysqlclient==x.x.x` and add
+   `PyMySQL==1.1.3`. Also remove `typed_ast` if present — it does not build on
+   Python 3.12 and is no longer needed (its functionality is in the standard
+   `ast` module).
 
 2. **`app/src/<appname>/settings.py`** — change URI scheme in `RealDb.__init__`:
    ```python

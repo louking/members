@@ -30,7 +30,8 @@ RUN apk add --no-cache msmtp && rm /usr/sbin/sendmail && ln -s /usr/bin/msmtp /u
 RUN apk add bash
 
 # install requirements
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt \
+    && rm -rf .cache/pip
 
 # copy the content of the local src directory to the working directory
 # this isn't needed when developing as there's a bind under volumes: in the docker-compose.dev.yml file
