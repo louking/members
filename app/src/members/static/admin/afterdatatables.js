@@ -421,7 +421,9 @@ function afterdatatables() {
                 if (dt.rows().count() == 0) {
                     // don't show table, search box, or header
                     $(dt.table().node()).css('display', 'none');
-                    $(dt.table().container()).find('.dataTables_filter').css('display', 'none');
+                    $(dt.table().container()).find('.dt-search').css('display', 'none');
+                    $(dt.table().container()).find('.dt-scroll').css('display', 'none');
+                    $(dt.table().container()).find('.dt-info').css('display', 'none');
                     $(dt.table().header()).css('display', 'none');
                     // don't show table label if not in editor
                     if (!ed) {
@@ -432,13 +434,17 @@ function afterdatatables() {
                 } else {
                     // show table, search box, and header
                     $(dt.table().node()).css('display', 'block');
-                    $(dt.table().container()).find('.dataTables_filter').css('display', 'block');
+                    $(dt.table().container()).find('.dt-search').css('display', '');
+                    $(dt.table().container()).find('.dt-scroll').css('display', '');
+                    $(dt.table().container()).find('.dt-info').css('display', '');
                     $(dt.table().header()).css('display', '');
                     $(dt.table().container()).prev('.childrow-table-label').css('display', 'block')
                     // need to adjust column sizes and redraw; dt._cr_redrawing prevents infinite draw event loop
                     dt._cr_redrawing = true;
                     dt.columns.adjust().draw();
-                    dt._cr_redrawing = false;
+                    // with datatables 2.x this seems to execute before the draw function returns
+                    // this flag is set to false at the top of childrow_check_hide_table()
+                    // dt._cr_redrawing = false;
                 }
             });
         };

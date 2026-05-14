@@ -863,8 +863,11 @@ taskdetails_view = TaskDetails(
                          'type': 'readonly',
                          },
                         {'data': 'order', 'name': 'order', 'label': 'Display Order',
-                         'type': 'hidden',
+                         'visible': False,
                          'className': 'Hidden',
+                         'ed': {
+                             'type': 'hidden',
+                         },
                          },
                         {'data': 'status', 'name': 'status', 'label': 'Status',
                          'type': 'readonly',

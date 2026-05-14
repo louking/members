@@ -11,7 +11,7 @@
 }
 
 /* override JQuery.dataTables padding for header */
-.dataTables_wrapper .ui-toolbar {
+.dt-container .ui-toolbar {
     padding: 4px;
 }
 

@@ -1003,7 +1003,13 @@ def meeting_childrowoptions():
                     'attend_type': {'submitOnBlur': True},
                 },
                 'updatedtopts': {
-                    'dom': 'Bfrt',
+                    # 'dom': 'Bfrt',
+                    'layout':{
+                        'topStart': ['buttons'],
+                        'topEnd': ['search'],
+                        'bottomStart': ['info'],
+                        'bottomEnd': None,
+                        },
                     'paging': False,
                 }
             }
@@ -1029,7 +1035,13 @@ def meeting_childrowoptions():
                     },
                 },
                 'updatedtopts': {
-                    'dom': 'Bfrt',
+                    # 'dom': 'Bfrt',
+                    'layout':{
+                        'topStart': ['buttons'],
+                        'topEnd': ['search'],
+                        'bottomStart': ['info'],
+                        'bottomEnd': None,
+                        },
                     'paging': False,
                 }
             }
@@ -1054,7 +1066,13 @@ def meeting_childrowoptions():
                     },
                 },
                 'updatedtopts': {
-                    'dom': 'Bfrt',
+                    # 'dom': 'Bfrt',
+                    'layout':{
+                        'topStart': ['buttons'],
+                        'topEnd': ['search'],
+                        'bottomStart': ['info'],
+                        'bottomEnd': None,
+                        },
                     'paging': False,
                 }
             }

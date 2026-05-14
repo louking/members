@@ -17,35 +17,32 @@ assets - javascript and css asset handling
 from flask_assets import Bundle, Environment
 
 # jquery
-jq_ver = '3.5.1'
-jq_ui_ver = '1.12.1'
+jq_ver = '3.7.1'
+jq_ui_ver = '1.14.2'
 jq_validate_ver = '1.19.3'
 
 # dataTables
-dt_buttons_ver = '1.6.5' # also used for colvis and html5
-dt_datatables_ver = '1.10.22'
-dt_editor_ver = '1.9.6+discussion-59060'
-dt_fixedcolumns_ver = '3.3.1'
-dt_responsive_ver = '2.2.6'
-dt_rowreorder_ver = '1.2.7'
-dt_select_ver = '1.3.1-preXhr-patch'
+dt_datatables_ver = '2.3.8-pkgs-jqui'
+
 jszip_ver = '2.5.0'
 
 # select2
 # NOTE: patch to jquery ui required, see https://github.com/select2/select2/issues/1246#issuecomment-17428249
 # currently in datatables.js
-s2_ver = '4.0.12'
+s2_ver = '4.0.13'
 
 # smartmenus
-sm_ver = '1.1.0'
+sm_ver = '1.1.1'
 
 # yadcf
-yadcf_ver = '0.9.4.beta.45+lk-date_custom_func'
+yadcf_ver = '2.0.1.beta.9.louking.3'
+yadcf_suffix = '-2.0'
 
-moment_ver = '2.24.0'       # moment.js (see https://momentjs.com/)
-lodash_ver = '4.17.15'      # lodash.js (see https://lodash.com)
+lodash_ver = '4.17.21'      # lodash.js (see https://lodash.com)
+
 d3_ver = '7.1.1'            # d3js.org (see https://d3js.org/)
 d3_tip_ver = '1.1'          # https://github.com/VACLab/d3-tip
+
 fa_ver = '5.13.0'           # https://fontawesome.com/
 nunjucks_ver = '3.2.0'      # https://mozilla.github.io/nunjucks/
 cke_type='classic'           # https://ckeditor.com/ckeditor-5/
@@ -54,34 +51,20 @@ materialize_ver='1.0.0'     # https://materializecss.com/
 pickadate_ver = '3.6.4'     # https://amsul.ca/pickadate.js/
 
 frontend_common_js = Bundle(
-    'js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver),
-    'js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver),
+    f'js/jquery-{jq_ver}/jquery-{jq_ver}.js',
+    f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.js',
 
-    'js/lodash-{ver}/lodash.js'.format(ver=lodash_ver),
+    f'js/lodash-{lodash_ver}/lodash.js',
 
-    'js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver),
+    f'js/smartmenus-{sm_ver}/jquery.smartmenus.js',
 
     # datatables / yadcf
-    'js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver),
-    'js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver),
-    'js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver),
-
-    'js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver),
-    'js/Responsive-{ver}/js/dataTables.responsive.js'.format(ver=dt_responsive_ver),
-    'js/Responsive-{ver}/js/responsive.jqueryui.js'.format(ver=dt_responsive_ver),
-
-    'js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver),
-    'js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver),
-
-    'js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver),
+    f'js/yadcf-{yadcf_ver}/jquery.dataTables.yadcf{yadcf_suffix}.js',
 
     # select2 is required for use by Editor forms and interest navigation
-    'js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver),
+    f'js/select2-{s2_ver}/js/select2.full.js',
     # the order here is important
-    'js/FieldType-Select2/editor.select2.js',
-
-    # date time formatting
-    'js/moment-{ver}/moment.js'.format(ver=moment_ver),
+    'js/FieldType-Select2/editor.select2-v4.js',
 
     # d3
     'js/d3-{ver}/d3.js'.format(ver=d3_ver),
@@ -106,7 +89,7 @@ frontend_common_js = Bundle(
 
     'admin/afterdatatables.js',             # TODO: should move common bits up a level and pieces to frontend/afterdatatables
 
-    filters='jsmin',
+    filters='rjsmin',
     output='gen/frontendcommon.js',
 )
 
@@ -114,25 +97,22 @@ frontend_materialize_js = Bundle(
     f'js/materialize-v{materialize_ver}/materialize/js/materialize.js',
     f'js/jquery-validate-{jq_validate_ver}/jquery.validate.js',
     
-    filters='jsmin',
+    filters='rjsmin',
     output='gen/frontendmaterialize.js',
 )
 
 frontend_common_css = Bundle(
-    'js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver),
-    'js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver),
-    'js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver),
-    'js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver),
-    'js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver),
-    'js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver),
-    'js/Responsive-{ver}/css/responsive.dataTables.css'.format(ver=dt_responsive_ver),
-    'js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver),
-    'js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver),
-    'js/select2-{ver}/css/select2.css'.format(ver=s2_ver),
-    'js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver),
+    f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.css',
+    f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.structure.css',
+    f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.theme.css',
+    
+    f'js/DataTables-{dt_datatables_ver}/datatables.css',
 
-    'js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), 
-    'js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), 
+    f'js/select2-{s2_ver}/css/select2.css',
+    f'js/yadcf-{yadcf_ver}/jquery.dataTables.yadcf.css',
+
+    f'js/fontawesome-{fa_ver}/css/fontawesome.css', 
+    f'js/fontawesome-{fa_ver}/css/solid.css', 
 
     'datatables.css',  # from loutilities
     'editor.css',  # from loutilities
@@ -159,7 +139,7 @@ frontend_materialize_css = Bundle(
 frontend_members = Bundle(
     'frontend/membership-stats.js',
     
-    filters='jsmin',
+    filters='rjsmin',
     output='gen/frontendmembers.js',
 )
 
@@ -195,96 +175,77 @@ asset_bundles = {
     ),
 
     'admin_js': Bundle(
-        Bundle('js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='jsmin'),
-        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver), filters='jsmin'),
+        Bundle('js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='rjsmin'),
+        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver), filters='rjsmin'),
 
-        Bundle('js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver), filters='jsmin'),
-        Bundle('js/lodash-{ver}/lodash.js'.format(ver=lodash_ver), filters='jsmin'),
+        Bundle('js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver), filters='rjsmin'),
+        Bundle('js/lodash-{ver}/lodash.js'.format(ver=lodash_ver), filters='rjsmin'),
 
-        Bundle('js/JSZip-{ver}/jszip.js'.format(ver=jszip_ver), filters='jsmin'),
-        Bundle('js/DataTables-{ver}/js/jquery.dataTables.js'.format(ver=dt_datatables_ver), filters='jsmin'),
-        Bundle('js/DataTables-{ver}/js/dataTables.jqueryui.js'.format(ver=dt_datatables_ver), filters='jsmin'),
-        Bundle('js/Editor-{ver}/js/dataTables.editor.js'.format(ver=dt_editor_ver), filters='jsmin'),
-        Bundle('js/Editor-{ver}/js/editor.jqueryui.js'.format(ver=dt_editor_ver), filters='jsmin'),
-        Bundle('js/Buttons-{ver}/js/dataTables.buttons.js'.format(ver=dt_buttons_ver), filters='jsmin'),
-        Bundle('js/Buttons-{ver}/js/buttons.jqueryui.js'.format(ver=dt_buttons_ver), filters='jsmin'),
-        Bundle('js/Buttons-{ver}/js/buttons.colVis.js'.format(ver=dt_buttons_ver), filters='jsmin'),
-        Bundle('js/Buttons-{ver}/js/buttons.html5.js'.format(ver=dt_buttons_ver), filters='jsmin'),
-        Bundle('js/FixedColumns-{ver}/js/dataTables.fixedColumns.js'.format(ver=dt_fixedcolumns_ver), filters='jsmin'),
-        Bundle('js/Responsive-{ver}/js/dataTables.responsive.js'.format(ver=dt_responsive_ver), filters='jsmin'),
-        Bundle('js/RowReorder-{ver}/js/dataTables.rowReorder.js'.format(ver=dt_rowreorder_ver), filters='jsmin'),
-        Bundle('js/Select-{ver}/js/dataTables.select.js'.format(ver=dt_select_ver), filters='jsmin'),
+        Bundle('js/JSZip-{ver}/jszip.js'.format(ver=jszip_ver), filters='rjsmin'),
 
-        Bundle('js/yadcf-{ver}/jquery.dataTables.yadcf.js'.format(ver=yadcf_ver), filters='jsmin'),
+        Bundle(f'js/DataTables-{dt_datatables_ver}/datatables.js', filters='rjsmin'),
 
         # select2 is required for use by Editor forms and interest navigation
-        Bundle('js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver), filters='jsmin'),
+        Bundle('js/select2-{ver}/js/select2.full.js'.format(ver=s2_ver), filters='rjsmin'),
         # the order here is important
-        Bundle('js/FieldType-Select2/editor.select2.js', filters='jsmin'),
+        Bundle('js/FieldType-Select2/editor.select2-v4.js', filters='rjsmin'),
 
-        # date time formatting for datatables editor, per https://editor.datatables.net/reference/field/datetime
-        Bundle('js/moment-{ver}/moment.js'.format(ver=moment_ver), filters='jsmin'),
+        Bundle(f'js/yadcf-{yadcf_ver}/jquery.dataTables.yadcf{yadcf_suffix}.js', filters='rjsmin'),
 
         # d3
-        Bundle('js/d3-{ver}/d3.js'.format(ver=d3_ver), filters='jsmin'),
+        Bundle('js/d3-{ver}/d3.js'.format(ver=d3_ver), filters='rjsmin'),
 
         # ckeditor (note this is already minimized, and filter through jsmin causes problems)
         'js/ckeditor5-build-{type}-{ver}/build/ckeditor.js'.format(ver=cke_ver, type=cke_type),
 
-        Bundle('admin/layout.js', filters='jsmin'),
-        Bundle('layout.js', filters='jsmin'),
+        Bundle('admin/layout.js', filters='rjsmin'),
+        Bundle('layout.js', filters='rjsmin'),
 
         # must be before datatables
-        Bundle('mutex-promise.js', filters='jsmin'),                     # from loutilities
-        Bundle('editor-saeditor.js', filters='jsmin'),                   # from loutilities
-        Bundle('js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver), filters='jsmin'),
-        Bundle('admin/nunjucks/templates.js', filters='jsmin'),
-        Bundle('editor.fieldType.display.js', filters='jsmin'),          # from loutilities
-        Bundle('editor.ckeditor5.js', filters='jsmin'),                  # from loutilities
-        Bundle('admin/beforedatatables.js', filters='jsmin'),
-        Bundle('editor.googledoc.js', filters='jsmin'),                  # from loutilities
-        Bundle('datatables.dataRender.googledoc.js', filters='jsmin'),   # from loutilities
-        Bundle('user/admin/beforedatatables.js', filters='jsmin'),       # from loutilities
-        Bundle('editor.select2.mymethods.js', filters='jsmin'),          # from loutilities
-        Bundle('editor.displayController.onPage.js', filters='jsmin'),   # from loutilities
-        Bundle('datatables-childrow.js', filters='jsmin'),               # from loutilities
+        Bundle('mutex-promise.js', filters='rjsmin'),                     # from loutilities
+        Bundle('editor-saeditor.js', filters='rjsmin'),                   # from loutilities
+        Bundle('js/nunjucks-{ver}/nunjucks.js'.format(ver=nunjucks_ver), filters='rjsmin'),
+        Bundle('admin/nunjucks/templates.js', filters='rjsmin'),
+        Bundle('editor.fieldType.display.js', filters='rjsmin'),          # from loutilities
+        Bundle('editor.ckeditor5.js', filters='rjsmin'),                  # from loutilities
+        Bundle('admin/beforedatatables.js', filters='rjsmin'),
+        Bundle('editor.googledoc.js', filters='rjsmin'),                  # from loutilities
+        Bundle('datatables.dataRender.googledoc.js', filters='rjsmin'),   # from loutilities
+        Bundle('user/admin/beforedatatables.js', filters='rjsmin'),       # from loutilities
+        Bundle('editor.select2.mymethods.js', filters='rjsmin'),          # from loutilities
+        Bundle('editor.displayController.onPage.js', filters='rjsmin'),   # from loutilities
+        Bundle('datatables-childrow.js', filters='rjsmin'),               # from loutilities
 
-        Bundle('datatables.js', filters='jsmin'),                        # from loutilities
+        Bundle('datatables.js', filters='rjsmin'),                        # from loutilities
 
         # must be after datatables.js
-        Bundle('datatables.dataRender.ellipsis.js', filters='jsmin'),    # from loutilities
-        Bundle('datatables.dataRender.datetime.js', filters='jsmin'),    # from loutilities
-        Bundle('editor.buttons.editrefresh.js', filters='jsmin'),        # from loutilities
-        Bundle('editor.buttons.editchildrowrefresh.js', filters='jsmin'),  # from loutilities
-        Bundle('editor.buttons.separator.js', filters='jsmin'),          # from loutilities
-        Bundle('filters.js', filters='jsmin'),                           # from loutilities
-        Bundle('utils.js', filters='jsmin'),                             # from loutilities
-        Bundle('user/admin/groups.js', filters='jsmin'),                 # from loutilities
+        Bundle('datatables.dataRender.ellipsis.js', filters='rjsmin'),    # from loutilities
+        Bundle('datatables.dataRender.datetime.js', filters='rjsmin'),    # from loutilities
+        Bundle('editor.buttons.editrefresh.js', filters='rjsmin'),        # from loutilities
+        Bundle('editor.buttons.editchildrowrefresh.js', filters='rjsmin'),  # from loutilities
+        Bundle('editor.buttons.separator.js', filters='rjsmin'),          # from loutilities
+        Bundle('filters.js', filters='rjsmin'),                           # from loutilities
+        Bundle('utils.js', filters='rjsmin'),                             # from loutilities
+        Bundle('user/admin/groups.js', filters='rjsmin'),                 # from loutilities
 
-        # Bundle('admin/editor.buttons.invites.js', filters='jsmin'),
-        Bundle('admin/afterdatatables.js', filters='jsmin'),
+        # Bundle('admin/editor.buttons.invites.js', filters='rjsmin'),
+        Bundle('admin/afterdatatables.js', filters='rjsmin'),
 
         output='gen/admin.js',
         ),
 
     'admin_css': Bundle(
-        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.structure.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/jquery-ui-{ver}.custom/jquery-ui.theme.css'.format(ver=jq_ui_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/smartmenus-{ver}/css/sm-core-css.css'.format(ver=sm_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/smartmenus-{ver}/css/sm-blue/sm-blue.css'.format(ver=sm_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle(f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.css', filters=['cssrewrite', 'cssmin']),
+        Bundle(f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.structure.css', filters=['cssrewrite', 'cssmin']),
+        Bundle(f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.theme.css', filters=['cssrewrite', 'cssmin']),
 
-        Bundle('js/DataTables-{ver}/css/dataTables.jqueryui.css'.format(ver=dt_datatables_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/Editor-{ver}/css/editor.dataTables.css'.format(ver=dt_editor_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/Editor-{ver}/css/editor.jqueryui.css'.format(ver=dt_editor_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/Buttons-{ver}/css/buttons.jqueryui.css'.format(ver=dt_buttons_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/FixedColumns-{ver}/css/fixedColumns.jqueryui.css'.format(ver=dt_fixedcolumns_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/Responsive-{ver}/css/responsive.jqueryui.css'.format(ver=dt_responsive_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/RowReorder-{ver}/css/rowReorder.jqueryui.css'.format(ver=dt_rowreorder_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/Select-{ver}/css/select.jqueryui.css'.format(ver=dt_select_ver), filters=['cssrewrite', 'cssmin']),
-        
+        Bundle(f'js/DataTables-{dt_datatables_ver}/datatables.css', filters=['cssrewrite', 'cssmin']),
+
+        Bundle(f'js/smartmenus-{sm_ver}/css/sm-core-css.css', filters=['cssrewrite', 'cssmin']),
+        Bundle(f'js/smartmenus-{sm_ver}/css/sm-blue/sm-blue.css', filters=['cssrewrite', 'cssmin']),
+       
         Bundle('js/select2-{ver}/css/select2.css'.format(ver=s2_ver), filters=['cssrewrite', 'cssmin']),
-        Bundle('js/yadcf-{ver}/jquery.dataTables.yadcf.css'.format(ver=yadcf_ver), filters=['cssrewrite', 'cssmin']),
+        Bundle(f'js/yadcf-{yadcf_ver}/jquery.dataTables.yadcf.css', filters=['cssrewrite', 'cssmin']),
 
         Bundle('js/fontawesome-{ver}/css/fontawesome.css'.format(ver=fa_ver), filters=['cssrewrite', 'cssmin']),
         Bundle('js/fontawesome-{ver}/css/solid.css'.format(ver=fa_ver), filters=['cssrewrite', 'cssmin']),

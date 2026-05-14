@@ -408,7 +408,13 @@ def memberstatusreport_childrowoptions():
                              },
                          },
                          'updatedtopts': {
-                             'dom': 'Brt',
+                            # 'dom': 'Bfrt',
+                            'layout':{
+                                'topStart': ['buttons'],
+                                'topEnd': ['search'],
+                                'bottomStart': ['info'],
+                                'bottomEnd': None,
+                                },
                              'paging': False,
                          },
                      }
@@ -1140,7 +1146,13 @@ motions_childelementargs = ChildElementArgs(
                  'vote': {'submitOnBlur': True}
              },
              'updatedtopts': {
-                 'dom': 'frt',
+                # 'dom': 'Bfrt',
+                'layout':{
+                    'topStart': ['buttons'],
+                    'topEnd': ['search'],
+                    'bottomStart': ['info'],
+                    'bottomEnd': None,
+                    },
                  'paging': False,
              },
          }
