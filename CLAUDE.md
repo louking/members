@@ -7,7 +7,7 @@ Flask-based web application for managing club operations (primarily running club
 ## Tech Stack
 
 - **Backend**: Python 3.12, Flask 3.0, SQLAlchemy 2.0, Flask-Security-Too, Flask-Migrate (Alembic)
-- **Database**: MySQL 8.0 (two DBs: `members` for app data, `users` for authentication)
+- **Database**: MySQL 8.0 (via PyMySQL driver)
 - **Frontend**: Jinja2 templates, Webassets (CSS/JS bundling), Bootstrap
 - **Infrastructure**: Docker + Docker Compose, Nginx reverse proxy, Gunicorn
 - **External**: Google Workspace API, MailChimp, RunSignUp API, Discourse API, Mailgun (msmtp)
@@ -47,6 +47,23 @@ docker-compose logs -f app
 ```
 
 **Key `.env` variables**: `APP_PORT=8002`, `FLASK_DEBUG`, `APP_DATABASE=members`, `DEV=1`
+
+### Static JS Assets
+
+JS assets are **not** served from the repo's `app/src/rrwebapp/static/js/` directory. That path is shadowed by a Docker volume mount defined in `docker-compose.yml`:
+
+```yaml
+- ${JS_COMMON_HOST}:/app/${APP_NAME}/static/js:ro
+```
+
+`JS_COMMON_HOST` is set in `.env`:
+```
+JS_COMMON_HOST="C:\Users\lking\Documents\Lou's Software\operational\js-common"
+```
+
+This shared `js-common` directory contains all versioned JS bundles (jQuery, DataTables, yadcf, etc.) used across multiple apps. Editing files under `static/js/` in the repo has no effect on the running container — changes must be placed in `js-common`.
+
+The yadcf development repo lives at `C:\Users\lking\Documents\Lou's Software\projects\yadcf\yadcf\`. After editing yadcf there, the built file must be copied into `js-common` under the appropriate versioned directory (e.g., `js/yadcf-<version>/`) for it to be picked up by the app.
 
 ## Database Migrations
 
@@ -90,3 +107,50 @@ Set `TESTING: True` in `config/members.cfg` to disable email sending during manu
 **Email**: Per-interest `from_email`; HTML+text templates; MailChimp for lists.
 
 **Logging**: `applogging.py`; separate file/mail log levels; timezone-aware (ET).
+
+## Deployment
+Uses Fabric (`fabfile.py`) for remote deployment via docker compose pull + up.
+
+## MySQL SSL / Driver Note
+
+**Problem:** MySQL 8.0+ in Docker with Alpine-based app containers causes `MySQLdb.OperationalError: (2026, 'TLS/SSL error: Certificate verification failure')`. Alpine uses MariaDB Connector/C (not libmysqlclient), which defaults to SSL with cert verification. MySQL 8.0 auto-generates self-signed certs. Server-side workarounds (`--skip-ssl`) are unreliable in 8.0.40+.
+
+**Fix:** Use **PyMySQL** instead of mysqlclient. PyMySQL is pure Python, does not use MariaDB Connector/C, and does not attempt SSL by default.
+
+Three files to change:
+
+1. **`app/requirements.txt`** — replace `mysqlclient==x.x.x` with `PyMySQL==1.1.3`
+
+2. **`app/src/<appname>/settings.py`** — change URI scheme in `RealDb.__init__`:
+   ```python
+   # before
+   db_uri = f'mysql://{dbuser}:{password}@{dbserver}/{dbname}'
+   # after
+   db_uri = f'mysql+pymysql://{dbuser}:{password}@{dbserver}/{dbname}'
+   ```
+   Same change for `usersdb_uri` if present.
+
+3. **`app/Dockerfile`** — remove the C build scaffolding for mysqlclient (PyMySQL needs no compilation):
+   ```dockerfile
+   # remove these lines:
+   RUN apk add --no-cache mariadb-connector-c-dev \
+       && apk add --no-cache --virtual .build-deps build-base mariadb-dev \
+       && pip install -r requirements.txt \
+       && rm -rf .cache/pip \
+       && apk del .build-deps
+   # replace with:
+   RUN pip install -r requirements.txt \
+       && rm -rf .cache/pip
+   ```
+   Keep `apk add --no-cache mysql-client` — the startup script and cron backup jobs use the `mariadb`/`mariadb-dump` CLI.
+
+4. **`app/client.my.cnf`** — must exist with `ssl = false` to suppress SSL for CLI tools (`mariadb`, `mariadb-dump`). The Dockerfile copies it to `/home/appuser/.my.cnf`:
+   ```ini
+   # see https://stackoverflow.com/a/78683658
+   [client]
+   ssl = false
+   ```
+   And in the Dockerfile:
+   ```dockerfile
+   COPY client.my.cnf /home/appuser/.my.cnf
+   ```
