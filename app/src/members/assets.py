@@ -51,7 +51,7 @@ materialize_ver='1.0.0'     # https://materializecss.com/
 pickadate_ver = '3.6.4'     # https://amsul.ca/pickadate.js/
 
 frontend_common_js = Bundle(
-    f'js/jquery-{jq_ver}/jquery-{jq_ver}.js',
+    f'js/jQuery-{jq_ver}/jquery-{jq_ver}.js',
     f'js/jquery-ui-{jq_ui_ver}.custom/jquery-ui.js',
 
     f'js/lodash-{lodash_ver}/lodash.js',
@@ -175,7 +175,7 @@ asset_bundles = {
     ),
 
     'admin_js': Bundle(
-        Bundle('js/jquery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='rjsmin'),
+        Bundle('js/jQuery-{ver}/jquery-{ver}.js'.format(ver=jq_ver), filters='rjsmin'),
         Bundle('js/jquery-ui-{ver}.custom/jquery-ui.js'.format(ver=jq_ui_ver), filters='rjsmin'),
 
         Bundle('js/smartmenus-{ver}/jquery.smartmenus.js'.format(ver=sm_ver), filters='rjsmin'),
