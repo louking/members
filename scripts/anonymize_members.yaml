@@ -1,0 +1,132 @@
+# anonymize_members.yaml
+#
+# PII anonymization configuration for the members app.
+# Used by scripts/anonymize_db.py.
+#
+# Usage:
+#   python scripts/anonymize_db.py -c scripts/anonymize_members.yaml \
+#       --output-dir ./anon/ users.sql members.sql
+#
+# IMPORTANT: pass users.sql BEFORE members.sql so the user→localuser sync
+# map is populated before localuser rows are processed.
+#
+# Field types:
+#   email       user{id}@example.com
+#   fullname    Firstname{id} Lastname{id}
+#   firstname   Firstname{id}
+#   lastname    Lastname{id}
+#   date_shift  date shifted by a deterministic random ±3 years (NULL preserved)
+#   ip          127.0.0.1
+#   text        'anonymized'
+#   city        'Anytown'
+#   fixed       literal value specified in the 'value' key
+#   sync        copy the anonymized value from another table (see below)
+#
+# sync fields require:
+#   source_table: table whose anonymized value to copy
+#   source_field: field in source_table (defaults to the same field name)
+#   join_field:   field in THIS table that holds the FK to source_table's pk
+#
+# NULL values are preserved for all types except 'fixed'.
+
+tables:
+
+  # -------------------------------------------------------------------------
+  # users database  (users.sql)
+  # -------------------------------------------------------------------------
+
+  user:
+    pk: id
+    fields:
+      email:
+        type: email
+      name:
+        type: fullname
+      given_name:
+        type: firstname
+      last_login_ip:
+        type: ip
+      current_login_ip:
+        type: ip
+
+  # -------------------------------------------------------------------------
+  # members database  (members.sql)
+  # -------------------------------------------------------------------------
+
+  # localuser mirrors user via user_id; values must match what user got above.
+  localuser:
+    pk: id
+    fields:
+      email:
+        type: sync
+        source_table: user
+        source_field: email
+        join_field: user_id
+      name:
+        type: sync
+        source_table: user
+        source_field: name
+        join_field: user_id
+      given_name:
+        type: sync
+        source_table: user
+        source_field: given_name
+        join_field: user_id
+
+  # RunSignUp membership records
+  member:
+    pk: id
+    fields:
+      family_name:
+        type: lastname
+      given_name:
+        type: firstname
+      middle_name:
+        type: firstname
+      dob:
+        type: date_shift
+      email:
+        type: email
+      hometown:
+        type: city
+
+  # Per-term membership records (email/hometown may differ from member)
+  membership:
+    pk: id
+    fields:
+      email:
+        type: email
+      hometown:
+        type: city
+
+  # Facebook alias linked to a member
+  memberalias:
+    pk: id
+    fields:
+      facebookalias:
+        type: text
+
+  # Racing Team member profile
+  rt_member:
+    pk: id
+    fields:
+      dateofbirth:
+        type: date_shift
+
+  # Racing Team applications (submitted by prospective members)
+  rt_application:
+    pk: id
+    fields:
+      name:
+        type: fullname
+      email:
+        type: email
+      dateofbirth:
+        type: date_shift
+
+  # Awards recipients (name from race results)
+  awards_awardee:
+    pk: id
+    fields:
+      awardee_name:
+        type: fullname
