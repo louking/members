@@ -9,7 +9,7 @@ astroid==2.11.7
 attrs==24.2.0
 Babel==2.10.3
 bcrypt==4.2.0
-blinker==1.7.0
+blinker==1.9.0
 cachetools==5.2.0
 cattrs==24.1.2
 certifi==2025.11.12
@@ -18,7 +18,7 @@ chardet==5.0.0
 charset-normalizer==2.1.0
 click==8.1.3
 colorama==0.4.5
-cryptography==46.0.6
+cryptography==48.0.0
 cssmin==0.2.0
 decorator==5.1.1
 deepmerge==1.0.1
@@ -33,7 +33,7 @@ esbonio==0.14.0
 et-xmlfile==1.1.0
 fabric==3.2.2
 fasteners==0.20
-Flask==3.0.3
+Flask==3.1.3
 Flask-Assets==2.1.0
 Flask-BabelEx==0.9.4
 Flask-Login==0.6.3
@@ -65,7 +65,7 @@ importlib_resources==6.4.4
 inflect==7.4.0
 invoke==2.2.0
 isort==5.10.1
-itsdangerous==2.1.2
+itsdangerous==2.2.0
 Jinja2==3.1.6
 jsmin==3.0.1
 lazy-object-proxy==1.7.1
@@ -73,9 +73,9 @@ lexicon==2.0.1
 line_profiler==4.1.3
 loutilities==3.12.3
 lsprotocol==2023.0.1
-lxml==5.3.0
+lxml==6.1.0
 mailchimp3==3.0.21
-Mako==1.3.10
+Mako==1.3.12
 Markdown==3.10.2
 markdown-it-py==3.0.0
 MarkupSafe==2.1.1
@@ -90,6 +90,7 @@ paramiko==3.5.0
 passlib==1.7.4
 pathlib2==2.3.7.post1
 platformdirs==2.5.2
+prompt_toolkit==3.0.52
 proto-plus==1.27.2
 protobuf==7.34.1
 pyasn1==0.6.3
@@ -101,7 +102,7 @@ pydantic_core==2.23.4
 pygls==1.3.1
 Pygments==2.20.0
 pylint==2.14.5
-pymysql==1.1.3
+PyMySQL==1.1.3
 PyNaCl==1.6.2
 pyparsing==3.0.9
 pyspellchecker==0.6.3
@@ -111,6 +112,7 @@ python-editor==1.0.4
 python-slugify==6.1.2
 pytz==2022.1
 pytz-deprecation-shim==0.1.0.post0
+PyYAML==6.0.3
 rauth==0.7.3
 requests==2.33.1
 requests-oauthlib==1.3.1
@@ -153,7 +155,7 @@ tzlocal==4.2
 unicodecsv==0.14.1
 UniversalClient==0.6.4
 uritemplate==4.1.1
-urllib3==2.6.3
+urllib3==2.7.0
 validators==0.20.0
 visitor==0.1.3
 webassets==2.0
