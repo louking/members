@@ -8,7 +8,7 @@ import os.path
 from os import environ
 
 # pypi
-from flask import Flask, send_from_directory, g, session, request, url_for, render_template, current_app
+from flask import Flask, send_from_directory, g, session, request, url_for, render_template, current_app, abort
 from flask_mail import Mail
 from jinja2 import ChoiceLoader, PackageLoader
 from flask_security import SQLAlchemyUserDatastore, current_user
@@ -85,6 +85,13 @@ def create_app(config_obj, configfiles=None, init_for_operation=True):
         finally:
             if not g.interest:
                 g.interest = request.args.get('interest', None)
+        
+        # if present, verify the interest is real, else page not found
+        if g.interest:
+            testinterest = Interest.query.filter_by(interest=g.interest).one_or_none()
+            if not testinterest:
+                abort(404)
+
 
     # add loutilities tables-assets for js/css/template loading
     # see https://adambard.com/blog/fresh-flask-setup/
