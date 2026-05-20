@@ -127,11 +127,12 @@ class CommunitySyncManager(SyncManager):
         communitygroupname (str): Discourse community group name
     """
     
-    def __init__(self, interest, communitygroupname):
+    def __init__(self, interest, communitygroupname, skipemail):
         """_summary_
 
         """
         self.communitygroupname = communitygroupname
+        self.skipemail = skipemail
         
         try:
             uinterest = interest.upper()
@@ -375,14 +376,14 @@ class CommunitySyncManager(SyncManager):
                         current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error updating Discourse invite for email {email}: {e}')
                 # TODO: do we need to update our local invite tracking info?
                 
-            # invite user if no invite exists
+            # invite user if no invite exists; only send email if requested
             else:
                 current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): creating Discourse invite for email {email} to join group {self.communitygroupname}')
                 try:
                     self.discourse.invites.json.post({
                         'email': email,
                         'group_ids': self.communitygroupid,
-                        'skip_email': False,
+                        'skip_email': self.skipemail,
                     })
                 except DiscourseError as e:
                     current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error creating Discourse invite for email {email}: {e}')
@@ -425,11 +426,11 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
         communitygroupname (str): Discourse community group name
     """
 
-    def __init__(self, interest, tagname, communitygroupname):
+    def __init__(self, interest, tagname, communitygroupname, skipemail):
         """set up for tag-based user retrieval"""
         self.tagname = tagname
         g.interest = interest
-        CommunitySyncManager.__init__(self, interest, communitygroupname)
+        CommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
         
     def get_email(self, svcuser):
         """get email from service user record
@@ -459,15 +460,15 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
 class RsuRaceCommunitySyncManager(RsuRaceSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
-    def __init__(self, interest, raceid, communitygroupname):
+    def __init__(self, interest, raceid, communitygroupname, skipemail):
         """initialize Rsu, Discourse, and base classes"""
-        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname)
+        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
         RsuRaceSyncManager.__init__(self, raceid)
 
 class RsuClubCommunitySyncManager(RsuClubSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
-    def __init__(self, interest, clubid, communitygroupname):
+    def __init__(self, interest, clubid, communitygroupname, skipemail):
         """initialize Rsu, Discourse, and base classes"""
-        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname)
+        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
         RsuClubSyncManager.__init__(self, clubid)
