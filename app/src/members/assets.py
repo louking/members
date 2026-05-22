@@ -61,6 +61,8 @@ frontend_common_js = Bundle(
     # datatables / yadcf
     f'js/yadcf-{yadcf_ver}/jquery.dataTables.yadcf{yadcf_suffix}.js',
 
+    f'js/DataTables-{dt_datatables_ver}/datatables.js',
+
     # select2 is required for use by Editor forms and interest navigation
     f'js/select2-{s2_ver}/js/select2.full.js',
     # the order here is important
