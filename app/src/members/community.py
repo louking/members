@@ -1,12 +1,75 @@
 """community helpers
 """
 
+# stdlib
+import time
+from collections import deque
+
 # pypi
 from flask import current_app, g
 from running.runsignup import RunSignupFluent
 from fluent_discourse import Discourse, DiscourseError
 from fasteners import InterProcessLock
 from datetime import date
+
+class _RateLimiter:
+    """Sliding-window rate limiter. Blocks in acquire() when the call budget is exhausted."""
+    def __init__(self, max_calls, window_secs):
+        self.max_calls = max_calls
+        self.window_secs = window_secs
+        self._calls = deque()
+
+    def acquire(self):
+        now = time.monotonic()
+        while self._calls and now - self._calls[0] >= self.window_secs:
+            self._calls.popleft()
+        if len(self._calls) >= self.max_calls:
+            wait = self.window_secs - (now - self._calls[0])
+            if wait > 0:
+                current_app.logger.debug(
+                    f'_RateLimiter.acquire(): throttling {wait:.1f}s '
+                    f'({len(self._calls)}/{self.max_calls} calls in window)'
+                )
+                time.sleep(wait)
+                now = time.monotonic()
+                while self._calls and now - self._calls[0] >= self.window_secs:
+                    self._calls.popleft()
+        self._calls.append(time.monotonic())
+
+
+class _RateLimitedDiscourse:
+    """Transparent proxy around a fluent_discourse client that rate-limits all HTTP calls.
+
+    Intercepts .get()/.post()/.put()/.delete() to acquire a rate-limit token first.
+    All other attribute accesses (fluent chain segments) are re-wrapped so the proxy
+    follows the entire chain automatically.
+    """
+    _HTTP_METHODS = frozenset({'get', 'post', 'put', 'delete'})
+
+    def __init__(self, target, rate_limiter):
+        object.__setattr__(self, '_target', target)
+        object.__setattr__(self, '_rl', rate_limiter)
+
+    def __getattr__(self, name):
+        target = object.__getattribute__(self, '_target')
+        rl = object.__getattribute__(self, '_rl')
+        attr = getattr(target, name)
+        if name in self._HTTP_METHODS and callable(attr):
+            def _throttled(*args, **kwargs):
+                rl.acquire()
+                return attr(*args, **kwargs)
+            return _throttled
+        if callable(attr):
+            def _chained(*args, **kwargs):
+                result = attr(*args, **kwargs)
+                if isinstance(result, (str, int, float, bool, type(None))):
+                    return result
+                return _RateLimitedDiscourse(result, rl)
+            return _chained
+        # Non-callable: pass primitives through; wrap everything else (fluent chain objects)
+        if isinstance(attr, (str, int, float, bool, type(None))):
+            return attr
+        return _RateLimitedDiscourse(attr, rl)
 
 # homegrown
 from .sync import SyncManager
@@ -136,11 +199,15 @@ class CommunitySyncManager(SyncManager):
         
         try:
             uinterest = interest.upper()
-            self.discourse = Discourse(
-                base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
-                username=current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
-                api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
-                raise_for_rate_limit=False,
+            # Discourse allows 60 admin API requests/minute; use 55 to leave headroom
+            self.discourse = _RateLimitedDiscourse(
+                Discourse(
+                    base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
+                    username=current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
+                    api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
+                    raise_for_rate_limit=False,
+                ),
+                _RateLimiter(max_calls=55, window_secs=60),
             )
         except KeyError as e:
             raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
@@ -194,13 +261,13 @@ class CommunitySyncManager(SyncManager):
         if not self.communitygroupid:
             raise ValueError(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} not found in Discourse')
         current_app.logger.debug(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} has id {self.communitygroupid}')
-        
+
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
         resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_INVITES_QUERY_FSRC']).run.post()
         inviterows = [dict(zip(resp['columns'], row)) for row in resp['rows']]
         # only save active invites targeted to specific email addresses which have not been redeemed
-        self.invites = {row['email']: row for row in inviterows if not row['deleted_at'] and not row['invalidated_at'] 
-                        and row['email'] 
+        self.invites = {row['email']: row for row in inviterows if not row['deleted_at'] and not row['invalidated_at']
+                        and row['email']
                         and row['redemption_count']==0}
 
         resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_INVITE_GROUPS_QUERY_FSRC']).run.post()
@@ -226,7 +293,7 @@ class CommunitySyncManager(SyncManager):
         for row in emailrows:
             id2emails.setdefault(row['user_id'], [])
             id2emails[row['user_id']].append(row['email'])
-        
+
         # https://docs.discourse.org/#tag/Groups/operation/listGroupMembers
         groupmembers = self.discourse.groups._(self.communitygroupname).members.json.get()
         
@@ -279,7 +346,7 @@ class CommunitySyncManager(SyncManager):
                 })
             except DiscourseError as e:
                 current_app.logger.error(f'{self.finish_import.__qualname__}(): error adding users to group {self.communitygroupname}: {e}')
-        
+
         # remove users from group
         if self.remove_userids:
             current_app.logger.debug(f'{self.finish_import.__qualname__}(): removing users {self.remove_userids} from group {self.communitygroupname}')
@@ -319,7 +386,7 @@ class CommunitySyncManager(SyncManager):
                         })
                     except DiscourseError as e:
                         current_app.logger.error(f'{self.finish_import.__qualname__}(): error updating Discourse invite for email {email}: {e}')
-                
+
                 # no other groups, so delete invite
                 else:
                     current_app.logger.debug(f'{self.finish_import.__qualname__}(): deleting Discourse invite for email {email} since no more groups remain')
@@ -375,7 +442,7 @@ class CommunitySyncManager(SyncManager):
                     except DiscourseError as e:
                         current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error updating Discourse invite for email {email}: {e}')
                 # TODO: do we need to update our local invite tracking info?
-                
+
             # invite user if no invite exists; only send email if requested
             else:
                 current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): creating Discourse invite for email {email} to join group {self.communitygroupname}')
