@@ -326,12 +326,27 @@ class CommunitySyncManager(SyncManager):
             id2emails[row['user_id']].append(row['email'])
 
         # https://docs.discourse.org/#tag/Groups/operation/listGroupMembers
-        groupmembers = self.discourse.groups._(self.communitygroupname).members.json.get()
-        
+        all_members = []
+        offset = 0
+        while True:
+            groupmembers = self.discourse.groups._(self.communitygroupname).members.json.get(
+                {'offset': offset, 'order': '', 'asc': 'true', 'filter': ''}
+            )
+            page = groupmembers.get('members', [])
+            all_members.extend(page)
+            meta = groupmembers.get('meta', {})
+            current_app.logger.debug(
+                f'{self.get_users_from_group.__qualname__}(): group {self.communitygroupname} '
+                f'offset={offset} fetched={len(page)} total={meta.get("total")}'
+            )
+            if len(all_members) >= meta.get('total', len(all_members)) or not page:
+                break
+            offset += meta.get('limit', 50)
+
         groupusers = {}
         nusers = 0
         ninvites = 0
-        for member in groupmembers['members']:
+        for member in all_members:
             userid = member['id']
             user = self.id2users.get(userid)
             if not user:
