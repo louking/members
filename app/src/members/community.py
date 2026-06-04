@@ -224,6 +224,37 @@ class CommunitySyncManager(SyncManager):
         email = self.get_email(svcuser)
         return self.email2user[email]['user_id'] if email in self.email2user else email
     
+    def _run_query_paged(self, query_id, page_size=1000):
+        """Run a Data Explorer query collecting all pages of results.
+
+        :param query_id: Discourse Data Explorer query id
+        :param page_size: rows per page; must match the :page_size SQL parameter default
+        :returns: (columns, rows) where rows is the combined list across all pages
+        """
+        # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
+        columns = []
+        rows = []
+        page = 0
+        while True:
+            resp = self.discourse.admin.plugins.explorer.queries._(query_id).run.post(
+                {'params': {'page_num': str(page), 'page_size': str(page_size)}}
+            )
+            result_count = resp.get('result_count', 0)
+            page_rows = resp.get('rows', [])
+            current_app.logger.debug(
+                f'{self._run_query_paged.__qualname__}(): query {query_id} page {page} '
+                f'result_count={result_count} rows={len(page_rows)}'
+            )
+            if result_count == 0 or not page_rows:
+                columns = resp.get('columns', columns)
+                break
+            columns = resp['columns']
+            rows.extend(page_rows)
+            if result_count < page_size:
+                break
+            page += 1
+        return columns, rows
+
     def start_import(self):
         """runtime start for import from Community perspective
 
@@ -263,15 +294,15 @@ class CommunitySyncManager(SyncManager):
         current_app.logger.debug(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} has id {self.communitygroupid}')
 
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
-        resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_INVITES_QUERY_FSRC']).run.post()
-        inviterows = [dict(zip(resp['columns'], row)) for row in resp['rows']]
+        columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_INVITES_QUERY_FSRC'])
+        inviterows = [dict(zip(columns, row)) for row in rows]
         # only save active invites targeted to specific email addresses which have not been redeemed
         self.invites = {row['email']: row for row in inviterows if not row['deleted_at'] and not row['invalidated_at']
                         and row['email']
                         and row['redemption_count']==0}
 
-        resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_INVITE_GROUPS_QUERY_FSRC']).run.post()
-        invitegrouprows = [dict(zip(resp['columns'], row)) for row in resp['rows']]
+        columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_INVITE_GROUPS_QUERY_FSRC'])
+        invitegrouprows = [dict(zip(columns, row)) for row in rows]
         # create list of group ids by invite id
         self.invitegroups = {}
         for row in invitegrouprows:
@@ -286,8 +317,8 @@ class CommunitySyncManager(SyncManager):
         :rtype: dict of group user records indexed by user_id / invite records indexed by email
         """
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
-        resp = self.discourse.admin.plugins.explorer.queries._(current_app.config['DISCOURSE_API_USER_EMAIL_QUERY_FSRC']).run.post()
-        emailrows = [dict(zip(resp['columns'], row)) for row in resp['rows']]
+        columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_USER_EMAIL_QUERY_FSRC'])
+        emailrows = [dict(zip(columns, row)) for row in rows]
         self.email2user = {row['email']: row for row in emailrows}
         id2emails = {}
         for row in emailrows:
