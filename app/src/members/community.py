@@ -283,12 +283,18 @@ class CommunitySyncManager(SyncManager):
 
         # save group id for current group
         # https://docs.discourse.org/#tag/Groups/operation/listGroups
-        groups = self.discourse.groups.json.get()
         self.communitygroupid = None
-        for group in groups['groups']:
-            if group['name'] == self.communitygroupname:
-                self.communitygroupid = group['id']
+        page = 0
+        while not self.communitygroupid:
+            resp = self.discourse.groups.json.get({'page': page})
+            page_groups = resp.get('groups', [])
+            if not page_groups:
                 break
+            for group in page_groups:
+                if group['name'] == self.communitygroupname:
+                    self.communitygroupid = group['id']
+                    break
+            page += 1
         if not self.communitygroupid:
             raise ValueError(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} not found in Discourse')
         current_app.logger.debug(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} has id {self.communitygroupid}')
