@@ -111,6 +111,21 @@ Set `TESTING: True` in `config/members.cfg` to disable email sending during manu
 ## Deployment
 Uses Fabric (`fabfile.py`) for remote deployment via docker compose pull + up.
 
+## fluent_discourse API Note
+
+The `fluent_discourse` client uses a fluent/chained builder. HTTP verb methods (`get`, `post`, `put`, `delete`) each take a **single positional dict argument** — not keyword arguments:
+
+```python
+# CORRECT — positional dict becomes query params for GET, body for POST
+client.groups._('my-group').members.json.get({'offset': 0, 'filter': ''})
+client.admin.plugins.explorer.queries._(id).run.post({'params': {...}})
+
+# WRONG — raises TypeError
+client.some.endpoint.get(params={'offset': 0})
+```
+
+For `get()`, the dict is forwarded as `requests` query params. For `post()`/`put()`/`delete()`, it is sent as JSON body.
+
 ## MySQL SSL / Driver Note
 
 **Problem:** MySQL 8.0+ in Docker with Alpine-based app containers causes `MySQLdb.OperationalError: (2026, 'TLS/SSL error: Certificate verification failure')`. Alpine uses MariaDB Connector/C (not libmysqlclient), which defaults to SSL with cert verification. MySQL 8.0 auto-generates self-signed certs. Server-side workarounds (`--skip-ssl`) are unreliable in 8.0.40+.
