@@ -80,7 +80,11 @@ Four Click command groups, run as `flask <group> <command>`:
 - `flask members ...`
 - `flask membership ...` (MailChimp sync, etc.)
 - `flask task ...`
-- `flask community ...` (Discourse group sync)
+- `flask community ...` (Discourse group sync, taxonomy export)
+  - `syncrace INTEREST RACEID GROUP` — sync group from RunSignUp race participants
+  - `syncclub INTEREST CLUBID GROUP` — sync group from RunSignUp club members
+  - `synctag INTEREST TAG GROUP` — sync group from internal position tag
+  - `export-taxonomy INTEREST [--output FILE] [--json]` — export forum taxonomy/config to .docx (logic in `members/community_taxonomy.py`)
 
 ## Tests
 
@@ -111,6 +115,19 @@ Set `TESTING: True` in `config/members.cfg` to disable email sending during manu
 ## Deployment
 Uses Fabric (`fabfile.py`) for remote deployment via docker compose pull + up.
 
+## Discourse Config Keys
+
+Community commands look up per-interest Discourse credentials using uppercased interest names:
+
+```python
+current_app.config[f'DISCOURSE_API_URL_{uinterest}']                    # base URL
+current_app.config[f'DISCOURSE_API_KEY_{uinterest}']                    # API key
+current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}']        # API username (must be an admin account)
+current_app.config.get(f'DISCOURSE_API_CATEGORY_GROUPS_QUERY_{uinterest}')  # optional: Data Explorer query ID for category group permissions
+```
+
+The Discourse API key is configured as **"All Users"** scope in the Discourse admin panel — the key itself has no fixed permission level. Effective permissions come from the `Api-Username` header (set from `DISCOURSE_API_INVITE_USERNAME_<INTEREST>`). That username must belong to a Discourse admin account for admin API endpoints (site settings, user fields, badges, themes, etc.) to work.
+
 ## fluent_discourse API Note
 
 The `fluent_discourse` client uses a fluent/chained builder. HTTP verb methods (`get`, `post`, `put`, `delete`) each take a **single positional dict argument** — not keyword arguments:
@@ -125,6 +142,12 @@ client.some.endpoint.get(params={'offset': 0})
 ```
 
 For `get()`, the dict is forwarded as `requests` query params. For `post()`/`put()`/`delete()`, it is sent as JSON body.
+
+## Discourse API Quirks
+
+- **Boolean params must be lowercase strings.** `requests` serializes Python `True` as `"True"` (capital T), but Discourse checks for `"true"`. Pass `'true'`/`'false'` strings explicitly, e.g. `{'include_subcategories': 'true'}`.
+- **`GET /admin/site_settings.json` returns a list, not a flat dict.** Response is `{"site_settings": [{"setting": "key", "humanized_name": "...", "value": "...", ...}, ...]}`. Convert with `{item['setting']: {'value': item['value'], 'label': item['humanized_name']} for item in data['site_settings']}` before lookups.
+- **`group_permissions` is not returned by any Discourse category API endpoint** on the FSRC instance (neither `/categories.json` nor `/categories/{id}.json`), even with an admin username. Category group permissions are fetched instead via a Discourse Data Explorer SQL query (`DISCOURSE_API_CATEGORY_GROUPS_QUERY_{INTEREST}`) that queries the `category_groups` table joined with `categories` and `groups`. The query must return columns `category_id`, `group_name`, `permission_type`. Falls back to displaying "Restricted" if the config key is absent.
 
 ## MySQL SSL / Driver Note
 
