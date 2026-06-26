@@ -139,6 +139,35 @@ class RacingTeamInfoView(MethodView):
                 resultsrec = RacingTeamResult(interest=localinterest())
                 for field in resultfields:
                     setattr(resultsrec, resultfields[field], request.form[field])
+
+                # recalculate age and agegrade server-side; client values can be stale if
+                # the user edits the time field after the agegrade AJAX call has returned
+                racedatedt = formdata['common_eventdate']
+                memberage = age(racedatedt, member.dateofbirth)
+                resultsrec.age = memberage
+                dist_val = float(request.form['raceresult_distance'])
+                units_val = request.form['raceresult_units']
+                if (dist_val == 26.2 and units_val == 'miles') or (dist_val == 42.2 and units_val == 'km'):
+                    distmiles = 26.2188
+                elif (dist_val == 13.1 and units_val == 'miles') or (dist_val == 21.1 and units_val == 'km'):
+                    distmiles = 13.1094
+                elif units_val == 'km':
+                    distmiles = dist_val / 1.609344
+                else:
+                    distmiles = dist_val
+                agparams = {
+                    'age'      : memberage,
+                    'gender'   : member.gender,
+                    'distance' : distmiles,
+                    'time'     : request.form['raceresult_time'],
+                    'surface'  : request.form['raceresult_surface'],
+                }
+                agresponse = requests.get(f'https://scoretility.com/_agegrade?{urlencode(agparams)}')
+                if agresponse.status_code == 200:
+                    agdata = agresponse.json()
+                    if agdata.get('status') == 'success':
+                        resultsrec.agegrade = round(agdata['agpercent'], 2)
+
                 # use conversion to datetime
                 resultsrec.eventdate = formdata['common_eventdate']
                 resultsrec.info = inforec
@@ -352,6 +381,34 @@ class RacingTeamApplnView(MethodView):
                 resultsmapping = dict(zip(resultsdb, resultsform))
                 resultsxform = Transform(resultsmapping, sourceattr=False)
                 resultsxform.transform(request.form, resultsrec)
+
+                # recalculate age and agegrade server-side; client values can be stale if
+                # the user edits the time field after the agegrade AJAX call has returned
+                memberage = age(formdata[f'race{ndx}_date'], formdata['dob'])
+                resultsrec.age = memberage
+                dist_val = formdata[f'race{ndx}_distance']  # already float from Number validator
+                units_val = formdata[f'race{ndx}_units']
+                if (dist_val == 26.2 and units_val == 'miles') or (dist_val == 42.2 and units_val == 'km'):
+                    distmiles = 26.2188
+                elif (dist_val == 13.1 and units_val == 'miles') or (dist_val == 21.1 and units_val == 'km'):
+                    distmiles = 13.1094
+                elif units_val == 'km':
+                    distmiles = dist_val / 1.609344
+                else:
+                    distmiles = dist_val
+                agparams = {
+                    'age'      : memberage,
+                    'gender'   : formdata['gender'],
+                    'distance' : distmiles,
+                    'time'     : request.form[f'race{ndx}_time'],
+                    'surface'  : formdata[f'race{ndx}_surface'],
+                }
+                agresponse = requests.get(f'https://scoretility.com/_agegrade?{urlencode(agparams)}')
+                if agresponse.status_code == 200:
+                    agdata = agresponse.json()
+                    if agdata.get('status') == 'success':
+                        resultsrec.agegrade = round(agdata['agpercent'], 2)
+
                 resultsrec.application = applnrec
                 db.session.add(resultsrec)
             
