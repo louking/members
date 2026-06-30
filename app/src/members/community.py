@@ -37,6 +37,23 @@ class _RateLimiter:
         self._calls.append(time.monotonic())
 
 
+def make_discourse_client(interest: str) -> '_RateLimitedDiscourse':
+    """Create a rate-limited fluent_discourse client for the given interest."""
+    uinterest = interest.upper()
+    try:
+        return _RateLimitedDiscourse(
+            Discourse(
+                base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
+                username=current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
+                api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
+                raise_for_rate_limit=False,
+            ),
+            _RateLimiter(max_calls=55, window_secs=60),
+        )
+    except KeyError as e:
+        raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
+
+
 class _RateLimitedDiscourse:
     """Transparent proxy around a fluent_discourse client that rate-limits all HTTP calls.
 
@@ -197,20 +214,7 @@ class CommunitySyncManager(SyncManager):
         self.communitygroupname = communitygroupname
         self.skipemail = skipemail
         
-        try:
-            uinterest = interest.upper()
-            # Discourse allows 60 admin API requests/minute; use 55 to leave headroom
-            self.discourse = _RateLimitedDiscourse(
-                Discourse(
-                    base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
-                    username=current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
-                    api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
-                    raise_for_rate_limit=False,
-                ),
-                _RateLimiter(max_calls=55, window_secs=60),
-            )
-        except KeyError as e:
-            raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
+        self.discourse = make_discourse_client(interest)
     
     def get_group_key_from_service_user(self, svcuser):
         """get unique key for service user used by internal group

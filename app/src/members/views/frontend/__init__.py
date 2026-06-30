@@ -13,3 +13,4 @@ from . import membership_frontend
 from . import racingteam_frontend
 from . import organization_frontend
 from . import fsrc_views
+from . import community_calendar_views

@@ -11,8 +11,9 @@ from click import argument, group, option
 
 # homegrown
 from scripts import catch_errors, ParameterError
-from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager
+from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager, make_discourse_client
 from members.community_taxonomy import fetch_all, build_docx
+from members.community_calendar import filter_calendar, get_tag_groups
 
 # needs to be before any commands
 @group()
@@ -72,6 +73,51 @@ def synctag(interest, tagname, communitygroupname, skipemail, debug, debugreques
     """
     grpmgr = DbTagCommunitySyncManager(interest, tagname, communitygroupname, skipemail)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
+
+
+@community.command('filter-calendar')
+@argument('interest')
+@option('--output-dir', default='/var/www/calendars', show_default=True,
+        help='Directory to write per-series .ics files into')
+@option('--cache-file',
+        default='/var/lib/discourse-calendar-filter/topic_tags_cache.json',
+        show_default=True,
+        help='JSON file used to cache topic→tags lookups between runs')
+@option('--cache-ttl', default=3600, show_default=True,
+        help='Seconds before a cached topic-tags entry is re-fetched')
+@option('--force-refresh', is_flag=True,
+        help='Ignore cached topic tags and re-fetch all topics this run')
+@option('--debug', is_flag=True, help='Enable debug logging')
+@with_appcontext
+@catch_errors
+def filter_calendar_cmd(interest, output_dir, cache_file, cache_ttl, force_refresh, debug):
+    """
+    Split the Discourse events.ics feed into per-series .ics files for interest [interest].
+
+    Fetches the global events feed from the Discourse instance configured for [interest],
+    looks up each event's Discourse tags, and writes one .ics file per tag group
+    (grandprix.ics, equalizer.ics, decathlon.ics) into OUTPUT_DIR.
+    """
+    from pathlib import Path
+
+    if debug:
+        import logging
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    uinterest = interest.upper()
+    base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
+    discourse = make_discourse_client(interest)
+
+    filter_calendar(
+        base_url=base_url,
+        discourse=discourse,
+        output_dir=Path(output_dir),
+        cache_file=Path(cache_file),
+        tag_groups=get_tag_groups(current_app.config.get(f'CALENDAR_TAG_GROUPS_{uinterest}')),
+        cache_ttl=cache_ttl,
+        force_refresh=force_refresh,
+        log=current_app.logger,
+    )
 
 
 @community.command('export-taxonomy')
