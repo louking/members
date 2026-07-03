@@ -2,6 +2,7 @@
 files/
 uploads/
 logs/
+fsrc_events*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
