@@ -24,6 +24,7 @@ import re
 import sys
 import time
 from html import unescape
+from html.parser import HTMLParser
 from urllib.parse import urlencode
 
 import requests
@@ -39,6 +40,13 @@ OUTPUT_FILE = "fsrc_events_2026.csv"
 # Categories not listed use the WP slug directly as the Discourse tag.
 CATEGORY_TAG_OVERRIDES = {
     "cat-racing-team": "racing-team",      # WP prefixes Racing Team slug with "cat-"
+    "lowkey": "lowkey-race",
+    "fsrc-volunteers-needed": "volunteers-needed",
+    
+    # remove these categories
+    "race": "",
+    "steeps-race": "",
+    
 }
 
 
@@ -54,6 +62,59 @@ def category_to_tag(cat: dict) -> str:
     return CATEGORY_TAG_OVERRIDES.get(wp_slug, wp_slug)
 
 
+def _strip_tribe_widgets(html_text: str) -> str:
+    """Remove WordPress tribe-events widget <div> blocks from event HTML.
+
+    Strips any <div> whose class list contains a class starting with 'tribe-',
+    including all nested content. Leaves <p> and other non-widget tags intact.
+    """
+    class _Parser(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.parts = []
+            self.depth = 0  # >0 while inside a tribe- div being skipped
+
+        def handle_starttag(self, tag, attrs):
+            if self.depth > 0:
+                if tag == 'div':
+                    self.depth += 1
+                return
+            if tag == 'div':
+                cls = dict(attrs).get('class', '') or ''
+                if any(c.startswith('tribe-') for c in cls.split()):
+                    self.depth = 1
+                    return
+            attr_str = ''.join(
+                f' {k}="{v}"' if v is not None else f' {k}'
+                for k, v in attrs
+            )
+            self.parts.append(f'<{tag}{attr_str}>')
+
+        def handle_endtag(self, tag):
+            if self.depth > 0:
+                if tag == 'div':
+                    self.depth -= 1
+                return
+            self.parts.append(f'</{tag}>')
+
+        def handle_data(self, data):
+            if self.depth == 0:
+                self.parts.append(data)
+
+    parser = _Parser()
+    parser.feed(html_text)
+    return ''.join(parser.parts)
+
+
+def collapse_ws(text: str) -> str:
+    """Collapse all whitespace runs (including newlines) to a single space.
+
+    HTML renders multiple whitespace chars identically, so this is display-neutral
+    and keeps each CSV row on a single line.
+    """
+    return re.sub(r"\s+", " ", text).strip() if text else ""
+
+
 def format_venue(venue_data: dict) -> str:
     if not venue_data:
         return ""
@@ -62,13 +123,6 @@ def format_venue(venue_data: dict) -> str:
     state = venue_data.get("state", "") or ""
     return ", ".join(p for p in [name, city, state] if p)
 
-
-def strip_html(text: str) -> str:
-    if not text:
-        return ""
-    text = re.sub(r"<[^>]+>", "", text)
-    text = unescape(text)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def fetch_all_events():
@@ -110,7 +164,7 @@ def main():
     rows = []
     for ev in events:
         cat_dicts = ev.get("categories", []) or []
-        tags = sorted({category_to_tag(c) for c in cat_dicts if c.get("slug") or c.get("name")})
+        tags = sorted(t for c in cat_dicts if c.get("slug") or c.get("name") for t in [category_to_tag(c)] if t)
         cat_names = [c.get("name", "") for c in cat_dicts if c.get("name")]
 
         venue = format_venue(ev.get("venue") or {})
@@ -118,7 +172,7 @@ def main():
 
         rows.append({
             "id": ev.get("id"),
-            "title": ev.get("title", ""),
+            "title": unescape(ev.get("title", "")),
             "start_date": ev.get("start_date", ""),
             "end_date": ev.get("end_date", ""),
             "all_day": ev.get("all_day", False),
@@ -127,7 +181,7 @@ def main():
             "image_url": image_url,
             "categories_raw": "; ".join(cat_names),
             "tags": "; ".join(tags),
-            "description": strip_html(ev.get("description", ""))[:2000],
+            "description": collapse_ws(_strip_tribe_widgets(ev.get("description", ""))),
         })
 
     rows.sort(key=lambda r: r["start_date"])
