@@ -14,6 +14,7 @@ from scripts import catch_errors, ParameterError
 from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager, make_discourse_client
 from members.community_taxonomy import fetch_all, build_docx
 from members.community_calendar import filter_calendar, get_tag_groups
+from members.community_events import import_events as _import_events
 
 # needs to be before any commands
 @group()
@@ -154,4 +155,44 @@ def export_taxonomy(interest, output, save_json):
     print('OK')
     print(f'\nSaved: {output}')
 
+
+@community.command('import-events')
+@argument('interest')
+@option('--csv-file', default='fsrc_events_2026.csv', show_default=True,
+        help='CSV from export_fsrc_events.py')
+@option('--category-id', required=True, type=int,
+        help='Discourse category ID to post events into')
+@option('--state-file', default='fsrc_import_state.json', show_default=True,
+        help='JSON file tracking imported event IDs for idempotency')
+@option('--post-as', default=None,
+        help='Discourse username to author topics as (overrides DISCOURSE_API_INVITE_USERNAME)')
+@option('--dry-run', is_flag=True, help='Print what would be posted without posting')
+@option('--debug', is_flag=True, help='Enable debug logging')
+@with_appcontext
+@catch_errors
+def import_events(interest, csv_file, category_id, state_file, post_as, dry_run, debug):
+    """
+    Create Discourse topics for events in CSV_FILE within interest [interest].
+    Idempotent: skips events already recorded in STATE_FILE. Re-run safely after
+    fixing tags or editing the CSV.
+    """
+    if debug:
+        import logging
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    uinterest = interest.upper()
+    base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
+    username = post_as or current_app.config.get(f'DISCOURSE_API_EVENT_USERNAME_{uinterest}')
+    discourse = make_discourse_client(interest, username=username)
+
+    _import_events(
+        interest=interest,
+        csv_file=csv_file,
+        category_id=category_id,
+        state_file=state_file,
+        discourse=discourse,
+        base_url=base_url,
+        dry_run=dry_run,
+        log=current_app.logger,
+    )
 

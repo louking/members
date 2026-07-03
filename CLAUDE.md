@@ -80,7 +80,7 @@ Four Click command groups, run as `flask <group> <command>`:
 - `flask members ...`
 - `flask membership ...` (MailChimp sync, etc.)
 - `flask task ...`
-- `flask community ...` (Discourse group sync, taxonomy export)
+- `flask community ...` (Discourse group sync, taxonomy export, calendar feeds)
   - `syncrace INTEREST RACEID GROUP` — sync group from RunSignUp race participants
   - `syncclub INTEREST CLUBID GROUP` — sync group from RunSignUp club members
   - `synctag INTEREST TAG GROUP` — sync group from internal position tag
@@ -127,7 +127,8 @@ Community commands look up per-interest Discourse credentials using uppercased i
 ```python
 current_app.config[f'DISCOURSE_API_URL_{uinterest}']                    # base URL
 current_app.config[f'DISCOURSE_API_KEY_{uinterest}']                    # API key
-current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}']        # API username (must be an admin account)
+current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}']        # API username for group invites/sync (must be an admin account)
+current_app.config.get(f'DISCOURSE_API_EVENT_USERNAME_{uinterest}')     # optional: username for creating event topics (falls back to INVITE_USERNAME)
 current_app.config.get(f'DISCOURSE_API_CATEGORY_GROUPS_QUERY_{uinterest}')  # optional: Data Explorer query ID for category group permissions
 ```
 
@@ -135,7 +136,7 @@ The Discourse API key is configured as **"All Users"** scope in the Discourse ad
 
 ## Community Module Patterns
 
-**Rate-limited Discourse client**: All Discourse API calls must go through the rate-limited fluent_discourse client — never a raw `requests.Session`. Use `make_discourse_client(interest)` from `members/community.py`; it returns a `_RateLimitedDiscourse`-wrapped client configured from the standard `DISCOURSE_API_*` config keys at 55 calls / 60 s. Use plain `requests.get()` only for non-JSON endpoints (e.g. downloading the `.ics` feed itself).
+**Rate-limited Discourse client**: All Discourse API calls must go through the rate-limited fluent_discourse client — never a raw `requests.Session`. Use `make_discourse_client(interest)` from `members/community.py`; it returns a `_RateLimitedDiscourse`-wrapped client configured from the standard `DISCOURSE_API_*` config keys at 55 calls / 60 s. Use plain `requests.get()` only for non-JSON endpoints (e.g. downloading the `.ics` feed itself). Pass `username=` to override `DISCOURSE_API_INVITE_USERNAME_{INTEREST}` when you need topics/posts authored by a different account — use the `DISCOURSE_API_EVENT_USERNAME_{INTEREST}` config key as the standard way to configure a dedicated event-posting account; the same API key is used, so the override account does not need its own key.
 
 **Process lock**: Community commands that should not run concurrently (e.g. group sync, calendar filter) acquire a `fasteners.InterProcessLock` at the start and release it on completion, preventing cron overlap.
 
@@ -159,6 +160,7 @@ For `get()`, the dict is forwarded as `requests` query params. For `post()`/`put
 - **Boolean params must be lowercase strings.** `requests` serializes Python `True` as `"True"` (capital T), but Discourse checks for `"true"`. Pass `'true'`/`'false'` strings explicitly, e.g. `{'include_subcategories': 'true'}`.
 - **`GET /admin/site_settings.json` returns a list, not a flat dict.** Response is `{"site_settings": [{"setting": "key", "humanized_name": "...", "value": "...", ...}, ...]}`. Convert with `{item['setting']: {'value': item['value'], 'label': item['humanized_name']} for item in data['site_settings']}` before lookups.
 - **`GET /t/{id}.json` may return tags as objects, not strings.** The `tags` field can be either `["grandprix", ...]` (strings) or `[{"name": "grandprix", ...}, ...]` (objects) depending on the Discourse version or plugin config. `get_topic_tags()` in `community_calendar.py` normalises both to a list of name strings.
+- **`GET /tags.json` uses `name` (not `id`) for the tag slug.** Each entry in `response['tags']` has a `name` field containing the slug string. There is also an `id` field but it is not the slug — use `t['name']` when building a set of known tag slugs.
 - **`group_permissions` is not returned by any Discourse category API endpoint** on the FSRC instance (neither `/categories.json` nor `/categories/{id}.json`), even with an admin username. Category group permissions are fetched instead via a Discourse Data Explorer SQL query (`DISCOURSE_API_CATEGORY_GROUPS_QUERY_{INTEREST}`) that queries the `category_groups` table joined with `categories` and `groups`. The query must return columns `category_id`, `group_name`, `permission_type`. Falls back to displaying "Restricted" if the config key is absent.
 
 ## MySQL SSL / Driver Note

@@ -37,14 +37,18 @@ class _RateLimiter:
         self._calls.append(time.monotonic())
 
 
-def make_discourse_client(interest: str) -> '_RateLimitedDiscourse':
-    """Create a rate-limited fluent_discourse client for the given interest."""
+def make_discourse_client(interest: str, username: str | None = None) -> '_RateLimitedDiscourse':
+    """Create a rate-limited fluent_discourse client for the given interest.
+
+    username overrides DISCOURSE_API_INVITE_USERNAME_{INTEREST} when provided,
+    e.g. to post as a dedicated bot account rather than the default admin user.
+    """
     uinterest = interest.upper()
     try:
         return _RateLimitedDiscourse(
             Discourse(
                 base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
-                username=current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
+                username=username or current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
                 api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
                 raise_for_rate_limit=False,
             ),
