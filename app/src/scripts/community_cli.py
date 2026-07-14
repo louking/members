@@ -80,30 +80,36 @@ def synctag(interest, tagname, communitygroupname, skipemail, debug, debugreques
 @argument('interest')
 @option('--output-dir', default='/var/www/calendars', show_default=True,
         help='Directory to write per-series .ics files into')
-@option('--cache-file',
-        default='/var/lib/discourse-calendar-filter/topic_tags_cache.json',
-        show_default=True,
-        help='JSON file used to cache topic→tags lookups between runs')
-@option('--cache-ttl', default=3600, show_default=True,
-        help='Seconds before a cached topic-tags entry is re-fetched')
-@option('--force-refresh', is_flag=True,
-        help='Ignore cached topic tags and re-fetch all topics this run')
+@option('--year', default=None, type=int,
+        help='Restrict to a single calendar year (e.g. 2026)')
+@option('--from-date', default=None,
+        help='Start date filter YYYY-MM-DD (default: Jan 1 of current year)')
+@option('--to-date', default=None,
+        help='End date filter YYYY-MM-DD (default: Dec 31 of next year)')
 @option('--debug', is_flag=True, help='Enable debug logging')
 @with_appcontext
 @catch_errors
-def filter_calendar_cmd(interest, output_dir, cache_file, cache_ttl, force_refresh, debug):
+def filter_calendar_cmd(interest, output_dir, year, from_date, to_date, debug):
     """
-    Split the Discourse events.ics feed into per-series .ics files for interest [interest].
+    Fetch Discourse events and write per-series .ics files for interest [interest].
 
-    Fetches the global events feed from the Discourse instance configured for [interest],
-    looks up each event's Discourse tags, and writes one .ics file per tag group
-    (grandprix.ics, equalizer.ics, decathlon.ics) into OUTPUT_DIR.
+    Uses the /discourse-post-event/events JSON API so topic tags are available
+    inline without per-topic lookups.  Writes one .ics file per configured tag
+    group into OUTPUT_DIR.
     """
+    from datetime import date
     from pathlib import Path
 
     if debug:
         import logging
         logging.getLogger().setLevel(logging.DEBUG)
+
+    if year:
+        from_date_obj = date(year, 1, 1)
+        to_date_obj = date(year, 12, 31)
+    else:
+        from_date_obj = date.fromisoformat(from_date) if from_date else None
+        to_date_obj = date.fromisoformat(to_date) if to_date else None
 
     uinterest = interest.upper()
     base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
@@ -113,10 +119,9 @@ def filter_calendar_cmd(interest, output_dir, cache_file, cache_ttl, force_refre
         base_url=base_url,
         discourse=discourse,
         output_dir=Path(output_dir),
-        cache_file=Path(cache_file),
         tag_groups=get_tag_groups(current_app.config.get(f'CALENDAR_TAG_GROUPS_{uinterest}')),
-        cache_ttl=cache_ttl,
-        force_refresh=force_refresh,
+        from_date=from_date_obj,
+        to_date=to_date_obj,
         log=current_app.logger,
     )
 

@@ -23,19 +23,28 @@ def _build_topic_body(row: dict) -> str:
     end_raw = row.get('end_date', '').strip()
     all_day = row.get('all_day', '').lower() in ('true', '1', 'yes')
 
+    website = row.get('website', '').strip()
+    venue = row.get('venue', '').strip()
+
+    extra = ''
+    if website:
+        extra += f' url="{website}"'
+    if venue:
+        extra += f' location="{venue}"'
+
     if all_day:
         start_val = start_raw[:10] if start_raw else ''
         end_val = end_raw[:10] if end_raw else start_val
         event_line = (
             f'[event start="{start_val}" end="{end_val}"'
-            f' all_day="true" status="public" timezone="America/New_York"]\n[/event]'
+            f' all_day="true" status="public" timezone="America/New_York"{extra}]\n[/event]'
         )
     else:
         start_val = _parse_dt(start_raw) if start_raw else ''
         end_val = _parse_dt(end_raw) if end_raw else start_val
         event_line = (
             f'[event start="{start_val}" end="{end_val}"'
-            f' status="public" timezone="America/New_York"]\n[/event]'
+            f' status="public" timezone="America/New_York"{extra}]\n[/event]'
         )
 
     parts = [event_line]
@@ -43,14 +52,8 @@ def _build_topic_body(row: dict) -> str:
     if row.get('image_url'):
         parts.append(f"\n![]({row['image_url']})")
 
-    if row.get('venue'):
-        parts.append(f"\n**Venue:** {row['venue']}")
-
     if row.get('description'):
         parts.append(f"\n{row['description']}")
-
-    if row.get('url'):
-        parts.append(f"\n[More info on steeplechasers.org]({row['url']})")
 
     return "\n".join(parts)
 

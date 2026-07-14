@@ -1,29 +1,28 @@
 """
-community_calendar - filter Discourse events.ics by tag into per-series feeds
+community_calendar - filter Discourse events by tag into per-series ICS feeds
 
-Discourse's discourse-calendar plugin exposes a single global ICS feed with
-no tag/category filtering and no CATEGORIES: field.  This module fetches that
-feed, cross-references each event's topic against its Discourse tags via the
-rate-limited fluent_discourse client, and either writes one .ics file per
-configured tag group (CLI path) or returns bytes for a single series (web path).
+Uses the /discourse-post-event/events JSON API (not the ICS feed) so topic tags
+are available inline, eliminating the N+1 per-topic API calls the ICS approach
+required.  Tags appear in event['post']['topic']['tags'] as a list of strings.
 """
 
 # standard
 import json
+import logging as _logging
 import re
-import time
+from datetime import date, datetime, time
 from pathlib import Path
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 # pypi
-import requests
 from fasteners import InterProcessLock
-from icalendar import Calendar
+from icalendar import Calendar, Event
 
-TOPIC_ID_RE = re.compile(r"/t/[^/]+/(\d+)")
+_EVENT_LOCATION_RE = re.compile(r'\[event\b[^\]]*\blocation="([^"]*)"', re.IGNORECASE)
 
-# Fallback tag → output-filename mapping used when CALENDAR_TAG_GROUPS_<interest> is not in config.
 DEFAULT_TAG_GROUPS = {
-    "grandprix.ics": "grand-prix",
+    "grand-prix.ics": "grand-prix",
     "equalizer.ics": "equalizer",
     "decathlon.ics": "decathlon",
 }
@@ -36,7 +35,7 @@ def get_tag_groups(config_value=None) -> dict:
     or a string (JSON) for callers that pass a raw value.
 
     Expected members.cfg format:
-        CALENDAR_TAG_GROUPS: {"grandprix.ics": "grandprix", "equalizer.ics": "equalizer", "decathlon.ics": "decathlon"}
+        CALENDAR_TAG_GROUPS: {"grand-prix.ics": "grand-prix", "equalizer.ics": "equalizer"}
     """
     if not config_value:
         return DEFAULT_TAG_GROUPS
@@ -44,174 +43,201 @@ def get_tag_groups(config_value=None) -> dict:
         return config_value
     return json.loads(config_value)
 
-REQUEST_TIMEOUT = 15
+
+def _tag_names(tags: list) -> set[str]:
+    """Normalise Discourse tag list to a set of name strings.
+
+    The /discourse-post-event/events JSON API returns tags as objects
+    ({'id': 20, 'name': 'grand-prix', 'slug': 'grand-prix'}) rather than
+    plain strings, so extract 'name' when needed.
+    """
+    if not tags:
+        return set()
+    if isinstance(tags[0], dict):
+        return {t['name'] for t in tags if 'name' in t}
+    return set(tags)
 
 
-def load_cache(cache_file: Path) -> dict:
-    if cache_file.exists():
-        return json.loads(cache_file.read_text())
-    return {}
+def _parse_event_datetime(dt_str: str, tz_name: str) -> datetime:
+    """Parse a Discourse event datetime string to an aware datetime.
+
+    Discourse returns either offset-aware strings ("2026-03-03T17:30:00.000-05:00")
+    or naive strings ("2026-02-02T18:00:00") that must be localised using the
+    event's timezone field.  Always returns a datetime with the named IANA timezone
+    (ZoneInfo) so icalendar serialises TZID=America/New_York rather than UTC-05:00.
+    """
+    tz = ZoneInfo(tz_name or 'UTC')
+    for fmt in ('%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z'):
+        try:
+            return datetime.strptime(dt_str, fmt).astimezone(tz)
+        except ValueError:
+            pass
+    for fmt in ('%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            return datetime.strptime(dt_str, fmt).replace(tzinfo=tz)
+        except ValueError:
+            pass
+    raise ValueError(f"Cannot parse datetime: {dt_str!r}")
 
 
-def save_cache(cache: dict, cache_file: Path) -> None:
-    cache_file.parent.mkdir(parents=True, exist_ok=True)
-    cache_file.write_text(json.dumps(cache))
+def _fetch_location(discourse, post_id: int, log) -> str | None:
+    """Fetch a post's raw content and extract the [event location="..."] value.
 
-
-def extract_topic_id(event) -> int | None:
-    url = str(event.get("URL", ""))
-    match = TOPIC_ID_RE.search(url)
-    return int(match.group(1)) if match else None
-
-
-def get_topic_tags(topic_id: int, cache: dict, discourse,
-                   cache_ttl: int, log) -> list[str]:
-    """Look up tags for a topic via the rate-limited fluent_discourse client."""
-    key = str(topic_id)
-    cached = cache.get(key)
-    if cached is not None and (time.time() - cached["fetched_at"]) < cache_ttl:
-        return cached["tags"]
-
+    Uses /posts/{id}.json rather than /t/{topic_id}.json because the raw field
+    is not reliably present in the topic endpoint response.
+    """
     try:
-        resp = discourse.t._(topic_id).json.get({})
-        raw_tags = resp.get("tags", []) or []
-        # Discourse may return tag strings or tag objects depending on version/config.
-        if raw_tags and isinstance(raw_tags[0], dict):
-            log.debug("topic %s tags are objects; extracting 'name' field", topic_id)
-            tags = [t["name"] for t in raw_tags if "name" in t]
-        else:
-            tags = list(raw_tags)
+        resp = discourse.posts._(post_id).json.get({})
+        raw = resp.get('raw', '')
+        m = _EVENT_LOCATION_RE.search(raw)
+        return m.group(1) if m else None
     except Exception as exc:
-        log.warning("Failed to look up topic %s: %s", topic_id, exc)
-        return cached["tags"] if cached else []
+        log.warning("Failed to fetch location for post %s: %s", post_id, exc)
+        return None
 
-    cache[key] = {"tags": tags, "fetched_at": time.time()}
-    return tags
+
+def _build_vevent(event: dict, base_url: str, location: str | None = None) -> Event:
+    """Build an icalendar Event from one /discourse-post-event/events entry."""
+    cal_event = Event()
+    tz_name = event.get('timezone') or 'UTC'
+    summary = event.get('name') or event['post']['topic']['title']
+    cal_event.add('SUMMARY', summary)
+    cal_event.add('DTSTART', _parse_event_datetime(event['starts_at'], tz_name))
+    cal_event.add('DTEND', _parse_event_datetime(event['ends_at'], tz_name))
+    cal_event.add('URL', base_url.rstrip('/') + event['post']['url'])
+    cal_event.add('UID', f"discourse-event-{event['id']}@{urlparse(base_url).netloc}")
+    if location:
+        cal_event.add('LOCATION', location)
+    return cal_event
+
+
+def _fetch_events(discourse, from_date: date | None, to_date: date | None, log) -> list[dict]:
+    """Call /discourse-post-event/events for the given date window.
+
+    Defaults to current year + next year when no range is specified.
+    The API returns all events within the window in a single response; no
+    server-side pagination metadata is exposed by this endpoint.
+    """
+    today = date.today()
+    after_dt = datetime.combine(from_date or date(today.year, 1, 1), time(0, 0, 0))
+    before_dt = datetime.combine(to_date or date(today.year + 1, 12, 31), time(23, 59, 59))
+    params = {
+        'after': after_dt.isoformat(),
+        'before': before_dt.isoformat(),
+        'include_ongoing': 'true',
+    }
+    log.info("Fetching events: after=%s before=%s", params['after'], params['before'])
+    resp = discourse._('discourse-post-event').events.get(params)
+    events = resp.get('events', [])
+    log.info("Got %d events from API", len(events))
+    if events:
+        sample_tags = _tag_names(events[0].get('post', {}).get('topic', {}).get('tags', []))
+        log.debug("First event: id=%s tags=%s", events[0].get('id'), sample_tags)
+    return events
 
 
 def filter_one_to_bytes(base_url: str, discourse, series_filename: str,
-                        tag_cache: dict, tag_groups: dict | None = None,
-                        cache_ttl: int = 3600, log=None) -> bytes:
+                        tag_groups: dict | None = None,
+                        from_date: date | None = None,
+                        to_date: date | None = None,
+                        log=None) -> bytes:
     """
-    Fetch the Discourse global events.ics and return ICS bytes for one series.
+    Fetch Discourse events via JSON API and return ICS bytes for one tag series.
 
-    Intended for the web route (on-demand).  Uses an in-memory tag_cache dict
-    supplied by the caller so topic-tag lookups persist across requests within
-    the same process.  No file I/O.
+    Intended for the web route (on-demand).  No file I/O or disk cache — the
+    caller owns any caching layer (e.g. _ics_cache in community_calendar_views).
 
     base_url        — Discourse site root
     discourse       — _RateLimitedDiscourse instance
-    series_filename — key in tag_groups, e.g. "grandprix.ics"
-    tag_cache       — caller-owned dict (mutated in place) for topic tag caching
+    series_filename — key in tag_groups, e.g. "grand-prix.ics"
     tag_groups      — {filename: tag_slug} mapping; defaults to DEFAULT_TAG_GROUPS
-    cache_ttl       — seconds before a cached topic-tags entry is re-fetched
+    from_date       — inclusive start date filter (default: Jan 1 of current year)
+    to_date         — inclusive end date filter (default: Dec 31 of next year)
     log             — logger
     """
-    import logging
     if log is None:
-        log = logging.getLogger(__name__)
-
+        log = _logging.getLogger(__name__)
     if tag_groups is None:
         tag_groups = DEFAULT_TAG_GROUPS
     required_tag = tag_groups[series_filename]
 
-    log.debug("Fetching master feed for %s", series_filename)
-    resp = requests.get(f"{base_url}/discourse-post-event/events.ics", timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
-    master_cal = Calendar.from_ical(resp.content)
+    events = _fetch_events(discourse, from_date, to_date, log)
 
     cal = Calendar()
-    for key, value in master_cal.items():
-        if key != "VEVENT":
-            cal.add(key, value)
+    cal.add('PRODID', '-//FSRC Calendar//EN')
+    cal.add('VERSION', '2.0')
 
-    for component in master_cal.walk("VEVENT"):
-        topic_id = extract_topic_id(component)
-        if topic_id is None:
+    count = 0
+    for event in events:
+        topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
+        if required_tag not in topic_tags:
             continue
-        if required_tag in set(get_topic_tags(topic_id, tag_cache, discourse, cache_ttl, log)):
-            cal.add_component(component)
+        post_id = event['post']['id']
+        location = _fetch_location(discourse, post_id, log)
+        cal.add_component(_build_vevent(event, base_url, location=location))
+        count += 1
 
-    log.debug("Built %s (%d events)", series_filename, len(cal.subcomponents))
+    log.debug("Built %s (%d events)", series_filename, count)
     return cal.to_ical()
 
 
 def filter_calendar(base_url: str, discourse, output_dir: Path,
-                    cache_file: Path, tag_groups: dict | None = None,
-                    cache_ttl: int = 3600, force_refresh: bool = False,
+                    tag_groups: dict | None = None,
+                    from_date: date | None = None,
+                    to_date: date | None = None,
                     log=None) -> None:
     """
-    Fetch the Discourse global events.ics, split by tag, write per-series files.
+    Fetch Discourse events via JSON API, split by tag, write per-series .ics files.
 
-    base_url     — Discourse site root, e.g. "https://community.steeplechasers.org"
-    discourse    — _RateLimitedDiscourse instance for topic tag API calls
-    output_dir   — directory to write <tag>.ics files into
-    cache_file   — JSON file used to cache topic→tags lookups between runs
-    tag_groups   — {filename: tag_slug} mapping; defaults to DEFAULT_TAG_GROUPS
-    cache_ttl    — seconds before a cached topic-tags entry is re-fetched
-    force_refresh — ignore cached topic tags entirely this run
-    log          — logger (uses a module-level fallback when None)
+    base_url    — Discourse site root
+    discourse   — _RateLimitedDiscourse instance
+    output_dir  — directory to write <series>.ics files into
+    tag_groups  — {filename: tag_slug} mapping; defaults to DEFAULT_TAG_GROUPS
+    from_date   — inclusive start date filter (default: Jan 1 of current year)
+    to_date     — inclusive end date filter (default: Dec 31 of next year)
+    log         — logger
     """
-    import logging
     if log is None:
-        log = logging.getLogger(__name__)
-
+        log = _logging.getLogger(__name__)
     if tag_groups is None:
         tag_groups = DEFAULT_TAG_GROUPS
 
     lock = InterProcessLock("/tmp/discourse-calendar-filter.lock")
     lock.acquire()
+    try:
+        events = _fetch_events(discourse, from_date, to_date, log)
 
-    master_feed_url = f"{base_url}/discourse-post-event/events.ics"
-    cache = {} if force_refresh else load_cache(cache_file)
+        output_cals = {}
+        for filename in tag_groups:
+            cal = Calendar()
+            cal.add('PRODID', '-//FSRC Calendar//EN')
+            cal.add('VERSION', '2.0')
+            output_cals[filename] = cal
 
-    log.debug("Fetching master feed: %s", master_feed_url)
-    resp = requests.get(master_feed_url, timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
-    master_cal = Calendar.from_ical(resp.content)
+        matched = 0
+        unmatched = 0
+        for event in events:
+            topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
+            hit = False
+            location = None
+            for filename, required_tag in tag_groups.items():
+                if required_tag in topic_tags:
+                    if not hit:
+                        # fetch location once per event, only when it matches something
+                        location = _fetch_location(discourse, event['post']['id'], log)
+                    output_cals[filename].add_component(_build_vevent(event, base_url, location=location))
+                    hit = True
+            if hit:
+                matched += 1
+            else:
+                unmatched += 1
 
-    output_cals = {}
-    for filename in tag_groups:
-        cal = Calendar()
-        for key, value in master_cal.items():
-            if key != "VEVENT":
-                cal.add(key, value)
-        output_cals[filename] = cal
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for filename, cal in output_cals.items():
+            out_path = output_dir / filename
+            out_path.write_bytes(cal.to_ical())
+            log.debug("Wrote %s (%d events)", out_path, len(cal.subcomponents))
 
-    matched = 0
-    unmatched = 0
-
-    for component in master_cal.walk("VEVENT"):
-        topic_id = extract_topic_id(component)
-        if topic_id is None:
-            unmatched += 1
-            continue
-
-        topic_tags = set(get_topic_tags(topic_id, cache, discourse, cache_ttl, log))
-        if not topic_tags:
-            unmatched += 1
-            continue
-
-        hit = False
-        for filename, required_tag in tag_groups.items():
-            if required_tag in topic_tags:
-                output_cals[filename].add_component(component)
-                hit = True
-        if hit:
-            matched += 1
-        else:
-            unmatched += 1
-
-    save_cache(cache, cache_file)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for filename, cal in output_cals.items():
-        out_path = output_dir / filename
-        out_path.write_bytes(cal.to_ical())
-        log.debug("Wrote %s (%d events)", out_path, len(cal.subcomponents))
-
-    lock.release()
-    log.debug(
-        "Done. %d events matched a tag group, %d skipped (no topic/tag match).",
-        matched, unmatched,
-    )
+        log.debug("Done. %d events matched a tag group, %d skipped.", matched, unmatched)
+    finally:
+        lock.release()

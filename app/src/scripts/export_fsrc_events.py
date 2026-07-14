@@ -177,6 +177,7 @@ def main():
             "end_date": ev.get("end_date", ""),
             "all_day": ev.get("all_day", False),
             "url": ev.get("url", ""),
+            "website": ev.get("website", "") or "",
             "venue": venue,
             "image_url": image_url,
             "categories_raw": "; ".join(cat_names),
@@ -188,7 +189,7 @@ def main():
 
     fieldnames = [
         "id", "title", "start_date", "end_date", "all_day",
-        "url", "venue", "image_url", "categories_raw", "tags", "description",
+        "url", "website", "venue", "image_url", "categories_raw", "tags", "description",
     ]
     with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

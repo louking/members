@@ -4,23 +4,40 @@ community_calendar_views - on-demand per-series ICS calendar feeds
 
 # standard
 import time
+from datetime import date
 from io import BytesIO
 
 # pypi
-from flask import current_app, g, abort, send_file
+from flask import current_app, g, abort, request, send_file
 
 # homegrown
 from . import bp
 from members.community import make_discourse_client
 from members.community_calendar import get_tag_groups, filter_one_to_bytes
 
-# In-memory caches, per worker process.
-# _tag_cache: topic_id_str -> {"tags": [...], "fetched_at": float}
-# _ics_cache: (interest, series) -> (fetched_at, ics_bytes)
-_tag_cache: dict = {}
+# Compiled ICS bytes cached per (interest, series, from_date, to_date), per worker process.
 _ics_cache: dict = {}
 
 ICS_CACHE_TTL = 15 * 60  # rebuild at most once per 15 minutes per series
+
+
+def _parse_date_params() -> tuple[date | None, date | None]:
+    """Parse ?year=YYYY or ?from=YYYY-MM-DD&to=YYYY-MM-DD query params."""
+    year_str = request.args.get('year')
+    if year_str:
+        try:
+            year = int(year_str)
+            return date(year, 1, 1), date(year, 12, 31)
+        except (ValueError, TypeError):
+            abort(400)
+    from_str = request.args.get('from')
+    to_str = request.args.get('to')
+    try:
+        from_date = date.fromisoformat(from_str) if from_str else None
+        to_date = date.fromisoformat(to_str) if to_str else None
+    except ValueError:
+        abort(400)
+    return from_date, to_date
 
 
 @bp.route('/<interest>/calendars/<series>.ics')
@@ -34,7 +51,8 @@ def calendar_feed(series):
     if filename not in tag_groups:
         abort(404)
 
-    cache_key = (interest, series)
+    from_date, to_date = _parse_date_params()
+    cache_key = (interest, series, from_date, to_date)
     cached = _ics_cache.get(cache_key)
     if cached and (time.time() - cached[0]) < ICS_CACHE_TTL:
         return _ics_response(cached[1], filename)
@@ -47,8 +65,8 @@ def calendar_feed(series):
         discourse=discourse,
         series_filename=filename,
         tag_groups=tag_groups,
-        tag_cache=_tag_cache,
-        cache_ttl=3600,
+        from_date=from_date,
+        to_date=to_date,
         log=current_app.logger,
     )
     _ics_cache[cache_key] = (time.time(), ics_bytes)
