@@ -13,7 +13,6 @@ from click import argument, group, option
 from scripts import catch_errors, ParameterError
 from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager, make_discourse_client
 from members.community_taxonomy import fetch_all, build_docx
-from members.community_calendar import filter_calendar, get_tag_groups
 from members.community_events import import_events as _import_events
 
 # needs to be before any commands
@@ -74,56 +73,6 @@ def synctag(interest, tagname, communitygroupname, skipemail, debug, debugreques
     """
     grpmgr = DbTagCommunitySyncManager(interest, tagname, communitygroupname, skipemail)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
-
-
-@community.command('filter-calendar')
-@argument('interest')
-@option('--output-dir', default='/var/www/calendars', show_default=True,
-        help='Directory to write per-series .ics files into')
-@option('--year', default=None, type=int,
-        help='Restrict to a single calendar year (e.g. 2026)')
-@option('--from-date', default=None,
-        help='Start date filter YYYY-MM-DD (default: Jan 1 of current year)')
-@option('--to-date', default=None,
-        help='End date filter YYYY-MM-DD (default: Dec 31 of next year)')
-@option('--debug', is_flag=True, help='Enable debug logging')
-@with_appcontext
-@catch_errors
-def filter_calendar_cmd(interest, output_dir, year, from_date, to_date, debug):
-    """
-    Fetch Discourse events and write per-series .ics files for interest [interest].
-
-    Uses the /discourse-post-event/events JSON API so topic tags are available
-    inline without per-topic lookups.  Writes one .ics file per configured tag
-    group into OUTPUT_DIR.
-    """
-    from datetime import date
-    from pathlib import Path
-
-    if debug:
-        import logging
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    if year:
-        from_date_obj = date(year, 1, 1)
-        to_date_obj = date(year, 12, 31)
-    else:
-        from_date_obj = date.fromisoformat(from_date) if from_date else None
-        to_date_obj = date.fromisoformat(to_date) if to_date else None
-
-    uinterest = interest.upper()
-    base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
-    discourse = make_discourse_client(interest)
-
-    filter_calendar(
-        base_url=base_url,
-        discourse=discourse,
-        output_dir=Path(output_dir),
-        tag_groups=get_tag_groups(current_app.config.get(f'CALENDAR_TAG_GROUPS_{uinterest}')),
-        from_date=from_date_obj,
-        to_date=to_date_obj,
-        log=current_app.logger,
-    )
 
 
 @community.command('export-taxonomy')
