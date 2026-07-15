@@ -80,16 +80,14 @@ Four Click command groups, run as `flask <group> <command>`:
 - `flask members ...`
 - `flask membership ...` (MailChimp sync, etc.)
 - `flask task ...`
-- `flask community ...` (Discourse group sync, taxonomy export, calendar feeds)
+- `flask community ...` (Discourse group sync, taxonomy export, event import)
   - `syncrace INTEREST RACEID GROUP` — sync group from RunSignUp race participants
   - `syncclub INTEREST CLUBID GROUP` — sync group from RunSignUp club members
   - `synctag INTEREST TAG GROUP` — sync group from internal position tag
   - `export-taxonomy INTEREST [--output FILE] [--json]` — export forum taxonomy/config to .docx (logic in `members/community_taxonomy.py`)
-  - `filter-calendar INTEREST [--output-dir DIR] [--cache-file FILE] [--cache-ttl SECS] [--force-refresh]` — CLI command for manual/one-off runs; splits the global Discourse events.ics into per-series .ics files on disk; logic in `members/community_calendar.py`
   - `import-events INTEREST --category-id INT [--csv-file FILE] [--state-file FILE] [--dry-run]` — create one Discourse topic per row from a CSV exported by `app/src/scripts/export_fsrc_events.py`; idempotent (state tracked in `fsrc_import_state.json`); topics include discourse-calendar `[event]` BBCode so they appear in the ICS feed; logic in `members/community_events.py`
 
-**Calendar web route**: feeds are served on-demand at `/<interest>/calendars/<series>.ics` by the Flask app (`views/frontend/community_calendar_views.py`), not as Nginx static files and not via cron. The `<interest>` URL segment is handled by the standard `pull_interest` preprocessor. Uses the `/discourse-post-event/events` JSON API (not the ICS feed) so topic tags are available inline — no per-topic API calls needed. Compiled ICS bytes are cached per `(interest, series, from_date, to_date)` tuple (15-minute TTL). Config key in `members.cfg`:
-- `CALENDAR_TAG_GROUPS_<INTEREST>: {"grand-prix.ics": "grand-prix", ...}` — Python dict literal mapping output filename to Discourse tag slug (loutilities configparser `eval()`s values, so this arrives as a real dict); falls back to the hardcoded `DEFAULT_TAG_GROUPS` in `community_calendar.py` if absent
+**Calendar web route**: a single on-demand feed is served at `/<interest>/calendars/events.ics` by the Flask app (`views/frontend/community_calendar_views.py`), not as Nginx static files and not via cron. The `<interest>` URL segment is handled by the standard `pull_interest` preprocessor. Uses the `/discourse-post-event/events` JSON API (not the ICS feed) so topic tags are available inline — no per-topic API calls needed. Query params: `tags=<tag>[,<tag>...]` (optional; event included if it carries any one of the listed tags — union/OR; omitted means all events, unfiltered), `year=YYYY`, or `from=YYYY-MM-DD` (also accepts the literal `today`) / `to=YYYY-MM-DD`. If `to` is omitted, the window is open-ended (all future events) rather than capped. Compiled ICS bytes are cached per `(interest, tags, from_date, to_date)` tuple (15-minute TTL). Filtering is by raw Discourse tag slug passed directly via `tags=` — there is no config-driven series-name mapping (the old `CALENDAR_TAG_GROUPS_<INTEREST>` config key and the disk-writing `filter-calendar` CLI command were removed as dead code once this on-demand route existed; nothing else in the repo referenced them — no cron entry, no Nginx static-file serving).
 
 ## Tests
 
@@ -129,6 +127,7 @@ current_app.config[f'DISCOURSE_API_URL_{uinterest}']                    # base U
 current_app.config[f'DISCOURSE_API_KEY_{uinterest}']                    # API key
 current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}']        # API username for group invites/sync (must be an admin account)
 current_app.config.get(f'DISCOURSE_API_EVENT_USERNAME_{uinterest}')     # optional: username for creating event topics (falls back to INVITE_USERNAME)
+current_app.config.get(f'DISCOURSE_API_CALENDAR_USERNAME_{uinterest}')  # optional: username for reading the calendar feed, e.g. a low-privilege account for a public-equivalent view (falls back to INVITE_USERNAME)
 current_app.config.get(f'DISCOURSE_API_CATEGORY_GROUPS_QUERY_{uinterest}')  # optional: Data Explorer query ID for category group permissions
 ```
 
@@ -136,9 +135,9 @@ The Discourse API key is configured as **"All Users"** scope in the Discourse ad
 
 ## Community Module Patterns
 
-**Rate-limited Discourse client**: All Discourse API calls must go through the rate-limited fluent_discourse client — never a raw `requests.Session`. Use `make_discourse_client(interest)` from `members/community.py`; it returns a `_RateLimitedDiscourse`-wrapped client configured from the standard `DISCOURSE_API_*` config keys at 55 calls / 60 s. Use plain `requests.get()` only for non-JSON endpoints (e.g. downloading the `.ics` feed itself). Pass `username=` to override `DISCOURSE_API_INVITE_USERNAME_{INTEREST}` when you need topics/posts authored by a different account — use the `DISCOURSE_API_EVENT_USERNAME_{INTEREST}` config key as the standard way to configure a dedicated event-posting account; the same API key is used, so the override account does not need its own key.
+**Rate-limited Discourse client**: All Discourse API calls must go through the rate-limited fluent_discourse client — never a raw `requests.Session`. Use `make_discourse_client(interest)` from `members/community.py`; it returns a `_RateLimitedDiscourse`-wrapped client configured from the standard `DISCOURSE_API_*` config keys at 55 calls / 60 s. Pass `username=` to override `DISCOURSE_API_INVITE_USERNAME_{INTEREST}` when you need topics/posts (or reads) done as a different account — use `DISCOURSE_API_EVENT_USERNAME_{INTEREST}` for a dedicated event-posting account and `DISCOURSE_API_CALENDAR_USERNAME_{INTEREST}` for the calendar feed's read account; the same API key is used for all of these, so override accounts don't need their own key. There is no anonymous/unauthenticated mode in this client — `Api-Key`/`Api-Username` headers are always sent, so a "public" view means authenticating as a real, low-privilege Discourse account (member of no restricted groups) rather than the admin `INVITE_USERNAME`, not a true unauthenticated request.
 
-**Process lock**: Community commands that should not run concurrently (e.g. group sync, calendar filter) acquire a `fasteners.InterProcessLock` at the start and release it on completion, preventing cron overlap.
+**Process lock**: Community commands that should not run concurrently (e.g. group sync) acquire a `fasteners.InterProcessLock` at the start and release it on completion, preventing cron overlap.
 
 ## fluent_discourse API Note
 

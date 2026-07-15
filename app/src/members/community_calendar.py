@@ -7,41 +7,16 @@ required.  Tags appear in event['post']['topic']['tags'] as a list of strings.
 """
 
 # standard
-import json
 import logging as _logging
 import re
 from datetime import date, datetime, time
-from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 # pypi
-from fasteners import InterProcessLock
 from icalendar import Calendar, Event
 
 _EVENT_LOCATION_RE = re.compile(r'\[event\b[^\]]*\blocation="([^"]*)"', re.IGNORECASE)
-
-DEFAULT_TAG_GROUPS = {
-    "grand-prix.ics": "grand-prix",
-    "equalizer.ics": "equalizer",
-    "decathlon.ics": "decathlon",
-}
-
-
-def get_tag_groups(config_value=None) -> dict:
-    """Return tag groups dict from config, or DEFAULT_TAG_GROUPS if absent.
-
-    config_value may be a dict (loutilities configparser eval()s values automatically)
-    or a string (JSON) for callers that pass a raw value.
-
-    Expected members.cfg format:
-        CALENDAR_TAG_GROUPS: {"grand-prix.ics": "grand-prix", "equalizer.ics": "equalizer"}
-    """
-    if not config_value:
-        return DEFAULT_TAG_GROUPS
-    if isinstance(config_value, dict):
-        return config_value
-    return json.loads(config_value)
 
 
 def _tag_names(tags: list) -> set[str]:
@@ -136,30 +111,31 @@ def _fetch_events(discourse, from_date: date | None, to_date: date | None, log) 
     return events
 
 
-def filter_one_to_bytes(base_url: str, discourse, series_filename: str,
-                        tag_groups: dict | None = None,
-                        from_date: date | None = None,
-                        to_date: date | None = None,
-                        log=None) -> bytes:
+def filter_tags_to_bytes(base_url: str, discourse, tags: list[str] | None = None,
+                         from_date: date | None = None,
+                         to_date: date | None = None,
+                         log=None) -> bytes:
     """
-    Fetch Discourse events via JSON API and return ICS bytes for one tag series.
+    Fetch Discourse events via JSON API and return ICS bytes for a set of tags.
 
     Intended for the web route (on-demand).  No file I/O or disk cache — the
     caller owns any caching layer (e.g. _ics_cache in community_calendar_views).
 
-    base_url        — Discourse site root
-    discourse       — _RateLimitedDiscourse instance
-    series_filename — key in tag_groups, e.g. "grand-prix.ics"
-    tag_groups      — {filename: tag_slug} mapping; defaults to DEFAULT_TAG_GROUPS
-    from_date       — inclusive start date filter (default: Jan 1 of current year)
-    to_date         — inclusive end date filter (default: Dec 31 of next year)
-    log             — logger
+    base_url   — Discourse site root
+    discourse  — _RateLimitedDiscourse instance
+    tags       — event is included if it carries any one of these tags (union);
+                 None or empty means include all events, unfiltered
+    from_date  — inclusive start date filter (default: Jan 1 of current year)
+    to_date    — inclusive end date filter (default: open-ended / far future,
+                 i.e. all future events)
+    log        — logger
     """
     if log is None:
         log = _logging.getLogger(__name__)
-    if tag_groups is None:
-        tag_groups = DEFAULT_TAG_GROUPS
-    required_tag = tag_groups[series_filename]
+    today = date.today()
+    from_date = from_date or date(today.year, 1, 1)
+    to_date = to_date or date(today.year + 10, 12, 31)
+    required_tags = set(tags) if tags else None
 
     events = _fetch_events(discourse, from_date, to_date, log)
 
@@ -169,75 +145,14 @@ def filter_one_to_bytes(base_url: str, discourse, series_filename: str,
 
     count = 0
     for event in events:
-        topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
-        if required_tag not in topic_tags:
-            continue
+        if required_tags is not None:
+            topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
+            if not (required_tags & topic_tags):
+                continue
         post_id = event['post']['id']
         location = _fetch_location(discourse, post_id, log)
         cal.add_component(_build_vevent(event, base_url, location=location))
         count += 1
 
-    log.debug("Built %s (%d events)", series_filename, count)
+    log.debug("Built events.ics (%d events, tags=%s)", count, sorted(required_tags) if required_tags else 'all')
     return cal.to_ical()
-
-
-def filter_calendar(base_url: str, discourse, output_dir: Path,
-                    tag_groups: dict | None = None,
-                    from_date: date | None = None,
-                    to_date: date | None = None,
-                    log=None) -> None:
-    """
-    Fetch Discourse events via JSON API, split by tag, write per-series .ics files.
-
-    base_url    — Discourse site root
-    discourse   — _RateLimitedDiscourse instance
-    output_dir  — directory to write <series>.ics files into
-    tag_groups  — {filename: tag_slug} mapping; defaults to DEFAULT_TAG_GROUPS
-    from_date   — inclusive start date filter (default: Jan 1 of current year)
-    to_date     — inclusive end date filter (default: Dec 31 of next year)
-    log         — logger
-    """
-    if log is None:
-        log = _logging.getLogger(__name__)
-    if tag_groups is None:
-        tag_groups = DEFAULT_TAG_GROUPS
-
-    lock = InterProcessLock("/tmp/discourse-calendar-filter.lock")
-    lock.acquire()
-    try:
-        events = _fetch_events(discourse, from_date, to_date, log)
-
-        output_cals = {}
-        for filename in tag_groups:
-            cal = Calendar()
-            cal.add('PRODID', '-//FSRC Calendar//EN')
-            cal.add('VERSION', '2.0')
-            output_cals[filename] = cal
-
-        matched = 0
-        unmatched = 0
-        for event in events:
-            topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
-            hit = False
-            location = None
-            for filename, required_tag in tag_groups.items():
-                if required_tag in topic_tags:
-                    if not hit:
-                        # fetch location once per event, only when it matches something
-                        location = _fetch_location(discourse, event['post']['id'], log)
-                    output_cals[filename].add_component(_build_vevent(event, base_url, location=location))
-                    hit = True
-            if hit:
-                matched += 1
-            else:
-                unmatched += 1
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-        for filename, cal in output_cals.items():
-            out_path = output_dir / filename
-            out_path.write_bytes(cal.to_ical())
-            log.debug("Wrote %s (%d events)", out_path, len(cal.subcomponents))
-
-        log.debug("Done. %d events matched a tag group, %d skipped.", matched, unmatched)
-    finally:
-        lock.release()
