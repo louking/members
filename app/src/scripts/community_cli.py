@@ -119,7 +119,8 @@ def export_taxonomy(interest, output, save_json):
 @option('--state-file', default='fsrc_import_state.json', show_default=True,
         help='JSON file tracking imported event IDs for idempotency')
 @option('--post-as', default=None,
-        help='Discourse username to author topics as (overrides DISCOURSE_API_INVITE_USERNAME)')
+        help='Discourse username to author topics as (overrides DISCOURSE_API_EVENT_USERNAME, '
+             'which falls back to DISCOURSE_API_INVITE_USERNAME if unset)')
 @option('--dry-run', is_flag=True, help='Print what would be posted without posting')
 @option('--debug', is_flag=True, help='Enable debug logging')
 @with_appcontext
