@@ -1128,6 +1128,24 @@ class AwardsAwardee(Base):
                          )
 
 
+class DiscourseReviewNotice(Base):
+    '''
+    tracks Discourse review-queue items already notified on, so
+    community_review.check_pending_reviews() doesn't re-notify moderators on every
+    run for the same item, but does re-notify (escalate) if still pending later
+    '''
+    __tablename__ = 'discoursereviewnotice'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('discoursereviewnotices'))
+    category_id         = Column(Integer, nullable=False)
+    reviewable_id       = Column(Integer, nullable=False)
+    first_notified_at   = Column(DateTime, nullable=False)
+    last_notified_at    = Column(DateTime, nullable=False)
+
+    __table_args__ = (UniqueConstraint('interest_id', 'reviewable_id', name='uq_discoursereviewnotice_interest_reviewable'),)
+
+
 # supporting functions
 def update_local_tables():
     '''

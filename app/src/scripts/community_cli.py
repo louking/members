@@ -14,6 +14,7 @@ from scripts import catch_errors, ParameterError
 from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager, make_discourse_client
 from members.community_taxonomy import fetch_all, build_docx
 from members.community_events import import_events as _import_events
+from members.community_review import check_pending_reviews
 
 # needs to be before any commands
 @group()
@@ -150,4 +151,47 @@ def import_events(interest, csv_file, category_id, state_file, post_as, dry_run,
         dry_run=dry_run,
         log=current_app.logger,
     )
+
+
+@community.command('notify-pending-reviews')
+@argument('interest')
+@option('--category-slug', 'category_slugs', required=True, multiple=True,
+        help='Discourse category slug to poll for pending review items (repeatable)')
+@option('--pending-hours', default=2.0, show_default=True, type=float,
+        help='minimum age (hours) of a pending item before the first notice is sent')
+@option('--escalation-hours', default=24.0, show_default=True, type=float,
+        help='hours after the last notice to re-notify if still pending')
+@option('--post-as', default=None,
+        help='Discourse username to send the PM as (overrides DISCOURSE_API_REVIEW_USERNAME, '
+             'which falls back to DISCOURSE_API_INVITE_USERNAME if unset)')
+@option('--dry-run', is_flag=True, help='Report what would be sent without sending or recording state')
+@option('--debug', is_flag=True, help='Print a summary even when there is nothing to report')
+@with_appcontext
+@catch_errors
+def notify_pending_reviews(interest, category_slugs, pending_hours, escalation_hours, post_as, dry_run, debug):
+    """
+    Notify each category's moderator group(s) about pending Discourse review-queue
+    items within interest [interest]. Intended to run frequently via cron; prints
+    nothing unless something was notified, escalated, resolved, or errored (or
+    --debug is set), so routine runs don't generate cron mail.
+    """
+    uinterest = interest.upper()
+    base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
+    username = post_as or current_app.config.get(f'DISCOURSE_API_REVIEW_USERNAME_{uinterest}')
+    discourse = make_discourse_client(interest, username=username)
+
+    counts = check_pending_reviews(
+        interest=interest,
+        discourse=discourse,
+        category_slugs=list(category_slugs),
+        base_url=base_url,
+        pending_hours=pending_hours,
+        escalation_hours=escalation_hours,
+        dry_run=dry_run,
+        log=current_app.logger,
+    )
+
+    if debug or any(counts[k] for k in ('notified', 'escalated', 'resolved', 'errors')):
+        print(f"checked={counts['checked']} notified={counts['notified']} "
+              f"escalated={counts['escalated']} resolved={counts['resolved']} errors={counts['errors']}")
 
