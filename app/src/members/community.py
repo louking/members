@@ -12,6 +12,12 @@ from fluent_discourse import Discourse, DiscourseError
 from fasteners import InterProcessLock
 from datetime import date
 
+# shared across all community commands that hit the Discourse API, so concurrent
+# commands (not just concurrent runs of the *same* command) can't together exceed
+# Discourse's real server-side rate limit, which each process's own in-memory
+# _RateLimiter has no way to coordinate against
+COMMUNITY_LOCKFILE = '/tmp/communitygroupmanager.lock'
+
 class _RateLimiter:
     """Sliding-window rate limiter. Blocks in acquire() when the call budget is exhausted."""
     def __init__(self, max_calls, window_secs):
@@ -268,8 +274,7 @@ class CommunitySyncManager(SyncManager):
 
         """
         # interprocess lock to prevent multiple imports at once
-        lockfile = f'/tmp/communitygroupmanager.lock'
-        self.lock = InterProcessLock(lockfile)
+        self.lock = InterProcessLock(COMMUNITY_LOCKFILE)
         self.lock.acquire()
         
         # sets to track users to add/remove

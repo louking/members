@@ -13,8 +13,10 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 
+from fasteners import InterProcessLock
 from flask import g
 
+from .community import COMMUNITY_LOCKFILE
 from .community_taxonomy import fetch_categories, fetch_groups
 from .model import db, DiscourseReviewNotice, localinterest_query_params
 
@@ -154,95 +156,102 @@ def check_pending_reviews(interest: str, discourse, category_slugs: list[str], b
     if log is None:
         log = logging.getLogger(__name__)
 
-    g.interest = interest
-    localinterest = localinterest_query_params()['interest']
+    # interprocess lock so an overlapping community command can't share Discourse's
+    # real rate limit with this one (each process has its own in-memory
+    # _RateLimiter, with no cross-process coordination) — same lockfile as
+    # CommunitySyncManager.start_import() in community.py, deliberately, since
+    # it's the same underlying Discourse-side rate limit being protected
+    # regardless of which community command is running
+    with InterProcessLock(COMMUNITY_LOCKFILE):
+        g.interest = interest
+        localinterest = localinterest_query_params()['interest']
 
-    counts = {'checked': 0, 'notified': 0, 'escalated': 0, 'resolved': 0, 'errors': 0}
-    now = datetime.now(timezone.utc)
-    pending_delta = timedelta(hours=pending_hours)
-    escalation_delta = timedelta(hours=escalation_hours)
+        counts = {'checked': 0, 'notified': 0, 'escalated': 0, 'resolved': 0, 'errors': 0}
+        now = datetime.now(timezone.utc)
+        pending_delta = timedelta(hours=pending_hours)
+        escalation_delta = timedelta(hours=escalation_hours)
 
-    categories = fetch_categories(discourse)
-    group_id_to_name = {grp['id']: grp['name'] for grp in fetch_groups(discourse)}
+        categories = fetch_categories(discourse)
+        group_id_to_name = {grp['id']: grp['name'] for grp in fetch_groups(discourse)}
 
-    for slug in category_slugs:
-        category = _resolve_category(categories, slug)
-        if not category:
-            log.warning('check_pending_reviews(): category slug %r not found', slug)
-            counts['errors'] += 1
-            continue
-
-        category_id = category['id']
-        group_names = fetch_category_moderator_groups(discourse, category_id, group_id_to_name)
-        if not group_names:
-            log.warning('check_pending_reviews(): category %r (id=%s) has no moderator group configured', slug, category_id)
-            counts['errors'] += 1
-            continue
-
-        try:
-            reviewables = fetch_pending_reviewables(discourse, category_id, log=log)
-        except Exception as exc:
-            log.error('check_pending_reviews(): error fetching reviewables for category %r: %s', slug, exc)
-            counts['errors'] += 1
-            continue
-
-        counts['checked'] += len(reviewables)
-        pending_ids = {item['id'] for item in reviewables}
-
-        existing = {
-            row.reviewable_id: row for row in
-            DiscourseReviewNotice.query.filter_by(interest=localinterest, category_id=category_id).all()
-        }
-
-        to_notify = []
-        to_escalate = []
-        for item in reviewables:
-            age = now - _parse_dt(item['created_at'])
-            if age < pending_delta:
+        for slug in category_slugs:
+            category = _resolve_category(categories, slug)
+            if not category:
+                log.warning('check_pending_reviews(): category slug %r not found', slug)
+                counts['errors'] += 1
                 continue
-            row = existing.get(item['id'])
-            if row is None:
-                to_notify.append(item)
-            elif now - row.last_notified_at.replace(tzinfo=timezone.utc) >= escalation_delta:
-                to_escalate.append((item, row))
 
-        if to_notify or to_escalate:
-            body_items = to_notify + [item for item, _ in to_escalate]
-            subject = f"Pending review items in {category['name']}"
-            body = _build_notice_body(base_url, category['name'], body_items, escalated=not to_notify)
-            log.info('check_pending_reviews(): category %r: notifying %s (%d new, %d escalated)',
-                      slug, group_names, len(to_notify), len(to_escalate))
-            if dry_run:
-                print(f"  [DRY RUN] would notify {group_names}: {len(to_notify)} new, {len(to_escalate)} escalated")
-            else:
-                try:
-                    notify_fn(discourse, group_names, subject, body)
-                except Exception as exc:
-                    log.error('check_pending_reviews(): error sending notification for category %r: %s', slug, exc)
-                    counts['errors'] += 1
+            category_id = category['id']
+            group_names = fetch_category_moderator_groups(discourse, category_id, group_id_to_name)
+            if not group_names:
+                log.warning('check_pending_reviews(): category %r (id=%s) has no moderator group configured', slug, category_id)
+                counts['errors'] += 1
+                continue
+
+            try:
+                reviewables = fetch_pending_reviewables(discourse, category_id, log=log)
+            except Exception as exc:
+                log.error('check_pending_reviews(): error fetching reviewables for category %r: %s', slug, exc)
+                counts['errors'] += 1
+                continue
+
+            counts['checked'] += len(reviewables)
+            pending_ids = {item['id'] for item in reviewables}
+
+            existing = {
+                row.reviewable_id: row for row in
+                DiscourseReviewNotice.query.filter_by(interest=localinterest, category_id=category_id).all()
+            }
+
+            to_notify = []
+            to_escalate = []
+            for item in reviewables:
+                age = now - _parse_dt(item['created_at'])
+                if age < pending_delta:
                     continue
+                row = existing.get(item['id'])
+                if row is None:
+                    to_notify.append(item)
+                elif now - row.last_notified_at.replace(tzinfo=timezone.utc) >= escalation_delta:
+                    to_escalate.append((item, row))
 
-                stored_now = now.replace(tzinfo=None)
-                for item in to_notify:
-                    db.session.add(DiscourseReviewNotice(
-                        interest=localinterest, category_id=category_id, reviewable_id=item['id'],
-                        first_notified_at=stored_now, last_notified_at=stored_now,
-                    ))
-                for item, row in to_escalate:
-                    row.last_notified_at = stored_now
+            if to_notify or to_escalate:
+                body_items = to_notify + [item for item, _ in to_escalate]
+                subject = f"Pending review items in {category['name']}"
+                body = _build_notice_body(base_url, category['name'], body_items, escalated=not to_notify)
+                log.info('check_pending_reviews(): category %r: notifying %s (%d new, %d escalated)',
+                          slug, group_names, len(to_notify), len(to_escalate))
+                if dry_run:
+                    print(f"  [DRY RUN] would notify {group_names}: {len(to_notify)} new, {len(to_escalate)} escalated")
+                else:
+                    try:
+                        notify_fn(discourse, group_names, subject, body)
+                    except Exception as exc:
+                        log.error('check_pending_reviews(): error sending notification for category %r: %s', slug, exc)
+                        counts['errors'] += 1
+                        continue
 
-            counts['notified'] += len(to_notify)
-            counts['escalated'] += len(to_escalate)
+                    stored_now = now.replace(tzinfo=None)
+                    for item in to_notify:
+                        db.session.add(DiscourseReviewNotice(
+                            interest=localinterest, category_id=category_id, reviewable_id=item['id'],
+                            first_notified_at=stored_now, last_notified_at=stored_now,
+                        ))
+                    for item, row in to_escalate:
+                        row.last_notified_at = stored_now
 
-        # clean up items that are no longer pending (approved/rejected elsewhere)
-        for reviewable_id, row in existing.items():
-            if reviewable_id not in pending_ids:
-                log.info('check_pending_reviews(): review #%s in category %r resolved', reviewable_id, slug)
-                if not dry_run:
-                    db.session.delete(row)
-                counts['resolved'] += 1
+                counts['notified'] += len(to_notify)
+                counts['escalated'] += len(to_escalate)
 
-    if not dry_run:
-        db.session.commit()
+            # clean up items that are no longer pending (approved/rejected elsewhere)
+            for reviewable_id, row in existing.items():
+                if reviewable_id not in pending_ids:
+                    log.info('check_pending_reviews(): review #%s in category %r resolved', reviewable_id, slug)
+                    if not dry_run:
+                        db.session.delete(row)
+                    counts['resolved'] += 1
 
-    return counts
+        if not dry_run:
+            db.session.commit()
+
+        return counts
