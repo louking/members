@@ -2,8 +2,9 @@
 """
 
 # stdlib
+import json
 import time
-from collections import deque
+from pathlib import Path
 
 # pypi
 from flask import current_app, g
@@ -18,29 +19,54 @@ from datetime import date
 # _RateLimiter has no way to coordinate against
 COMMUNITY_LOCKFILE = '/tmp/communitygroupmanager.lock'
 
+# _RateLimiter's shared state: a JSON list of recent call timestamps, plus its
+# own dedicated lock (a short per-call critical section, unlike COMMUNITY_LOCKFILE
+# which some but not all community commands hold for their whole duration)
+_RATE_LIMIT_STATE_FILE = Path('/tmp/discourse_ratelimit_state.json')
+_RATE_LIMIT_STATE_LOCKFILE = '/tmp/discourse_ratelimit_state.lock'
+
+
 class _RateLimiter:
-    """Sliding-window rate limiter. Blocks in acquire() when the call budget is exhausted."""
+    """Sliding-window rate limiter shared across processes via a small state file.
+
+    A purely in-memory, per-process limiter (the original implementation) only
+    protects a single process from exceeding the budget within its own lifetime.
+    It can't stop two sequential-but-close processes from together exceeding
+    Discourse's real server-side limit -- e.g. command B starting right after
+    command A releases COMMUNITY_LOCKFILE gets a fresh, empty in-memory limiter
+    with no memory of A's calls from moments earlier, bursts ahead assuming a
+    full budget, and hits Discourse's real 429 (observed live: fluent_discourse's
+    own "Discourse rate limit hit, trying again in N seconds" retry, which is
+    the real server-side limit being hit, not this class). Uses time.time()
+    (wall clock), not time.monotonic(), since timestamps must be comparable
+    across separate process invocations.
+    """
     def __init__(self, max_calls, window_secs):
         self.max_calls = max_calls
         self.window_secs = window_secs
-        self._calls = deque()
+
+    def _read_calls(self) -> list[float]:
+        try:
+            return json.loads(_RATE_LIMIT_STATE_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
 
     def acquire(self):
-        now = time.monotonic()
-        while self._calls and now - self._calls[0] >= self.window_secs:
-            self._calls.popleft()
-        if len(self._calls) >= self.max_calls:
-            wait = self.window_secs - (now - self._calls[0])
-            if wait > 0:
-                current_app.logger.debug(
-                    f'_RateLimiter.acquire(): throttling {wait:.1f}s '
-                    f'({len(self._calls)}/{self.max_calls} calls in window)'
-                )
-                time.sleep(wait)
-                now = time.monotonic()
-                while self._calls and now - self._calls[0] >= self.window_secs:
-                    self._calls.popleft()
-        self._calls.append(time.monotonic())
+        with InterProcessLock(_RATE_LIMIT_STATE_LOCKFILE):
+            now = time.time()
+            calls = [t for t in self._read_calls() if now - t < self.window_secs]
+            if len(calls) >= self.max_calls:
+                wait = self.window_secs - (now - calls[0])
+                if wait > 0:
+                    current_app.logger.debug(
+                        f'_RateLimiter.acquire(): throttling {wait:.1f}s '
+                        f'({len(calls)}/{self.max_calls} calls in window, shared across processes)'
+                    )
+                    time.sleep(wait)
+                    now = time.time()
+                    calls = [t for t in calls if now - t < self.window_secs]
+            calls.append(now)
+            _RATE_LIMIT_STATE_FILE.write_text(json.dumps(calls))
 
 
 def make_discourse_client(interest: str, username: str | None = None) -> '_RateLimitedDiscourse':
