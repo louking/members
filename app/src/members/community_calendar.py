@@ -4,6 +4,11 @@ community_calendar - filter Discourse events by tag into per-series ICS feeds
 Uses the /discourse-post-event/events JSON API (not the ICS feed) so topic tags
 are available inline, eliminating the N+1 per-topic API calls the ICS approach
 required.  Tags appear in event['post']['topic']['tags'] as a list of strings.
+
+Event location is a separate N+1 risk: the events API doesn't return it (see
+the Discourse API Quirks note in CLAUDE.md), so it has to come from each post's
+raw content. fetch_event_locations() avoids per-post REST calls by resolving
+all of them in one (paged) Data Explorer query instead.
 """
 
 # standard
@@ -15,6 +20,9 @@ from zoneinfo import ZoneInfo
 
 # pypi
 from icalendar import Calendar, Event
+
+# homegrown
+from .community import run_query_paged
 
 _EVENT_LOCATION_RE = re.compile(r'\[event\b[^\]]*\blocation="([^"]*)"', re.IGNORECASE)
 
@@ -56,10 +64,13 @@ def _parse_event_datetime(dt_str: str, tz_name: str) -> datetime:
 
 
 def _fetch_location(discourse, post_id: int, log) -> str | None:
-    """Fetch a post's raw content and extract the [event location="..."] value.
+    """Fetch a single post's raw content and extract [event location="..."].
 
     Uses /posts/{id}.json rather than /t/{topic_id}.json because the raw field
-    is not reliably present in the topic endpoint response.
+    is not reliably present in the topic endpoint response. One REST call per
+    post -- only used as the fetch_event_locations() fallback when no Data
+    Explorer query is configured; otherwise this is exactly the N+1 pattern
+    fetch_event_locations() exists to avoid.
     """
     try:
         resp = discourse.posts._(post_id).json.get({})
@@ -69,6 +80,59 @@ def _fetch_location(discourse, post_id: int, log) -> str | None:
     except Exception as exc:
         log.warning("Failed to fetch location for post %s: %s", post_id, exc)
         return None
+
+
+def fetch_event_locations(discourse, post_ids: list[int], query_id: str | None, log) -> dict[int, str]:
+    """Resolve [event location="..."] for a set of post ids.
+
+    query_id -- id of a Discourse Data Explorer query returning (id, raw) for
+    posts.id IN :post_ids (an int_list param), paged via page_num/page_size
+    like the other Data Explorer queries in this codebase. When configured,
+    this replaces what would otherwise be one /posts/{id}.json REST call per
+    event with a single query (possibly a handful of pages for a very large
+    post_ids list). Falls back to the old per-post REST calls when query_id
+    is absent -- same optional-config/fallback tradeoff as the category-groups
+    Data Explorer query in community_taxonomy.py.
+    """
+    if not post_ids:
+        return {}
+    if not query_id:
+        locations = {}
+        for post_id in post_ids:
+            location = _fetch_location(discourse, post_id, log)
+            if location is not None:
+                locations[post_id] = location
+        return locations
+    # int_list must be sent as a comma-separated string, not a JSON array -- a
+    # native array's first element is silently dropped (see CLAUDE.md's Data
+    # Explorer int_list quirk note for how this was diagnosed)
+    columns, rows = run_query_paged(discourse, query_id, params={'post_ids': ','.join(str(pid) for pid in post_ids)})
+    locations = {}
+    returned_ids = set()
+    for row in rows:
+        record = dict(zip(columns, row))
+        returned_ids.add(record['id'])
+        m = _EVENT_LOCATION_RE.search(record.get('raw') or '')
+        if m:
+            locations[record['id']] = m.group(1)
+    missing_ids = set(post_ids) - returned_ids
+    if missing_ids:
+        # diagnostic for the 62-vs-63-rows discrepancy: which post id(s) the
+        # query didn't return a row for at all, vs. one it returned but with
+        # no [event location="..."] in its raw content (a normal, silent case
+        # handled below by the len(locations) < len(returned_ids) comparison)
+        log.warning(
+            "fetch_event_locations(): %d post id(s) requested but not returned by "
+            "Data Explorer query %s: %s",
+            len(missing_ids), query_id, sorted(missing_ids),
+        )
+    log.debug(
+        "fetch_event_locations(): resolved %d/%d post locations via Data Explorer query %s "
+        "(%d/%d posts returned, %d had no location in raw content)",
+        len(locations), len(post_ids), query_id,
+        len(returned_ids), len(post_ids), len(returned_ids) - len(locations),
+    )
+    return locations
 
 
 def _build_vevent(event: dict, base_url: str, location: str | None = None) -> Event:
@@ -114,6 +178,8 @@ def _fetch_events(discourse, from_date: date | None, to_date: date | None, log) 
 def filter_tags_to_bytes(base_url: str, discourse, tags: list[str] | None = None,
                          from_date: date | None = None,
                          to_date: date | None = None,
+                         location_query_id: str | None = None,
+                         admin_discourse=None,
                          log=None) -> bytes:
     """
     Fetch Discourse events via JSON API and return ICS bytes for a set of tags.
@@ -121,14 +187,25 @@ def filter_tags_to_bytes(base_url: str, discourse, tags: list[str] | None = None
     Intended for the web route (on-demand).  No file I/O or disk cache — the
     caller owns any caching layer (e.g. _ics_cache in community_calendar_views).
 
-    base_url   — Discourse site root
-    discourse  — _RateLimitedDiscourse instance
-    tags       — event is included if it carries any one of these tags (union);
-                 None or empty means include all events, unfiltered
-    from_date  — inclusive start date filter (default: Jan 1 of current year)
-    to_date    — inclusive end date filter (default: open-ended / far future,
-                 i.e. all future events)
-    log        — logger
+    base_url          — Discourse site root
+    discourse         — _RateLimitedDiscourse instance; typically authenticated
+                         as a low-privilege, "public"-equivalent account for
+                         reading events, not the admin account
+    tags              — event is included if it carries any one of these tags
+                         (union); None or empty means include all events, unfiltered
+    from_date         — inclusive start date filter (default: Jan 1 of current year)
+    to_date           — inclusive end date filter (default: open-ended / far
+                         future, i.e. all future events)
+    location_query_id — Data Explorer query id for fetch_event_locations(); None
+                         falls back to one REST call per matched event
+    admin_discourse    — admin-privileged _RateLimitedDiscourse instance, required
+                         when location_query_id is set: /admin/plugins/explorer/...
+                         is an admin-only endpoint, so it can't be run through
+                         discourse above if that's a deliberately low-privilege
+                         client (as it is for the calendar route). Ignored when
+                         location_query_id is None, since the REST fallback works
+                         fine with any authenticated account.
+    log               — logger
     """
     if log is None:
         log = _logging.getLogger(__name__)
@@ -139,18 +216,30 @@ def filter_tags_to_bytes(base_url: str, discourse, tags: list[str] | None = None
 
     events = _fetch_events(discourse, from_date, to_date, log)
 
+    if required_tags is not None:
+        matched_events = []
+        for event in events:
+            topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
+            if required_tags & topic_tags:
+                matched_events.append(event)
+    else:
+        matched_events = events
+
+    # dict.fromkeys dedupes while preserving order -- recurring discourse-calendar
+    # events can produce multiple event entries (one per occurrence) that all
+    # point at the same underlying post, so this list can have fewer distinct
+    # ids than there are matched_events
+    post_ids = list(dict.fromkeys(event['post']['id'] for event in matched_events))
+    location_discourse = admin_discourse if location_query_id and admin_discourse else discourse
+    locations = fetch_event_locations(location_discourse, post_ids, location_query_id, log)
+
     cal = Calendar()
     cal.add('PRODID', '-//FSRC Calendar//EN')
     cal.add('VERSION', '2.0')
 
     count = 0
-    for event in events:
-        if required_tags is not None:
-            topic_tags = _tag_names(event.get('post', {}).get('topic', {}).get('tags', []))
-            if not (required_tags & topic_tags):
-                continue
-        post_id = event['post']['id']
-        location = _fetch_location(discourse, post_id, log)
+    for event in matched_events:
+        location = locations.get(event['post']['id'])
         cal.add_component(_build_vevent(event, base_url, location=location))
         count += 1
 

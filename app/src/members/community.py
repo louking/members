@@ -129,6 +129,41 @@ from .sync import SyncManager
 from .helpers import get_tags_users
 from .model import Tag, localinterest_query_params
 
+
+def run_query_paged(discourse, query_id, params=None, page_size=1000):
+    """Run a Data Explorer query collecting all pages of results.
+
+    :param discourse: rate-limited fluent_discourse client
+    :param query_id: Discourse Data Explorer query id
+    :param params: extra query params (e.g. an int_list filter) merged into every
+                    page's request alongside page_num/page_size
+    :param page_size: rows per page; must match the :page_size SQL parameter default
+    :returns: (columns, rows) where rows is the combined list across all pages
+    """
+    # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
+    columns = []
+    rows = []
+    page = 0
+    base_params = dict(params or {})
+    while True:
+        query_params = {**base_params, 'page_num': str(page), 'page_size': str(page_size)}
+        resp = discourse.admin.plugins.explorer.queries._(query_id).run.post({'params': query_params})
+        result_count = resp.get('result_count', 0)
+        page_rows = resp.get('rows', [])
+        current_app.logger.debug(
+            f'run_query_paged(): query {query_id} page {page} '
+            f'result_count={result_count} rows={len(page_rows)}'
+        )
+        if result_count == 0 or not page_rows:
+            columns = resp.get('columns', columns)
+            break
+        columns = resp['columns']
+        rows.extend(page_rows)
+        if result_count < page_size:
+            break
+        page += 1
+    return columns, rows
+
 class RsuRaceSyncManager(SyncManager):
     """put participants into internal group from RunSignup
     
@@ -271,29 +306,7 @@ class CommunitySyncManager(SyncManager):
         :param page_size: rows per page; must match the :page_size SQL parameter default
         :returns: (columns, rows) where rows is the combined list across all pages
         """
-        # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
-        columns = []
-        rows = []
-        page = 0
-        while True:
-            resp = self.discourse.admin.plugins.explorer.queries._(query_id).run.post(
-                {'params': {'page_num': str(page), 'page_size': str(page_size)}}
-            )
-            result_count = resp.get('result_count', 0)
-            page_rows = resp.get('rows', [])
-            current_app.logger.debug(
-                f'{self._run_query_paged.__qualname__}(): query {query_id} page {page} '
-                f'result_count={result_count} rows={len(page_rows)}'
-            )
-            if result_count == 0 or not page_rows:
-                columns = resp.get('columns', columns)
-                break
-            columns = resp['columns']
-            rows.extend(page_rows)
-            if result_count < page_size:
-                break
-            page += 1
-        return columns, rows
+        return run_query_paged(self.discourse, query_id, page_size=page_size)
 
     def start_import(self):
         """runtime start for import from Community perspective

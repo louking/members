@@ -76,7 +76,13 @@ def calendar_feed():
 
     base_url = current_app.config[f'DISCOURSE_API_URL_{uinterest}']
     username = current_app.config.get(f'DISCOURSE_API_CALENDAR_USERNAME_{uinterest}')
+    location_query_id = current_app.config.get(f'DISCOURSE_API_EVENT_LOCATIONS_QUERY_{uinterest}')
     discourse = make_discourse_client(interest, username=username)
+    # the Data Explorer "run query" endpoint is admin-only, so it can't go through
+    # the calendar's deliberately low-privilege `discourse` client above -- build
+    # a separate admin-privileged one (default INVITE_USERNAME, same API key)
+    # only when there's actually a query configured to run through it.
+    admin_discourse = make_discourse_client(interest) if location_query_id else None
 
     ics_bytes = filter_tags_to_bytes(
         base_url=base_url,
@@ -84,6 +90,8 @@ def calendar_feed():
         tags=tags,
         from_date=from_date,
         to_date=to_date,
+        location_query_id=location_query_id,
+        admin_discourse=admin_discourse,
         log=current_app.logger,
     )
     _ics_cache[cache_key] = (time.time(), ics_bytes)
