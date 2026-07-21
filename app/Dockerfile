@@ -40,4 +40,14 @@ COPY src .
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
 # For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
 RUN chmod +x /app/dbupgrade_and_run.sh && adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser:appuser /app
+
+# /locks is where community.py's cross-process lock/rate-limit state files live, on a
+# volume shared between the app and crond services (docker-compose.yml). Pre-create it
+# owned by appuser here so a *fresh* named volume (Docker copies a mount path's existing
+# image content, including ownership, into a volume the first time it's used) doesn't
+# default to root:root -- which appuser (crond's actual cron-job user, and app's runtime
+# user) can't write to. An already-existing volume isn't retroactively fixed by this;
+# see the CLAUDE.md note on this for how the dev volume was fixed by hand.
+RUN mkdir -p /locks && chown appuser:appuser /locks
+
 USER appuser

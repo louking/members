@@ -15,7 +15,10 @@ from docx.oxml import OxmlElement
 
 
 # homegrown
-from .community import _RateLimitedDiscourse, _RateLimiter
+from .community import (
+    _RateLimitedDiscourse, _RateLimiter,
+    DISCOURSE_RATE_LIMIT_MAX_CALLS, DISCOURSE_RATE_LIMIT_WINDOW_SECS,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +117,7 @@ def fetch_all(base_url, api_key, api_username, category_groups_query_id=None):
             api_key=api_key,
             raise_for_rate_limit=False,
         ),
-        _RateLimiter(max_calls=55, window_secs=60),
+        _RateLimiter(max_calls=DISCOURSE_RATE_LIMIT_MAX_CALLS, window_secs=DISCOURSE_RATE_LIMIT_WINDOW_SECS),
     )
 
     steps = [

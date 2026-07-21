@@ -13,17 +13,43 @@ from fluent_discourse import Discourse, DiscourseError
 from fasteners import InterProcessLock
 from datetime import date
 
+# Lock/state files below live on the 'community-locks' Docker volume
+# (docker-compose.yml), NOT /tmp -- 'app' (web requests, e.g. calendar_feed())
+# and 'crond' (cron-fired CLI commands) are separate containers with separate
+# filesystems. An earlier version of these paths under /tmp worked for
+# coordinating multiple CLI invocations within the crond container (or multiple
+# web requests within the app container), but /tmp is never actually shared
+# between the two containers -- confirmed as the root cause of a real 429 that
+# occurred despite that "working" cross-process fix: a calendar_feed() request
+# in 'app' and two cron-fired notify-pending-reviews runs in 'crond' were each
+# reading/writing their own container-local /tmp, invisible to each other.
+_LOCKS_DIR = Path('/locks')
+
 # shared across all community commands that hit the Discourse API, so concurrent
 # commands (not just concurrent runs of the *same* command) can't together exceed
 # Discourse's real server-side rate limit, which each process's own in-memory
 # _RateLimiter has no way to coordinate against
-COMMUNITY_LOCKFILE = '/tmp/communitygroupmanager.lock'
+COMMUNITY_LOCKFILE = str(_LOCKS_DIR / 'communitygroupmanager.lock')
 
 # _RateLimiter's shared state: a JSON list of recent call timestamps, plus its
 # own dedicated lock (a short per-call critical section, unlike COMMUNITY_LOCKFILE
 # which some but not all community commands hold for their whole duration)
-_RATE_LIMIT_STATE_FILE = Path('/tmp/discourse_ratelimit_state.json')
-_RATE_LIMIT_STATE_LOCKFILE = '/tmp/discourse_ratelimit_state.lock'
+_RATE_LIMIT_STATE_FILE = _LOCKS_DIR / 'discourse_ratelimit_state.json'
+_RATE_LIMIT_STATE_LOCKFILE = str(_LOCKS_DIR / 'discourse_ratelimit_state.lock')
+
+# Discourse's confirmed default (config/discourse_defaults.conf,
+# max_admin_api_reqs_per_minute = 60) is 60 calls/minute for the admin API key;
+# 55 is a 5-call margin below that for a single well-behaved caller, and works
+# fine for steady single-threaded use. A real 429 was still observed live under
+# a 3-way burst (a calendar_feed() web request overlapping two cron-fired
+# notify-pending-reviews runs for different categories, both firing from
+# separate cron lines at the same minute) -- traced to the /tmp-not-actually-shared
+# issue above, not a flaw in the pacing logic itself or evidence that 55 is too
+# close to the real 60/minute limit. Fix the burst at the source (e.g.
+# consolidate same-minute cron lines into one multi-category invocation) rather
+# than permanently taxing every normal run's throughput by lowering this further.
+DISCOURSE_RATE_LIMIT_MAX_CALLS = 55
+DISCOURSE_RATE_LIMIT_WINDOW_SECS = 60
 
 
 class _RateLimiter:
@@ -84,7 +110,7 @@ def make_discourse_client(interest: str, username: str | None = None) -> '_RateL
                 api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
                 raise_for_rate_limit=False,
             ),
-            _RateLimiter(max_calls=55, window_secs=60),
+            _RateLimiter(max_calls=DISCOURSE_RATE_LIMIT_MAX_CALLS, window_secs=DISCOURSE_RATE_LIMIT_WINDOW_SECS),
         )
     except KeyError as e:
         raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
