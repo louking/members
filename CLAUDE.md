@@ -110,6 +110,8 @@ Set `TESTING: True` in `config/members.cfg` to disable email sending during manu
 
 **Assets**: Webassets bundles; `ASSETS_DEBUG=True` for unminified dev mode.
 
+**Disabled DataTables button tooltips**: a button rendered with `{'extend': 'create', 'enabled': False, 'attr': {'title': '...'}}` (e.g. `MotionsView.setbuttons()` in `meetings_admin.py`, disabling "New" until invites are sent) gets the `title` attribute on the DOM node, but jquery-ui's `.ui-state-disabled { pointer-events: none; }` (in `jquery-ui.structure.css`, part of the `admin_css` bundle) blocks the hover event needed to show it — the tooltip silently never appears even though the markup is correct. Fixed with a `.dt-button.ui-state-disabled { pointer-events: auto; }` override in `static/admin/style.css`, which loads last in the `admin_css` bundle (`assets.py`) so it wins the cascade. Safe to override: DataTables Buttons enforces the disabled state in JS by checking `!button.hasClass(dom.disabled)` before firing click/keypress actions (`_buildButton` in `datatables.js`) — it never relied on `pointer-events: none` for that, so restoring hover doesn't make the button clickable again.
+
 **Security**: Flask-Security-Too + Flask-Principal for role-based access. CSRF via Flask-WTF.
 
 **Email**: Per-interest `from_email`; HTML+text templates; MailChimp for lists.

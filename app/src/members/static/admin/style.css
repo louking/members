@@ -110,6 +110,14 @@ td.view-control {
     color: #2779aa;
 }
 
+/* allow title tooltips on disabled DataTables Buttons: jquery-ui's .ui-state-disabled sets
+   pointer-events: none, which also blocks the hover needed for the native title tooltip.
+   Buttons.js itself already guards clicks/keypresses on this class (see dom.disabled check
+   in _buildButton), so re-enabling pointer events here doesn't make the button actionable. */
+.dt-button.ui-state-disabled {
+    pointer-events: auto;
+}
+
 /* rsvp management */
 .rsvp-noresponse {
     color: orangered;

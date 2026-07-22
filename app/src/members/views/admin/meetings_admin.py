@@ -602,8 +602,16 @@ class MotionsView(MotionsBase):
         # special button if meeting has online motion voting
         meeting_id = request.args.get('meeting_id', None)
         if meeting_id:
-            # create only if in meeting
-            buttons.insert(0, 'create')
+            # create only if in meeting, and only enabled if invites have been sent
+            invites_sent = Invite.query.filter_by(meeting_id=meeting_id, activeinvite=True).first() is not None
+            if invites_sent:
+                buttons.insert(0, 'create')
+            else:
+                buttons.insert(0, {
+                    'extend': 'create',
+                    'enabled': False,
+                    'attr': {'title': 'invites must be sent before motions can be created'},
+                })
             meeting = Meeting.query.filter_by(id=meeting_id).one()
             if meeting_has_option(meeting, MEETING_OPTION_ONLINEMOTIONS):
                 buttons.append({
