@@ -95,7 +95,7 @@ platformdirs==2.5.2
 prompt_toolkit==3.0.52
 proto-plus==1.27.2
 protobuf==7.34.1
-pyasn1==0.6.3
+pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycares==4.11.0
 pycparser==2.21
