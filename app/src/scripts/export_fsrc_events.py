@@ -42,11 +42,22 @@ CATEGORY_TAG_OVERRIDES = {
     "cat-racing-team": "racing-team",      # WP prefixes Racing Team slug with "cat-"
     "lowkey": "lowkey-race",
     "fsrc-volunteers-needed": "volunteers-needed",
+    "fsrc-signature-race": "signature-race",
     
     # remove these categories
     "race": "",
     "steeps-race": "",
-    
+    "trail-series": "",
+    "md-wdf-grand-prix": "",
+    "cat-train-frf": "",
+    "cat-training": "",
+    "course-marking-race": "",
+    "courtesy": "",
+    "finish-line-race": "",
+    "md-grand-prix": "",
+    "md-ultra-series": "",
+    "md-wdf-grand-prix": "",
+    "premium-promotion-race": "",
 }
 
 
