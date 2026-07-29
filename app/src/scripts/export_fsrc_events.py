@@ -29,11 +29,11 @@ from urllib.parse import urlencode
 
 import requests
 
-BASE_URL = "https://steeplechasers.org/wp-json/tribe/events/v1/events"
-YEAR_START = "2026-01-01 00:00:00"
-YEAR_END = "2026-12-31 23:59:59"
-PER_PAGE = 50
-OUTPUT_FILE = "fsrc_events_2026.csv"
+BASE_URL = "https://sandbox.steeplechasers.org/wp-json/tribe/events/v1/events"
+YEAR_START = "2025-01-01 00:00:00"
+YEAR_END = "2025-12-31 23:59:59"
+PER_PAGE = 10
+OUTPUT_FILE = "fsrc_events_2025.csv"
 
 # Key = WordPress category slug (category['slug'] in the API response).
 # Value = Discourse tag slug to use instead of the WP slug.
@@ -126,7 +126,9 @@ def collapse_ws(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip() if text else ""
 
 
-def format_venue(venue_data: dict) -> str:
+def format_venue(venue_data) -> str:
+    if isinstance(venue_data, list):
+        venue_data = venue_data[0] if venue_data else {}
     if not venue_data:
         return ""
     name = unescape(venue_data.get("venue", "") or "")
