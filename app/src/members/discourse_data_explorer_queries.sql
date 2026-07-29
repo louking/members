@@ -49,8 +49,15 @@ OFFSET (:page_num * :page_size)
 -- Returns: category_id, group_name, permission_type
 -- =============================================================================
 
--- TODO: paste actual query text from Discourse Admin -> Plugins -> Data Explorer.
--- Known shape: joins category_groups with categories and groups.
+SELECT
+  cg.category_id,
+  c.name AS category_name,
+  g.name AS group_name,
+  cg.permission_type
+FROM category_groups cg
+JOIN categories c ON c.id = cg.category_id
+JOIN groups g ON g.id = cg.group_id
+ORDER BY c.name, g.name
 
 
 -- =============================================================================
@@ -64,8 +71,14 @@ OFFSET (:page_num * :page_size)
 --   redemption_count == 0 are kept -- see start_import())
 -- =============================================================================
 
--- TODO: paste actual query text from Discourse Admin -> Plugins -> Data Explorer.
+-- [params]
+-- int :page_num = 0
+-- int :page_size = 1000
 
+SELECT * from invites
+
+ORDER BY id
+LIMIT :page_size OFFSET (:page_num * :page_size)
 
 -- =============================================================================
 -- DISCOURSE_API_INVITE_GROUPS_QUERY_FSRC
@@ -76,8 +89,14 @@ OFFSET (:page_num * :page_size)
 -- Returns: invite_id, group_id
 -- =============================================================================
 
--- TODO: paste actual query text from Discourse Admin -> Plugins -> Data Explorer.
+-- [params]
+-- int :page_num = 0
+-- int :page_size = 1000
 
+SELECT * from invited_groups
+
+ORDER BY id
+LIMIT :page_size OFFSET (:page_num * :page_size)
 
 -- =============================================================================
 -- DISCOURSE_API_USER_EMAIL_QUERY_FSRC
@@ -88,4 +107,11 @@ OFFSET (:page_num * :page_size)
 -- Returns: email, user_id
 -- =============================================================================
 
--- TODO: paste actual query text from Discourse Admin -> Plugins -> Data Explorer.
+-- [params]
+-- int :page_num = 0
+-- int :page_size = 1000
+
+SELECT * from user_emails
+
+ORDER BY id
+LIMIT :page_size OFFSET (:page_num * :page_size)
