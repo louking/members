@@ -122,6 +122,12 @@ Set `TESTING: True` in `config/members.cfg` to disable email sending during manu
 ## Deployment
 Uses Fabric (`fabfile.py`) for remote deployment via docker compose pull + up.
 
+## RunSignUp Client Pattern
+
+The `running` package (installed as `runtilities`) provides two RunSignUp API client classes: `RunSignUp` (context-manager style, `with RunSignUp(...) as rsu:` / manual `.open()`+`.close()`) and `RunSignupFluent` (fluent builder, e.g. `rsu.race._(raceid).participants.get(...)`). Both take the same four credentials — `key`, `secret`, `api_reg_token`, `api_reg_secret` — read from config keys `RSU_KEY`, `RSU_SECRET`, `RSU_API_REG_TOKEN`, `RSU_API_REG_SECRET`.
+
+**Always construct these via `make_runsignup_client(**kwargs)` / `make_runsignup_fluent_client(**kwargs)` in `members/helpers.py`** — never instantiate `RunSignUp`/`RunSignupFluent` directly. Both factories pull all four credentials from a single shared `_rsu_credentials()` helper, so a missing param (e.g. `api_reg_token`/`api_reg_secret` were added later than `key`/`secret` and some call sites had drifted out of sync before this centralization) can't happen at some call sites but not others. Extra kwargs (e.g. `debug=True`) pass through to the underlying client. Used in `views/admin/awards_admin.py` (`make_runsignup_client()`, context manager) and `scripts/membership_cli.py` (`make_runsignup_client(debug=debug)`), and in `community.py`'s `RsuRaceSyncManager`/`RsuClubSyncManager` (`make_runsignup_fluent_client()`).
+
 ## Discourse Config Keys
 
 Community commands look up per-interest Discourse credentials using uppercased interest names:

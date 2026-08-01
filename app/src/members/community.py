@@ -8,7 +8,6 @@ from pathlib import Path
 
 # pypi
 from flask import current_app, g
-from running.runsignup import RunSignupFluent
 from fluent_discourse import Discourse, DiscourseError
 from fasteners import InterProcessLock
 from datetime import date
@@ -152,7 +151,7 @@ class _RateLimitedDiscourse:
 
 # homegrown
 from .sync import SyncManager
-from .helpers import get_tags_users
+from .helpers import get_tags_users, make_runsignup_fluent_client
 from .model import Tag, localinterest_query_params
 
 
@@ -205,10 +204,7 @@ class RsuRaceSyncManager(SyncManager):
         """_summary_"""
         self.raceid = raceid
 
-        self.rsu = RunSignupFluent(
-            key=current_app.config['RSU_KEY'],
-            secret=current_app.config['RSU_SECRET'],
-        )
+        self.rsu = make_runsignup_fluent_client()
         
     def get_users_from_service(self):
         """get participants from RunSignup race, latest event
@@ -260,10 +256,7 @@ class RsuClubSyncManager(SyncManager):
         """_summary_"""
         self.clubid = clubid
 
-        self.rsu = RunSignupFluent(
-            key=current_app.config['RSU_KEY'],
-            secret=current_app.config['RSU_SECRET'],
-        )
+        self.rsu = make_runsignup_fluent_client()
         
     def get_users_from_service(self):
         """get members from RunSignup club, latest event

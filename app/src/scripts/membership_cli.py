@@ -16,7 +16,6 @@ from flask.cli import with_appcontext
 from click import argument, group, option
 from loutilities.timeu import asctime
 from loutilities.transform import Transform
-from running.runsignup import RunSignUp
 from sortedcollections import ItemSortedDict
 from sortedcontainers import SortedList
 from sqlalchemy import or_, and_, func
@@ -27,6 +26,7 @@ from mailchimp3.mailchimpclient import MailChimpError
 from scripts import catch_errors, ParameterError
 from members.model import db, Member, MemberDates, Membership, TableUpdateTime
 from members.views.admin.viewhelpers import localinterest
+from members.helpers import make_runsignup_client
 from members.applogging import timenow
 from members.views.membership_common import analyzemembership
 
@@ -124,7 +124,7 @@ def update(interest, membershipfile):
                             sourceattr=False, # source and target are dicts
                             targetattr=False
                             )
-            rsu = RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET'], debug=debug)
+            rsu = make_runsignup_client(debug=debug)
 
             def doxform(ms):
                 membership = {}
@@ -531,8 +531,6 @@ def import2mailchimp(interest, stats, debug):
     
     # load configuration
     club_id               = current_app.config['RSU_CLUB']
-    rsukey                = current_app.config['RSU_KEY']
-    rsusecret             = current_app.config['RSU_SECRET']
     mckey                 = current_app.config['MC_KEY']
     mclist                = current_app.config['MC_LIST']
     mcgroupnames          = current_app.config['MC_GROUPNAMES'].split(',')
@@ -560,7 +558,7 @@ def import2mailchimp(interest, stats, debug):
     # download current member list from RunSignUp
     # get current members from RunSignUp, transforming each to local format
     # only save one member per email address, primary member preferred
-    rsu = RunSignUp(key=rsukey, secret=rsusecret, debug=debug)
+    rsu = make_runsignup_client(debug=debug)
     rsu.open()
 
     rsumembers = rsu.members(club_id)

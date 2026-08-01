@@ -122,7 +122,7 @@ rich==13.9.4
 rsa==4.9
 rstcheck==6.2.4
 rstcheck-core==1.2.1
-runtilities==2.3.0
+runtilities==3.0.0
 setuptools==78.1.1
 shellingham==1.4.0
 six==1.16.0

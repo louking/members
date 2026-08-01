@@ -20,13 +20,13 @@ from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN
 from loutilities.timeu import asctime
 from loutilities.filters import filtercontainerdiv, filterdiv
 from loutilities.transform import Transform
-from running.runsignup import RunSignUp
 
 # home grown
 from . import bp
 from ...model import db
 from ...model import LocalInterest, AwardsRace, AwardsEvent, AwardsDivision, AwardsAwardee
 from ...version import __docversion__
+from ...helpers import make_runsignup_client
 from .viewhelpers import localinterest
 
 awards_roles = [ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN]
@@ -42,14 +42,14 @@ awardraces_formmapping = dict(zip(awardraces_formfields, awardraces_dbattrs))
 
 class AwardRaceView(DbCrudApiInterestsRolePermissions):
     def create_race(self, formdata):
-        with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
+        with make_runsignup_client() as rsu:
             race = rsu.getrace(formdata['rsu_race_id'])
             formdata['name'] = race['name']
             racerow = super().createrow(formdata)
         return racerow, race
         
     def get_race(self, thisid, formdata):
-        with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
+        with make_runsignup_client() as rsu:
             race = rsu.getrace(formdata['rsu_race_id'])
             racerow = super().updaterow(thisid, formdata)
         return racerow, race
@@ -63,7 +63,7 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
             stored_divisions = stored_event.divisions
             stored_events_d[stored_event.rsu_event_id]['divisions'] = {d.rsu_div_id: d for d in stored_divisions}
 
-        with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
+        with make_runsignup_client() as rsu:
             
             # add new events, skip any that are outside the awards window or have no divisions
             for event_id in race['events']:
@@ -308,7 +308,7 @@ class RaceAwardsApi(RaceAwardsBase):
         '''
         try:
             # get the results for this event from RunSignUp
-            with RunSignUp(key=current_app.config['RSU_KEY'], secret=current_app.config['RSU_SECRET']) as rsu:
+            with make_runsignup_client() as rsu:
                 # current_app.logger.debug(f'retrieving results for race {event.race.rsu_race_id} event {event.rsu_event_id}')
                 rsu_results_headers = rsu.geteventresults(event.race.rsu_race_id, event.rsu_event_id, '')
                 rsu_results = rsu_results_headers['results']

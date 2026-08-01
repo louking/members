@@ -7,8 +7,10 @@ from re import compile
 from datetime import date
 
 # pypi
-from flask import g
+from flask import g, current_app
 from sqlalchemy import inspect
+from running.runsignup import RunSignUp
+from running.runsignup_fluent import RunSignupFluent
 
 # homegrown
 from .model import LocalUser, LocalInterest
@@ -25,6 +27,36 @@ class ParameterError(Exception):
 def localinterest():
     interest = Interest.query.filter_by(interest=g.interest).one()
     return LocalInterest.query.filter_by(interest_id=interest.id).one()
+
+def _rsu_credentials():
+    '''
+    RunSignUp API credentials from app config, shared by make_runsignup_client()
+    and make_runsignup_fluent_client()
+
+    expects the following to be set in config: RSU_KEY, RSU_SECRET, RSU_API_REG_TOKEN, RSU_API_REG_SECRET
+    '''
+    return dict(
+        key=current_app.config['RSU_KEY'],
+        secret=current_app.config['RSU_SECRET'],
+        api_reg_token=current_app.config['RSU_API_REG_TOKEN'],
+        api_reg_secret=current_app.config['RSU_API_REG_SECRET'],
+    )
+
+def make_runsignup_client(**kwargs):
+    '''
+    create a running.runsignup.RunSignUp client (context manager style) configured from app config
+
+    :param kwargs: additional RunSignUp() arguments, e.g. debug=True
+    '''
+    return RunSignUp(**_rsu_credentials(), **kwargs)
+
+def make_runsignup_fluent_client(**kwargs):
+    '''
+    create a running.runsignup.RunSignupFluent client configured from app config
+
+    :param kwargs: additional RunSignupFluent() arguments, e.g. debug=True
+    '''
+    return RunSignupFluent(**_rsu_credentials(), **kwargs)
 
 def is_valid_date(thisdate):
     '''
