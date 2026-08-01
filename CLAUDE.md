@@ -261,3 +261,13 @@ Three files to change:
    ```dockerfile
    COPY client.my.cnf /home/appuser/.my.cnf
    ```
+
+## setuptools 83 / `pkg_resources` Note
+
+**`setuptools==83.0.0` no longer ships `pkg_resources` at all** (confirmed live: `pip show -f setuptools` lists no `pkg_resources/` files under that version, vs. the previously-pinned `78.1.1`). This broke app startup with `ModuleNotFoundError: No module named 'pkg_resources'`, raised from deep in the import chain (`members/model.py` → `loutilities.user.tablefiles` → `loutilities.tables` → `formencode.validators` → `formencode/__init__.py`).
+
+**Root cause was `FormEncode==2.0.1`**, not setuptools or loutilities: its `__init__.py` did an unconditional top-level `from pkg_resources import get_distribution, DistributionNotFound`, used only to compute `__version__`. There was a `try/except DistributionNotFound` around the *usage*, but the import itself was outside that guard, so it raised before the fallback could run.
+
+**Fix: bump `FormEncode` to `2.1.1`** (`app/requirements.txt`) — upstream already fixed this; 2.1.1's `__init__.py` uses `importlib.metadata` on Python 3.8+ and only falls back to `pkg_resources` on older Pythons. This lets `setuptools==83.0.0` stay current (matches dependabot PR #704) with no pin-back and no monkeypatch needed. Verified live by installing both together in the `crond` container and re-importing the failing chain successfully.
+
+**If a similar `ModuleNotFoundError: No module named 'pkg_resources'` recurs after a future setuptools bump**, suspect another dependency doing the same unconditional `pkg_resources` import (`pip show -f <pkg>` under the wheel, or just grep the installed package's `__init__.py`) before reflexively pinning setuptools back down.
