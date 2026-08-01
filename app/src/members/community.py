@@ -195,7 +195,9 @@ class RsuRaceSyncManager(SyncManager):
     expects the following to be set in config:
         RSU_KEY
         RSU_SECRET
-        
+        RSU_API_REG_TOKEN
+        RSU_API_REG_SECRET
+
     Args:
         raceid (int): RunSignup race id
     """
@@ -247,7 +249,9 @@ class RsuClubSyncManager(SyncManager):
     expects the following to be set in config:
         RSU_KEY
         RSU_SECRET
-        
+        RSU_API_REG_TOKEN
+        RSU_API_REG_SECRET
+
     Args:
         clubid (int): RunSignup club id
     """

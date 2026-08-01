@@ -457,6 +457,8 @@ def import2mailchimp(interest, stats, debug):
     # RSU_CLUB: <runsignup club_id>
     # RSU_KEY: <key from runsignup partnership>
     # RSU_SECRET: <secret from runsignup partnership>
+    # RSU_API_REG_TOKEN: <api caller registration token from runsignup>
+    # RSU_API_REG_SECRET: <api caller registration secret from runsignup>
     # MC_KEY: <api key from MailChimp>
     # MC_LIST: <name of list of interest>
     # MC_GROUPNAMES: groupname1,groupname2,...

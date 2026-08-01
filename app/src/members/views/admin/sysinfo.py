@@ -68,7 +68,7 @@ class ViewDebug(MethodView):
                                'GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET',
                                'GMAPS_API_KEY', 'GMAPS_ELEV_API_KEY',
                                'APP_OWNER_PW',
-                               'RSU_KEY', 'RSU_SECRET',
+                               'RSU_KEY', 'RSU_SECRET', 'RSU_API_REG_TOKEN', 'RSU_API_REG_SECRET',
                                'MC_KEY',
                                'MAIL_PASSWORD',
                                ]:
