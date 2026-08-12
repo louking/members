@@ -1119,6 +1119,20 @@ class AwardsAwardee(Base):
     notes          = Column(Text)
     
     prev_awardee_id = Column(Integer, ForeignKey('awards_awardee.id'))  # previous awardee for this division/order, if any
+    # deliberately WITHOUT remote_side=[id]: SQLAlchemy then infers this relationship
+    # backwards (ONETOMANY instead of the "correct" MANYTOONE) -- setting
+    # new_awardee.prev_awardee = old_awardee actually persists old_awardee.prev_awardee_id =
+    # new_awardee.id, on the *other* row. This looks wrong, but every current reader
+    # (RaceAwardsApi.get()'s prev_picked_up flag, AwardPickUpApi.post()) only ever reads
+    # .prev_awardee from the *current/active* row, which the reversed relationship resolves
+    # correctly as "the row whose prev_awardee_id points at me" -- confirmed field-working
+    # in production (the pickup-warning yellow cell). Adding remote_side=[id] "fixes" the
+    # direction but silently breaks reads for every award pair already in the database,
+    # since prev_awardee_id lives on the old row for all of them and there's no migration
+    # to move it -- confirmed via a live repro (deploying the "fix" against data shaped like
+    # existing production rows makes prev_awardee resolve to None instead of the old awardee).
+    # Left as-is; don't "fix" this without a data migration to move prev_awardee_id to the
+    # correct row for existing pairs first. See github.com/louking/members/issues/710.
     prev_awardee    = relationship('AwardsAwardee', uselist=False)
     
     # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate
