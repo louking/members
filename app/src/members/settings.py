@@ -67,6 +67,17 @@ class Testing(Config):
     # need to allow logins in flask-security. see https://github.com/mattupstate/flask-security/issues/259
     LOGIN_DISABLED = False
 
+    # required by loutilities.user.applogging.setlogging(), normally supplied by config/users.cfg
+    EXCEPTION_EMAIL = 'test-exceptions@example.com'
+
+    # required by create_app() to look up the Application row for g.loutility, normally supplied by config/members.cfg
+    APP_LOUTILITY = 'members'
+
+    # required by create_app()'s productname formatting, normally supplied by config/users.cfg
+    SECURITY_EMAIL_SUBJECT_PASSWORD_RESET = "{productname}: please reset your password"
+    SECURITY_EMAIL_SUBJECT_PASSWORD_CHANGE_NOTICE = "{productname}: your password has been changed"
+    SECURITY_EMAIL_SUBJECT_PASSWORD_NOTICE = "{productname}: your password has been reset"
+
 
 class RealDb(Config):
     def __init__(self, configfiles):
