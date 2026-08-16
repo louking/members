@@ -42,7 +42,7 @@
                 },
                 // allow debugging of pip installed packages
                 {
-                    "localRoot": "${workspaceFolder}/.venv/Lib/site-packages",
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
                     "remoteRoot": "/usr/local/lib/python3.12/site-packages"
                 }
             ],
