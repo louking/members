@@ -6,6 +6,7 @@ models - database models for application
 # standard
 from datetime import datetime
 from collections import OrderedDict
+from pathlib import Path
 
 # pypi
 from flask import g
@@ -1161,12 +1162,25 @@ class DiscourseReviewNotice(Base):
 
 
 # supporting functions
+
+# shares the 'community-locks' Docker volume (mounted at /locks in both the 'app' and
+# 'crond' containers, see community.py's COMMUNITY_LOCKFILE) rather than a new volume --
+# a separate file on the same volume, not the same lockfile as COMMUNITY_LOCKFILE, since
+# this serializes an unrelated critical section (ManageLocalTables.update())
+MANAGE_LOCAL_TABLES_LOCKFILE = str(Path('/locks') / 'managelocaltables.lock')
+
 def update_local_tables():
     '''
     keep LocalUser table consistent with external db User table
     '''
+    # lockfile serializes update() across concurrent callers sharing this volume: gunicorn
+    # workers/threads calling this at boot (__init__.py) and admin userrole.py route
+    # handlers running under GUNICORN_THREADS at request time. Without it, concurrent
+    # callers can each find no existing localuser row for a new (user_id, interest_id) and
+    # insert their own duplicate -- see louking/loutilities#104, louking/members#712.
     # appname needs to match Application.application
-    localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest, hasuserinterest=True)
+    localtables = ManageLocalTables(db, 'members', LocalUser, LocalInterest, hasuserinterest=True,
+                                     lockfile=MANAGE_LOCAL_TABLES_LOCKFILE)
     localtables.update()
 
 def localinterest_query_params():

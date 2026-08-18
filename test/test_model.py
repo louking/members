@@ -8,6 +8,7 @@ import pytest
 from flask import Flask, g
 
 # homegrown
+import members.model as members_model
 from members.model import (
     db, LocalUser, LocalInterest, TASKFIELDNAME_LEN,
     update_local_tables, localinterest_query_params, localinterest_viafilter, gen_fieldname,
@@ -77,8 +78,15 @@ def test_localinterest_viafilter_returns_interest_id(interestsetup):
 # around the quirk or patching loutilities (a shared dependency) for a sqlite-only artifact.
 
 @pytest.fixture
-def filedb_app(tmp_path):
+def filedb_app(tmp_path, monkeypatch):
     '''like bareapp (conftest.py), but file-based sqlite instead of :memory: -- see comment above'''
+    # update_local_tables() now locks on MANAGE_LOCAL_TABLES_LOCKFILE (louking/members#712),
+    # which in production is a path on the 'community-locks' Docker volume (/locks) -- not
+    # present outside the containers. Point it at tmp_path instead so these tests still
+    # exercise the real (non-mocked) locking code path, rather than a location that only
+    # exists in production/Docker.
+    monkeypatch.setattr(members_model, 'MANAGE_LOCAL_TABLES_LOCKFILE', str(tmp_path / 'managelocaltables.lock'))
+
     app = Flask('members')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{tmp_path}/default.db'
     app.config['SQLALCHEMY_BINDS'] = {'users': f'sqlite:///{tmp_path}/users.db'}
@@ -147,3 +155,33 @@ def test_update_local_tables_syncs_user_deactivation(filedb_app):
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
     localuser = LocalUser.query.filter_by(user_id=user.id, interest_id=localinterest.id).one()
     assert localuser.active is False
+
+
+def test_update_local_tables_passes_lockfile(monkeypatch):
+    # regression test for louking/members#712 (louking/loutilities#104): boot
+    # (__init__.py), the three userrole.py admin route handlers, and three init/seed
+    # scripts all call this same update_local_tables(), and GUNICORN_THREADS>1 means the
+    # userrole.py handlers can race each other at request time, not just at boot.
+    # ManageLocalTables.update() (loutilities.user.model) has no way to serialize those
+    # callers without a lockfile, and concurrent callers can each find no existing
+    # localuser row for a new (user_id, interest_id) and insert their own duplicate.
+    # Confirm update_local_tables() actually passes one through, rather than relying on
+    # loutilities' default (unserialized) behavior -- and that it's the shared constant,
+    # since every call site must use the *same* lockfile path to serialize against each
+    # other at all.
+    calls = {}
+
+    class FakeManageLocalTables:
+        def __init__(self, *args, **kwargs):
+            calls['args'] = args
+            calls['kwargs'] = kwargs
+
+        def update(self):
+            calls['updated'] = True
+
+    monkeypatch.setattr(members_model, 'ManageLocalTables', FakeManageLocalTables)
+
+    update_local_tables()
+
+    assert calls['kwargs'].get('lockfile') == members_model.MANAGE_LOCAL_TABLES_LOCKFILE
+    assert calls['updated']
