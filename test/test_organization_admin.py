@@ -13,7 +13,7 @@ from flask import g
 
 # homegrown
 from members.views.admin import organization_admin
-from members.views.admin.organization_admin import PositionWizardApi
+from members.views.admin.organization_admin import PositionWizardApi, PositionsPicker
 from members.model import db, LocalInterest, LocalUser, Position, UserPosition
 from loutilities.user.model import Interest
 from loutilities.user.roles import ROLE_SUPER_ADMIN
@@ -198,3 +198,20 @@ def test_post_overlap_detected_returns_error_without_crashing(positionsetup, bar
 
     assert 'error' in resp.json
     assert 'overlap' in resp.json['error']
+
+
+# ----------------------------------------------------------------------
+# PositionsPicker.options()
+# ----------------------------------------------------------------------
+
+def test_positionspicker_options_excludes_inactive_position(positionsetup, bareapp):
+    inactive = Position(position='Retired Role', interest=positionsetup['localinterest'], is_active=False)
+    db.session.add(inactive)
+    db.session.commit()
+
+    with bareapp.test_request_context('/'):
+        g.interest = 'fsrc'
+        options = PositionsPicker().options()
+
+    labels = {o['label'] for o in options}
+    assert labels == {'Treasurer'}

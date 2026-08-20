@@ -17,7 +17,7 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Task, TaskField, TaskGroup, TaskTaskField, TaskCompletion
 from ...model import Position
-from ...model import input_type_all, localinterest_query_params, localinterest_viafilter, gen_fieldname
+from ...model import input_type_all, localinterest_query_params, localinterest_active_position_query_params, localinterest_viafilter, gen_fieldname
 from ...model import FIELDNAME_ARG, INPUT_TYPE_UPLOAD, INPUT_TYPE_DISPLAY
 from ...model import date_unit_all, DATE_UNIT_WEEKS, DATE_UNIT_MONTHS, DATE_UNIT_YEARS
 from ...version import __docversion__
@@ -187,15 +187,15 @@ task_view = TaskView(
                          },
                         {'data': 'position', 'name': 'position', 'label': 'Position',
                          '_treatment': {
-                             'relationship': 
+                             'relationship':
                                 {
-                                    'fieldmodel': Position, 
-                                    'labelfield': 'position', 
+                                    'fieldmodel': Position,
+                                    'labelfield': 'position',
                                     'formfield': 'position',
-                                    'dbfield': 'position', 
+                                    'dbfield': 'position',
                                     'uselist': False,
                                     'searchbox': True,
-                                    'queryparams': localinterest_query_params,
+                                    'queryparams': localinterest_active_position_query_params,
                                 }},
                          'fieldInfo': 'required if Position Based = yes, otherwise ignored',
                          },
@@ -485,7 +485,7 @@ taskgroup_view = DbCrudApiInterestsRolePermissions(
                          '_treatment': {
                              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                                               'dbfield': 'positions', 'uselist': True,
-                                              'queryparams': localinterest_query_params,
+                                              'queryparams': localinterest_active_position_query_params,
                                               }}
                          },
                         {'data': 'users', 'name': 'users', 'label': 'Members',

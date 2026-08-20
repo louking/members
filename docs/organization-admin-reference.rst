@@ -147,9 +147,9 @@ The Positions view is used for the following
     * associate :term:`task groups <task group>` to each :term:`position` to follow the :ref:`Task Hierarchy`.
     * identify which :term:`positions <position>` receive :term:`summary emails <summary email>`
       for any *overdue* tasks within specific :term:`task groups <task group>`.
-    * identify which :term:`positions <position>` have :term:`meeting` :term:`status reports <status report>`
-    * tag :term:`positions <position>` for use within :ref:`Meetings Module` for :term:`invitations <invite>` and
-      :term:`voting <vote>`
+    * retire a :term:`position` that is no longer used, while retaining its history
+    * tag :term:`positions <position>` for use within :ref:`Meetings Module` for :term:`invitations <invite>`,
+      :term:`voting <vote>`, and :term:`status reports <status report>` -- see :ref:`Tags Guide`
     * add a heading to group this :term:`position` under for the :term:`meeting` :term:`agenda` and :term:`status report`
       (headings are managed by the :term:`meeting admin` using the :ref:`Agenda Headings view`)
 
@@ -167,9 +167,12 @@ The Positions view defines all of the :term:`positions <position>` within the or
         list of :term:`members <member>` holding this position. This list is managed using the
         :ref:`Position Wizard` or the :ref:`Position Dates view`
 
-    :Has Status Report:
-        indicate whether the :term:`members <member>` in this :term:`position` should be prompted for
-        a :term:`status report` about the :term:`position`
+    :Active:
+        if *yes*, this :term:`position` is in current use. If a :term:`position` is no longer needed, set this
+        to *no* rather than deleting it -- this hides it from the default view, removes it from reports and
+        from new :term:`term` assignment, and stops any :term:`status report`/:term:`invite` prompting it may
+        have been tagged for, while preserving its history (past :term:`terms <term>` and :term:`tasks <task>`).
+        Setting it back to *yes* restores all of the above with no data to reconstruct
 
     :Tags:
         :term:`tags <tag>` associated with this position. See :ref:`Tags Guide` for more information on
@@ -191,6 +194,11 @@ The view has the following filters:
 
     :In Position On:
         date of interest for which :term:`members <member>` hold :term:`positions <position>`
+
+    :Show inactive positions:
+        check this to see :term:`positions <position>` which have been retired (**Active** is *no*).
+        This allows a retired :term:`position` to be brought back into use by checking this then setting
+        the :term:`position's <position>` **Active** back to *yes*
 
 .. image:: images/positions-view.*
     :align: center

@@ -10,13 +10,13 @@ from traceback import format_exception_only, format_exc
 from flask import request, jsonify, g, current_app, url_for
 from flask.views import MethodView
 from flask_security import current_user
-from dominate.tags import div, input_, button, dd
+from dominate.tags import div, input_, button, dd, label
 
 # homegrown
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition, Position, Tag
-from ...model import localinterest_query_params, localinterest_viafilter
+from ...model import localinterest_query_params, localinterest_active_position_query_params, localinterest_viafilter
 from ...helpers import members_active, member_qualifiers_active, memberqualifierstr, all_active_members
 from ...helpers import member_position_active, member_positions, positions_active, members_active_currfuture
 from .viewhelpers import dtrender, localinterest
@@ -53,6 +53,12 @@ def position_members(position):
 def position_pretablehtml():
     pretablehtml = div()
     with pretablehtml:
+        # hide / show inactive positions
+        inactivefilter = div(_class='checkbox-filter')
+        with inactivefilter:
+            input_(type='checkbox', id='show-inactive-status', name='show-inactive-status', value='show-inactive')
+            label('Show inactive positions', _for='show-inactive-status')
+
         # hide / show hidden rows
         with filtercontainerdiv(style='margin-bottom: 4px;'):
             datefilter = filterdiv('positiondate-external-filter-startdate', 'In Position On')
@@ -60,6 +66,9 @@ def position_pretablehtml():
             with datefilter:
                 input_(type='text', id='effective-date', name='effective-date' )
                 button('Today', id='todays-date-button')
+
+        with filtercontainerdiv(style='display:none;'):
+            filterdiv('active-filter', 'Active')
 
         # make dom repository for Editor wizard standalone form
         with div(style='display: none;'):
@@ -69,8 +78,12 @@ def position_pretablehtml():
 
     return pretablehtml.render()
 
-position_dbattrs = 'id,interest_id,position,description,taskgroups,emailgroups,tags,agendaheading,__readonly__'.split(',')
-position_formfields = 'rowid,interest_id,position,description,taskgroups,emailgroups,tags,agendaheading,users'.split(',')
+position_yadcf_options = [
+    yadcfoption('is_active:name', 'active-filter', 'multi_select', uselist=True, placeholder='Select active status')
+]
+
+position_dbattrs = 'id,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,__readonly__'.split(',')
+position_formfields = 'rowid,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,users'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
@@ -91,6 +104,7 @@ position_view = DbCrudApiInterestsRolePermissions(
                     dbmapping = position_dbmapping,
                     formmapping = position_formmapping,
                     pretablehtml = position_pretablehtml,
+                    yadcfoptions = position_yadcf_options,
                     checkrequired = True,
                     clientcolumns = [
                         {'data': 'position', 'name': 'position', 'label': 'Position',
@@ -99,6 +113,10 @@ position_view = DbCrudApiInterestsRolePermissions(
                          },
                         {'data': 'description', 'name': 'description', 'label': 'Description',
                          'type': 'textarea',
+                         },
+                        {'data': 'is_active', 'name': 'is_active', 'label': 'Active',
+                         '_treatment': {'boolean': {'formfield': 'is_active', 'dbfield': 'is_active'}},
+                         'ed': {'def': 'yes'},
                          },
                         {'data': 'users', 'name': 'users', 'label': 'Members',
                          'fieldInfo': 'members who hold this position on selected position date', 'type': 'readonly'
@@ -255,7 +273,7 @@ positiondate_view = PositionDateView(
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'position',
                               'dbfield': 'position', 'uselist': False,
                               'searchbox': True,
-                              'queryparams': localinterest_query_params,
+                              'queryparams': localinterest_active_position_query_params,
                               }}
          },
         {'data': 'qualifier', 'name': 'qualifier', 'label': 'Qualifier',
@@ -342,7 +360,7 @@ tags_view = DbCrudApiInterestsRolePermissions(
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                               'dbfield': 'positions', 'uselist': True,
                               'searchbox': True,
-                              'queryparams': localinterest_query_params,
+                              'queryparams': localinterest_active_position_query_params,
                               }}
          },
         {'data': 'users', 'name': 'users', 'label': 'Members',
@@ -646,7 +664,7 @@ class PositionsPicker(DteDbOptionsPickerBase):
         return items
 
     def options(self):
-        positions = Position.query.filter_by(interest=localinterest()).all()
+        positions = Position.query.filter_by(interest=localinterest(), is_active=True).all()
         positions.sort(key=lambda p: p.position.lower())
         options = [{'label': p.position, 'value': p.id} for p in positions]
         return options

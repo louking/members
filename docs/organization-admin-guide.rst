@@ -63,6 +63,17 @@ column below, and used for the **Used For** purpose in the **View** column below
     *   - Meeting Voting
         - :ref:`Tags view`, :ref:`Positions view`
         - :ref:`Meetings view`
+    *   - Status Reports
+        - :ref:`Tags view`, :ref:`Positions view`
+        - :ref:`Meetings view`, :ref:`Meeting Types view`
+
+A :term:`position` is prompted for a :term:`status report`, or its :term:`members <member>` invited to a
+:term:`meeting`, only if the :term:`position` carries at least one :term:`tag` which is also configured on the
+:term:`meeting` (**Status Report Tags** / **Tags**, respectively) or on the :term:`meeting`'s :term:`meeting type`
+(**Status Report Tags**, used as the default when a new :term:`meeting` of that :term:`meeting type` is created).
+There is no separate on/off setting for this on the :term:`position` itself -- to stop a :term:`position` from being
+prompted for :term:`status reports <status report>` or invited to :term:`meetings <meeting>`, remove the relevant
+:term:`tag` from the :term:`position` (or retire the :term:`position` entirely -- see :ref:`Position Management`).
 
 
 .. _Email Distribution List:

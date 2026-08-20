@@ -175,7 +175,7 @@ def _positions_active_from_preloaded(localuser, ondate, up_by_user):
         finish = up.finishdate
         if start is None:
             continue
-        if start <= ondate and (finish is None or finish >= ondate):
+        if start <= ondate and (finish is None or finish >= ondate) and up.position.is_active:
             positions.append(up.position)
     return positions
 
@@ -747,5 +747,5 @@ def get_tags_positions(tags):
     '''
     positions = set()
     for tag in tags:
-        positions |= set(tag.positions)
+        positions |= {position for position in tag.positions if position.is_active}
     return positions

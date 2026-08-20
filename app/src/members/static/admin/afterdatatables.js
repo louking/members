@@ -563,6 +563,18 @@ function afterdatatables() {
         // handle effective date update by retrieving data by /rest and refreshing table
         set_effective_date('#effective-date', '#todays-date-button');
 
+        // hide / show inactive positions
+        var activecol = get_yadcf_col('active-filter');
+        yadcf.exFilterColumn(_dt_table, [[activecol, 'yes']]);
+
+        $('#show-inactive-status').change(function() {
+            if ($('#show-inactive-status').is(':checked')) {
+                yadcf.exResetAllFilters(_dt_table, [activecol])
+            } else {
+                yadcf.exFilterColumn(_dt_table, [[activecol, 'yes']]);
+            }
+        });
+
         // https://stackoverflow.com/questions/19237235/jquery-button-click-event-not-firing/19237302
         position_wizard_editor = new $.fn.dataTable.Editor({
             fields: [

@@ -101,7 +101,8 @@ def is_userposition_active(userposition, thisdate):
     is_active = False
     if ((userposition.startdate == None or thisdate >= userposition.startdate)
             and (userposition.finishdate == None or thisdate <= userposition.finishdate)
-            and not inspect(userposition).deleted):
+            and not inspect(userposition).deleted
+            and (userposition.position is None or userposition.position.is_active)):
         is_active = True
 
     return is_active
@@ -190,7 +191,9 @@ def members_active_currfuture(position, onorafter='1970-01-01'):
     onorafter = to_date(onorafter)
     members = set()
     for up in position.userpositions:
-        if (up.finishdate == None or up.finishdate >= onorafter) and not inspect(up).deleted:
+        if ((up.finishdate == None or up.finishdate >= onorafter)
+                and not inspect(up).deleted
+                and up.position.is_active):
             members.add(up.user)
     return list(members)
 

@@ -278,8 +278,7 @@ class Position(Base):
     interest            = relationship('LocalInterest', backref=backref('positions'))
     position            = Column(String(POSITION_LEN))
     description         = Column(String(DESCR_LEN))
-    # has_status_report is obsolete -- Meeting.statusreporttags is used instead
-    has_status_report   = Column(Boolean, default=True)
+    is_active           = Column(Boolean, default=True)
     agendaheading_id    = Column(Integer, ForeignKey('agendaheading.id'))
     agendaheading       = relationship('AgendaHeading', backref=backref('positions'))
     userpositions       = relationship('UserPosition', back_populates='position')
@@ -1188,6 +1187,18 @@ def localinterest_query_params():
     interest = Interest.query.filter_by(interest=g.interest).one()
     localinterest = LocalInterest.query.filter_by(interest_id=interest.id).one()
     return {'interest': localinterest}
+
+def localinterest_active_position_query_params():
+    '''
+    like localinterest_query_params(), but also restricts to active positions -- for
+    Position relationship pickers where a disabled position shouldn't be newly
+    selectable. Doesn't affect display of a position already selected on an existing
+    row (loutilities.tables' relationship treatment reads the current value directly
+    from the row, independent of this options query).
+    '''
+    params = localinterest_query_params()
+    params['is_active'] = True
+    return params
 
 def localinterest_viafilter():
     from loutilities.user.model import Interest

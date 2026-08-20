@@ -24,7 +24,7 @@ from ...model import db
 from ...model import LocalInterest, LocalUser, Tag, MeetingType
 from ...model import Meeting, Invite, AgendaItem, Motion, MotionVote, AgendaHeading, Position, StatusReport
 from ...model import Email
-from ...model import localinterest_query_params
+from ...model import localinterest_query_params, localinterest_active_position_query_params
 from ...model import invite_response_all, invite_attend_type_all
 from ...model import MOTIONVOTE_STATUS_APPROVED, MOTIONVOTE_STATUS_NOVOTE, MEETING_RENEW_OPTIONS
 from ...helpers import positions_active, members_active, get_tags_users
@@ -2003,7 +2003,7 @@ agendaheadings_view = DbCrudApiInterestsRolePermissions(
              'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'positions',
                               'dbfield': 'positions', 'uselist': True,
                               'searchbox': True,
-                              'queryparams': localinterest_query_params,
+                              'queryparams': localinterest_active_position_query_params,
                               }}
          }
     ],

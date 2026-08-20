@@ -167,6 +167,15 @@ def test_is_userposition_active_within_range_is_active():
     assert is_userposition_active(up, '2026-03-10') is True
 
 
+def test_is_userposition_active_inactive_position_is_inactive(userpositionsetup):
+    up = userpositionsetup['userposition']
+    position = userpositionsetup['position']
+    assert is_userposition_active(up, '2026-03-10') is True
+
+    position.is_active = False
+    assert is_userposition_active(up, '2026-03-10') is False
+
+
 def test_is_userposition_active_pending_delete_is_inactive(userpositionsetup):
     up = userpositionsetup['userposition']
     assert is_userposition_active(up, '2026-03-10') is True
@@ -210,6 +219,13 @@ def test_positions_active_returns_positions_active_on_date(userpositionsetup):
 def test_positions_active_excludes_position_not_active_on_date(userpositionsetup):
     member = userpositionsetup['member']
     assert positions_active(member, '2027-03-10') == []
+
+
+def test_positions_active_excludes_inactive_position(userpositionsetup):
+    member = userpositionsetup['member']
+    position = userpositionsetup['position']
+    position.is_active = False
+    assert positions_active(member, '2026-03-10') == []
 
 
 def test_member_position_active_returns_sorted_active_records(bare_dbapp):
@@ -267,6 +283,12 @@ def test_members_active_returns_members_active_on_date(userpositionsetup):
     assert members_active(position, '2026-03-10') == [member]
 
 
+def test_members_active_excludes_inactive_position(userpositionsetup):
+    position = userpositionsetup['position']
+    position.is_active = False
+    assert members_active(position, '2026-03-10') == []
+
+
 def test_members_active_currfuture_includes_future_position(bare_dbapp):
     interest = LocalInterest(interest_id=1)
     position = Position(position='Treasurer', interest=interest)
@@ -286,6 +308,18 @@ def test_members_active_currfuture_excludes_past_position(bare_dbapp):
     past = UserPosition(user=member, position=position, interest=interest,
                         startdate=date(2020, 1, 1), finishdate=date(2020, 12, 31))
     db.session.add_all([interest, position, member, past])
+    db.session.commit()
+
+    assert members_active_currfuture(position, onorafter='2026-01-01') == []
+
+
+def test_members_active_currfuture_excludes_inactive_position(bare_dbapp):
+    interest = LocalInterest(interest_id=1)
+    position = Position(position='Treasurer', interest=interest, is_active=False)
+    member = LocalUser(name='Jane Doe', email='jane@example.com', active=True, interest=interest)
+    future = UserPosition(user=member, position=position, interest=interest,
+                          startdate=date(2027, 1, 1), finishdate=None)
+    db.session.add_all([interest, position, member, future])
     db.session.commit()
 
     assert members_active_currfuture(position, onorafter='2026-01-01') == []

@@ -10,8 +10,9 @@ from flask import Flask, g
 # homegrown
 import members.model as members_model
 from members.model import (
-    db, LocalUser, LocalInterest, TASKFIELDNAME_LEN,
-    update_local_tables, localinterest_query_params, localinterest_viafilter, gen_fieldname,
+    db, LocalUser, LocalInterest, Position, TASKFIELDNAME_LEN,
+    update_local_tables, localinterest_query_params, localinterest_active_position_query_params,
+    localinterest_viafilter, gen_fieldname,
 )
 from loutilities.user.model import Interest, Application, User
 
@@ -56,6 +57,23 @@ def test_localinterest_query_params_returns_localinterest(interestsetup):
 
 def test_localinterest_viafilter_returns_interest_id(interestsetup):
     assert localinterest_viafilter() == {'interest_id': interestsetup['interest'].id}
+
+
+def test_localinterest_active_position_query_params_adds_is_active(interestsetup):
+    assert localinterest_active_position_query_params() == {
+        'interest': interestsetup['localinterest'], 'is_active': True,
+    }
+
+
+def test_localinterest_active_position_query_params_excludes_inactive_position(interestsetup):
+    localinterest = interestsetup['localinterest']
+    active = Position(position='Treasurer', interest=localinterest)
+    inactive = Position(position='Retired Role', interest=localinterest, is_active=False)
+    db.session.add_all([active, inactive])
+    db.session.commit()
+
+    results = Position.query.filter_by(**localinterest_active_position_query_params()).all()
+    assert results == [active]
 
 
 # ----------------------------------------------------------------------
