@@ -13,6 +13,15 @@
             "problemMatcher": []
         },
         {
+            "label": "build docs",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/sphinx-build -M html . _build",
+            "options": {
+                "cwd": "${workspaceFolder}/docs"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "build, push app",
             "type": "shell",
             "dependsOn": [
