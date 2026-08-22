@@ -5,12 +5,14 @@ viewhelpers - helpers for admin views
 # standard
 from datetime import datetime, date
 from time import time
+from functools import wraps
 
 # pypi
 from loutilities.user.model import User, Interest, Role
 from loutilities.tables import DteDbRelationship, SEPARATOR
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
-from flask import g, current_app, url_for
+from flask import g, current_app, url_for, jsonify
+from flask_security import current_user
 from dateutil.relativedelta import relativedelta
 from markdown import markdown
 from dominate.tags import a
@@ -38,6 +40,23 @@ def profile(func):
 
 dtrender = asctime('%Y-%m-%d')
 dttimerender = asctime('%Y-%m-%d %H:%M:%S')
+
+def json_login_required(fn):
+    '''
+    use as a MethodView 'decorators' entry (in place of flask_security.auth_required()) for
+    rest/api endpoints which are only ever called via ajax, never navigated to directly.
+
+    flask_security.auth_required() redirects to the html login page unless the request's
+    Accept header negotiates for json -- several of this app's hand-rolled $.get()/$.post()
+    calls don't set that header, so auth_required() would hand them a login page to parse as
+    json. this decorator always returns json, never redirects, regardless of request headers.
+    '''
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return jsonify(error='not logged in'), 401
+        return fn(*args, **kwargs)
+    return wrapped
 EXPIRES_SOON = 14 #days
 PERIOD_WINDOW_DISPLAY = 7
 

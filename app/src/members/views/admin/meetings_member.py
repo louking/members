@@ -27,7 +27,7 @@ from ...meeting_evotes import get_evotes, generateevotes
 from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVotesBase, MotionsBase
 from .meetings_common import motions_childelementargs, invite_statusreport
 from .meetings_common import meeting_has_option, MEETING_OPTION_RSVP, MEETING_OPTION_HASSTATUSREPORTS
-from .viewhelpers import localuser2user, user2localuser
+from .viewhelpers import localuser2user, user2localuser, json_login_required
 from loutilities.tables import get_request_data
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -505,6 +505,8 @@ membermotions_view.register()
 ##########################################################################################
 
 class MyMeetingRsvpApi(MethodView):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]
@@ -687,6 +689,8 @@ motionvote_view.register()
 #########################################################################################
 
 class MotionVoteApi(MethodView):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER]

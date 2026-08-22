@@ -13,7 +13,7 @@ from io import StringIO
 # pypi
 from flask import current_app, request, url_for, g, jsonify, abort, render_template, flash, Response
 from flask.views import MethodView
-from flask_security import current_user
+from flask_security import current_user, auth_required
 from dominate.tags import select, option, button, input_, i
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN
@@ -27,7 +27,7 @@ from ...model import db
 from ...model import LocalInterest, AwardsRace, AwardsEvent, AwardsDivision, AwardsAwardee
 from ...version import __docversion__
 from ...helpers import make_runsignup_client
-from .viewhelpers import localinterest
+from .viewhelpers import localinterest, json_login_required
 
 awards_roles = [ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN]
 adminguide = 'https://members.readthedocs.io/en/{docversion}/organization-admin-guide.html'.format(
@@ -256,6 +256,9 @@ class RaceAwardsBase(MethodView):
 
     
 class RaceAwardsView(RaceAwardsBase):
+    # a page navigated to directly (e.g., window.location.href), not an ajax endpoint --
+    # ok to redirect an unauthenticated user to the html login page
+    decorators = [auth_required()]
 
     def get(self):
         try:
@@ -301,6 +304,8 @@ bp.add_url_rule('/<interest>/raceawards', view_func=RaceAwardsView.as_view('race
 
 
 class RaceAwardsApi(RaceAwardsBase):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def update_event_awards(self, event):
         '''
@@ -497,6 +502,9 @@ bp.add_url_rule('/<interest>/_raceawards/rest', view_func=RaceAwardsApi.as_view(
 
 
 class AwardPickUpApi(RaceAwardsBase):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
+
     def permission(self):
         permission = super().permission()
         if permission:
@@ -534,6 +542,9 @@ bp.add_url_rule('/<interest>/_awardpickedup/rest', view_func=AwardPickUpApi.as_v
                 methods=['POST'])
 
 class AwardNotesApi(RaceAwardsBase):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
+
     def permission(self):
         permission = super().permission()
         if permission:
@@ -582,6 +593,10 @@ bp.add_url_rule('/<interest>/_awardnotes/rest', view_func=AwardNotesApi.as_view(
 
 
 class AwardCsvApi(RaceAwardsBase):
+    # triggered via window.location.href (file download), not ajax -- ok to redirect an
+    # unauthenticated user to the html login page
+    decorators = [auth_required()]
+
     def permission(self):
         permission = super().permission()
         if permission:

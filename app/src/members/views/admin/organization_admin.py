@@ -19,7 +19,7 @@ from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPos
 from ...model import localinterest_query_params, localinterest_active_position_query_params, localinterest_viafilter
 from ...helpers import members_active, member_qualifiers_active, memberqualifierstr, all_active_members
 from ...helpers import member_position_active, member_positions, positions_active, members_active_currfuture
-from .viewhelpers import dtrender, localinterest
+from .viewhelpers import dtrender, localinterest, json_login_required
 from ...version import __docversion__
 
 from loutilities.user.model import User, Interest, Role
@@ -394,6 +394,8 @@ tags_view.register()
 ###########################################################################################
 
 class PositionWizardApi(MethodView):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def __init__(self):
         self.roles_accepted = organization_roles

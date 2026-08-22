@@ -11,6 +11,7 @@ from flask_uploads import UploadSet, configure_uploads, IMAGES
 
 # homegrown
 from . import bp
+from .viewhelpers import json_login_required
 
 images = UploadSet('images', IMAGES)
 
@@ -19,6 +20,9 @@ def init_uploads(app):
 
 # upload files
 class UploadView(MethodView):
+    # ajax-only endpoint (ckeditor upload adapter) -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
+
     def post(self):
         filename = images.save(request.files['upload'])
 

@@ -8,7 +8,7 @@ sysinfo - debug views for web application
 # pypi
 from flask import current_app, render_template, session
 from flask.views import MethodView
-from flask_security import roles_accepted
+from flask_security import roles_accepted, auth_required
 
 # home grown
 from . import bp
@@ -23,7 +23,7 @@ thisversion = __version__
 
 
 class ViewSysinfo(MethodView):
-    # decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN, 'event-admin')(f)]
+    decorators = [auth_required()]
     url_rules = {
                 'sysinfo': ['/sysinfo',('GET',)],
                 }
@@ -42,7 +42,7 @@ add_url_rules(bp, ViewSysinfo)
 
 
 class ViewDebug(MethodView):
-    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f)]
+    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f), auth_required()]
     url_rules = {
                 'debug': ['/_debuginfo',('GET',)],
                 }
@@ -100,7 +100,7 @@ class ViewDebug(MethodView):
 add_url_rules(bp, ViewDebug)
 
 class TestException(MethodView):
-    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f)]
+    decorators = [lambda f: roles_accepted(ROLE_SUPER_ADMIN)(f), auth_required()]
     url_rules = {
                 'testexception': ['/xcauseexception',('GET',)],
                 }

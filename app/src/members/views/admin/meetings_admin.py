@@ -39,7 +39,7 @@ from .meetings_common import MemberStatusReportBase, ActionItemsBase, MotionVote
 from .meetings_common import motions_childelementargs, adminguide
 from .meetings_common import custom_meeting, custom_invitation, custom_invitations, custom_statusreport, invite_statusreport
 from .meetings_common import meeting_has_option, meeting_has_button
-from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_positions
+from .viewhelpers import dtrender, localinterest, localuser2user, user2localuser, get_tags_positions, json_login_required
 from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from members.reports import meeting_gen_reports, meeting_reports
 
@@ -1284,6 +1284,8 @@ theirstatusreport_view.register()
 ##########################################################################################
 
 class MeetingGenDocsApi(MethodView):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
@@ -1339,6 +1341,8 @@ bp.add_url_rule('/<interest>/_meetinggendocs/rest', view_func=MeetingGenDocsApi.
 #########################################################################################
 
 class MeetingApiBase(MethodView):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
 
     def __init__(self):
         self.roles_accepted = [ROLE_SUPER_ADMIN, ROLE_MEETINGS_ADMIN]
@@ -2255,6 +2259,9 @@ class MeetingTypeParmsApi(DbPermissionsMethodViewApi):
     """
     Api to retrieve parameters associated with meetingtype, to support use of Editor.dependent()
     """
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
+
     def do_post(self):
         meetingtype_id = request.form.get('values[meetingtype.id]')
         meeting_id = request.form.get('rows[0][rowid]', None)
@@ -2303,6 +2310,9 @@ meetingtypeparmsapi_view.register()
 ###########################################################################################
 
 class MeetingRenewDataApi(DbPermissionsMethodViewApi):
+    # ajax-only endpoint -- always return json on auth failure, never redirect
+    decorators = [json_login_required]
+
     def permission(self):
         if request.args.get('meeting_id', None):
             return super().permission()
