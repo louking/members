@@ -225,6 +225,39 @@ This preserves real failure visibility (`catch_errors` in `scripts/__init__.py` 
 
 **While editing, also removed vestigial `test "$PROD"`/`test "$DEV"` guards from most lines** — a holdover from when `config/cronjobs` was still a single shared file in git; now that it's per-environment, those guards are redundant (each environment already gets its own tailored file). The one exception: the leadership-emails job's `test \`expr \`date +\%s\` / 86400 \% 2\`` is a genuine even/odd-Monday date-parity check, not an environment guard, and was left alone. The `*/30 * * * *` dev-cadence db-backup line was commented out rather than left unguarded, since removing its guard would otherwise leave *two* backup schedules running unconditionally together.
 
+## GSuite Report Folder Override (`OVERRIDE_DEV_REPORTS_FOLDER` / `OVERRIDE_SANDBOX_REPORTS_FOLDER`)
+
+A dev or sandbox host loaded from a copy of the production database inherits real
+production Google Drive file/folder ids (`Meeting.gs_status`/`gs_agenda`/`gs_minutes`,
+`LocalInterest.gs_status_fdr`/`gs_agenda_fdr`/`gs_minutes_fdr`) unchanged, since those
+ids live in the database itself. Left alone, a report-generating command run against
+that copy (`continuousreports`, `nightlyreports`, the "Generate Docs" admin button)
+writes straight into the real production Google Doc via `update_file()` — see
+[github.com/louking/members#717](https://github.com/louking/members/issues/717) for the
+incident this was fixed after.
+
+`app/src/dbupgrade_and_run.sh` sanitizes this automatically, but only at the moment a
+`/initdb.d/${APP_DATABASE}-*.sql` dump actually gets loaded (not on every normal
+container start, which would otherwise orphan/recreate dev's own genuinely-generated
+reports on every restart) and only when one of these `.env` keys is set on the host:
+`OVERRIDE_DEV_REPORTS_FOLDER` for dev, `OVERRIDE_SANDBOX_REPORTS_FOLDER` for
+sandbox.steeplechasers.org (see `export_fsrc_events.py`'s `BASE_URL` note above for that
+environment). The key's value is the Drive folder id to redirect newly-created reports
+into — it doubles as both the trigger ("this is not production") and the target, so
+there's no separate flag to keep in sync with a separately-configured folder. When set,
+the sanitize step nulls every `meeting.gs_status`/`gs_agenda`/`gs_minutes` (forcing
+`create_file()` instead of `update_file()` on the next report generation) and repoints
+every `localinterest.gs_status_fdr`/`gs_agenda_fdr`/`gs_minutes_fdr` at that folder id.
+Production's `.env` never sets either key, so the step is a no-op there.
+
+**Both keys must be added by hand to each non-production host's `.env`** (`.env` is
+gitignored and per-host, like `config/cronjobs`) — pointed at a real Drive folder
+dedicated to that host's own test output, not a production folder. A fresh host that
+skips this silently reproduces the original incident on its first prod-DB-copy load.
+`docker-compose.yml`'s `app` service `environment:` block passes both keys through
+(`OVERRIDE_DEV_REPORTS_FOLDER`/`OVERRIDE_SANDBOX_REPORTS_FOLDER`) since
+`dbupgrade_and_run.sh` only runs in `app`, not `crond`.
+
 ## fluent_discourse API Note
 
 The `fluent_discourse` client uses a fluent/chained builder. HTTP verb methods (`get`, `post`, `put`, `delete`) each take a **single positional dict argument** — not keyword arguments:

@@ -98,6 +98,10 @@ services:
       FLASK_UPLOADED_IMAGES_DEST: ${FLASK_UPLOADED_IMAGES_DEST}
       FLASK_APP_FILE_FOLDER: ${FLASK_APP_FILE_FOLDER}
       FLASK_LOGGING_PATH: ${FLASK_LOGGING_PATH}
+      # see #717 -- set on non-production hosts only, to sanitize GSuite report
+      # file/folder ids when a production db copy is loaded
+      OVERRIDE_DEV_REPORTS_FOLDER: ${OVERRIDE_DEV_REPORTS_FOLDER}
+      OVERRIDE_SANDBOX_REPORTS_FOLDER: ${OVERRIDE_SANDBOX_REPORTS_FOLDER}
     extra_hosts:
       # see https://stackoverflow.com/a/67158212/799921
       - "host.docker.internal:host-gateway"
