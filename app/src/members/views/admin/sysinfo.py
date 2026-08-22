@@ -23,7 +23,8 @@ thisversion = __version__
 
 
 class ViewSysinfo(MethodView):
-    decorators = [auth_required()]
+    # deliberately public -- linked from the "About" nav item shown to logged-out visitors too
+    # (nav.py, navbar.items.append(View('About', 'admin.sysinfo')) is unconditional)
     url_rules = {
                 'sysinfo': ['/sysinfo',('GET',)],
                 }
