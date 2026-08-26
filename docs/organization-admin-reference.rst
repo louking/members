@@ -190,6 +190,14 @@ The Positions view defines all of the :term:`positions <position>` within the or
         list of :term:`task groups <task group>` for which :term:`summary emails <summary email>`
         for any *overdue* tasks are sent to supervisory :term:`members <member>` holding this :term:`position`
 
+    :Access Types:
+        :term:`access types <access type>` required by :term:`members <member>` who hold this :term:`position`
+        -- see :ref:`Access Types Guide`
+
+    :Direct Access:
+        one-off :term:`system`/:term:`access level` pairs required by :term:`members <member>` who hold this
+        :term:`position`, not worth bundling into an :term:`access type` -- see :ref:`Access Types Guide`
+
 The view has the following filters:
 
     :In Position On:

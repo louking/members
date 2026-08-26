@@ -16,7 +16,7 @@ from members import create_app
 from members.settings import Production
 from members.model import db
 from members.applogging import setlogging
-from scripts import MembersCli, MembershipCli, TaskCli, CommunityCli
+from scripts import MembersCli, MembershipCli, TaskCli, CommunityCli, OrganizationCli
 
 appname = environ['APP_NAME']
 
@@ -36,6 +36,7 @@ members = MembersCli(app, db)
 membership = MembershipCli(app, db)
 task = TaskCli(app, db)
 community = CommunityCli(app, db)
+organization = OrganizationCli(app, db)
 
 # Needed only if serving web pages
 # implement proxy fix (https://github.com/sjmf/reverse-proxy-minimal-example)

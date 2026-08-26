@@ -19,6 +19,9 @@ from . import superadmin
 # organization module
 from . import organization_admin
 
+# organization access module (systems/access types/checklist, see #716)
+from . import access_admin
+
 # meetings module
 from . import meetings_admin
 from . import meetings_member

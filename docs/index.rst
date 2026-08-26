@@ -28,6 +28,12 @@ Welcome to membertility's documentation!
    about race results and volunteer activities, and administrative views for the racing team coordinator
    to view the submitted applications and information.
 
+:doc:`systems-module`
+   Define the :term:`systems <system>` and :term:`access levels <access level>` :term:`members <member>` may
+   need because of the :term:`positions <position>` they hold, bundle them into :term:`access types <access
+   type>`, and track the :term:`access checklist` of grant/revoke actions needed when a :term:`member's
+   <member>` positions change.
+
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
@@ -38,6 +44,7 @@ Welcome to membertility's documentation!
    membership-module
    awards-module
    racingteam-module
+   systems-module
    super-admin-module
    membertility-definitions
    typographical-conventions

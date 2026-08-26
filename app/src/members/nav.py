@@ -29,6 +29,7 @@ from slugify import slugify
 
 # homegrown
 from .version import __docversion__
+from .roles import ROLE_SYSTEMS_ADMIN
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_LEADERSHIP_ADMIN, ROLE_LEADERSHIP_MEMBER
 from loutilities.user.roles import ROLE_MEMBERSHIP_ADMIN
 from loutilities.user.roles import ROLE_MEETINGS_ADMIN, ROLE_MEETINGS_MEMBER
@@ -90,6 +91,7 @@ def nav_menu():
     meetings_member_view = add_view('https://members.readthedocs.io/en/{docversion}/meetings-member-guide.html#')
     awards_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/awards-admin-reference.html#')
     racingteam_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/racingteam-admin-reference.html#')
+    systems_admin_view = add_view('https://members.readthedocs.io/en/{docversion}/systems-admin-reference.html#')
 
     # create context help menu items for views which can't be navigated to from the main menu
     if g.interest:
@@ -122,6 +124,17 @@ def nav_menu():
                 org_admin_view(orgadmin, 'Positions', 'admin.positions', interest=g.interest)
                 org_admin_view(orgadmin, 'Position Dates', 'admin.positiondates', interest=g.interest)
                 org_admin_view(orgadmin, 'Tags', 'admin.tags', interest=g.interest)
+
+            # systems admin stuff: systems/access-type reference data and the position-access
+            # checklist (see #716) -- a dedicated role rather than Super, so this can be
+            # delegated without granting full super-admin access to everything else
+            if current_user.has_role(ROLE_SYSTEMS_ADMIN) or current_user.has_role(ROLE_SUPER_ADMIN):
+                systemsadmin = Subgroup('Systems')
+                navbar.items.append(systemsadmin)
+                systems_admin_view(systemsadmin, 'Systems', 'admin.accesssystems', interest=g.interest)
+                systems_admin_view(systemsadmin, 'System Access Levels', 'admin.accesssystemlevels', interest=g.interest)
+                systems_admin_view(systemsadmin, 'Access Types', 'admin.accesstypes', interest=g.interest)
+                systems_admin_view(systemsadmin, 'Access Checklist', 'admin.accesschecklist', interest=g.interest)
 
             # meetings member stuff
             if (current_user.has_role(ROLE_MEETINGS_MEMBER) or current_user.has_role(ROLE_MEETINGS_ADMIN)

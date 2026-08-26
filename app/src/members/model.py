@@ -83,6 +83,18 @@ positionemailgroup_table = Table('position_emailgroup', Base.metadata,
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
                        )
 
+# required access to systems, see #716 -- association tables only; System/SystemAccessLevel/
+# AccessType classes themselves are defined after Position, near PositionAccessNotice
+position_accesstype_table = Table('position_accesstype', Base.metadata,
+                       Column('position_id', Integer, ForeignKey('position.id')),
+                       Column('accesstype_id', Integer, ForeignKey('accesstype.id')),
+                       )
+
+position_directaccess_table = Table('position_directaccess', Base.metadata,
+                       Column('position_id', Integer, ForeignKey('position.id')),
+                       Column('systemaccesslevel_id', Integer, ForeignKey('systemaccesslevel.id')),
+                       )
+
 tasktaskgroup_table = Table('task_taskgroup', Base.metadata,
                        Column('task_id', Integer, ForeignKey('task.id')),
                        Column('taskgroup_id', Integer, ForeignKey('taskgroup.id')),
@@ -292,6 +304,141 @@ class Position(Base):
     emailgroups         = relationship('TaskGroup',
                                        secondary=positionemailgroup_table,
                                        backref=backref('positionemailgroups'))
+    # required access to systems, see #716: accesstypes are bundled requirements shared by
+    # several positions, direct_access is for one-off requirements not worth bundling into
+    # an AccessType. A position's effective required access is the union of both --
+    # see organization_access.compute_required_access()
+    accesstypes         = relationship('AccessType',
+                                       secondary=position_accesstype_table,
+                                       backref=backref('positions'))
+    direct_access       = relationship('SystemAccessLevel',
+                                       secondary=position_directaccess_table,
+                                       backref=backref('directpositions'))
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+# systems (and access to them) which positions may require, see #716
+SYSTEM_LEN = 128
+ACCESSLEVEL_LEN = 128
+ACCESSTYPE_LEN = 128
+
+accesstype_systemaccesslevel_table = Table('accesstype_systemaccesslevel', Base.metadata,
+                       Column('accesstype_id', Integer, ForeignKey('accesstype.id')),
+                       Column('systemaccesslevel_id', Integer, ForeignKey('systemaccesslevel.id')),
+                       )
+
+class System(Base):
+    '''
+    a system (e.g., Google Workspace, MailChimp, Canva, steeplechasers.org, a
+    RunSignUp race, membertility itself) which positions may require access to; see #716
+    '''
+    __tablename__ = 'system'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('systems'))
+    name                = Column(String(SYSTEM_LEN))
+    # stable machine identifier used by the bootstrap CSVs (bundles.csv, the access-report
+    # --actual-csv), so imports aren't tied to the display name -- unique within an interest,
+    # like name; see #716
+    slug                = Column(String(SYSTEM_LEN))
+    description         = Column(String(DESCR_LEN))
+    is_active           = Column(Boolean, default=True)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+class SystemAccessLevel(Base):
+    '''
+    a level of access within a System, e.g., membertility's several admin roles.
+    Every System gets at least one level row, even systems with no real tiers
+    (e.g. just "Access"), so the model doesn't have to branch on whether a
+    system has levels
+
+    interest_id is redundant with system.interest_id, but loutilities.user.tables.
+    DbCrudApiInterestsRolePermissions.beforequery()/createrow() filter/stamp
+    interest_id directly on the model being managed -- every other interest-scoped
+    CRUD table in this app has its own interest_id for the same reason
+    '''
+    __tablename__ = 'systemaccesslevel'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('systemaccesslevels'))
+    system_id           = Column(Integer, ForeignKey('system.id'))
+    system              = relationship('System', backref=backref('accesslevels'))
+    name                = Column(String(ACCESSLEVEL_LEN))
+    # stable machine identifier used by the bootstrap CSVs, unique within its system
+    # (not globally -- e.g. two different systems can each have an "admin" level); see #716
+    slug                = Column(String(ACCESSLEVEL_LEN))
+    description         = Column(String(DESCR_LEN))
+    is_active           = Column(Boolean, default=True)
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+    @property
+    def label(self):
+        '''"<system name>: <level name>", for use as labelfield in relationship pickers'''
+        return f'{self.system.name}: {self.name}' if self.system else self.name
+
+class AccessType(Base):
+    '''
+    a named bundle of (system, access level) pairs shared by several positions,
+    e.g. "Race Director access" -- the convenience "class" from #716. Not the
+    source of truth for a position's required access on its own: see
+    Position.accesstypes / Position.direct_access
+    '''
+    __tablename__ = 'accesstype'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('accesstypes'))
+    name                = Column(String(ACCESSTYPE_LEN))
+    # stable machine identifier used by the bootstrap CSVs (bundles.csv, positions.csv),
+    # unique within an interest, like System.slug/SystemAccessLevel.slug; see #716
+    slug                = Column(String(ACCESSTYPE_LEN))
+    description         = Column(String(DESCR_LEN))
+    is_active           = Column(Boolean, default=True)
+    access              = relationship('SystemAccessLevel',
+                                       secondary=accesstype_systemaccesslevel_table,
+                                       backref=backref('accesstypes'))
+    version_id = Column(Integer, nullable=False, default=1)
+    __mapper_args__ = {
+        'version_id_col': version_id
+    }
+
+POSITIONACCESSNOTICE_ACTION_GRANT = 'grant'
+POSITIONACCESSNOTICE_ACTION_REVOKE = 'revoke'
+positionaccessnotice_actions = (POSITIONACCESSNOTICE_ACTION_GRANT, POSITIONACCESSNOTICE_ACTION_REVOKE)
+
+class PositionAccessNotice(Base):
+    '''
+    checklist row: a user's required access to a system changed because of a
+    position add/remove, and an admin needs to grant/revoke it in the real
+    system; see #716. organization_access.sync_access_notices() doesn't
+    re-create one of these while an equivalent row is still unresolved for
+    the same (user, system, accesslevel, action)
+    '''
+    __tablename__ = 'positionaccessnotice'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('positionaccessnotices'))
+    user_id             = Column(Integer, ForeignKey('localuser.id'))
+    user                = relationship('LocalUser', foreign_keys=[user_id], backref=backref('positionaccessnotices'))
+    system_id           = Column(Integer, ForeignKey('system.id'))
+    system              = relationship('System')
+    accesslevel_id      = Column(Integer, ForeignKey('systemaccesslevel.id'))
+    accesslevel         = relationship('SystemAccessLevel')
+    action              = Column(Enum(*positionaccessnotice_actions), nullable=False)
+    reason_position_id  = Column(Integer, ForeignKey('position.id'))
+    reason_position     = relationship('Position')
+    effective_date      = Column(Date, nullable=False)
+    detected_at         = Column(DateTime, nullable=False)
+    resolved_at         = Column(DateTime)
+    resolved_by_id      = Column(Integer, ForeignKey('localuser.id'))
+    resolved_by         = relationship('LocalUser', foreign_keys=[resolved_by_id])
     version_id = Column(Integer, nullable=False, default=1)
     __mapper_args__ = {
         'version_id_col': version_id
@@ -1204,6 +1351,7 @@ def localinterest_viafilter():
     from loutilities.user.model import Interest
     interest = Interest.query.filter_by(interest=g.interest).one()
     return {'interest_id': interest.id}
+
 
 def gen_fieldname():
     # https://www.educative.io/edpresso/how-to-generate-a-random-string-in-python

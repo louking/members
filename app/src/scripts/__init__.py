@@ -28,6 +28,7 @@ from scripts.meetings_cli import meetings
 from scripts.membership_cli import membership
 from scripts.task_cli import task
 from scripts.community_cli import community
+from scripts.organization_cli import organization
 
 class MembersCli():
     # adapted from flask-migrate.Migrate
@@ -56,3 +57,10 @@ class CommunityCli():
 
         # need this for each command group
         app.cli.add_command(community)
+
+class OrganizationCli():
+    # adapted from flask-migrate.Migrate
+    def __init__(self, app, db):
+
+        # need this for each command group
+        app.cli.add_command(organization)

@@ -42,6 +42,10 @@ and in turn :term:`members <member>` are assigned one or more :term:`positions <
 The :ref:`Task Hierarchy` gives details on these relationships, and the :ref:`Task Module` has complete
 details about :term:`task` management.
 
+Similarly, :term:`positions <position>` may require access to external or internal :term:`systems <system>`
+(Google Workspace, MailChimp, a RunSignUp race, etc.), also assigned using :ref:`Positions view`. See the
+:ref:`Systems Module` for details.
+
 .. _Tags Guide:
 
 Tags Guide

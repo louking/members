@@ -7,6 +7,22 @@ Glossary
 .. glossary::
     :sorted:
 
+    access checklist
+        a list of :term:`system` access grant/revoke actions a :term:`systems admin` needs to take in the real
+        external systems, generated automatically when a :term:`member's <member>` :term:`positions <position>`
+        change in a way that changes what access they need. See :ref:`Access Checklist view`.
+
+    access level
+        a level of access within a :term:`system`, e.g., membertility's several administrative
+        :term:`security roles <security role>`. Every :term:`system` has at least one access level, even if
+        there's only one tier of access.
+
+    access type
+        a named bundle of :term:`system`/:term:`access level` pairs shared by several :term:`positions
+        <position>`, e.g., "Race Director access" -- a convenience for assigning several access requirements
+        to a :term:`position` at once, rather than assigning each :term:`system`/:term:`access level` pair
+        individually (see :term:`direct access`)
+
     action item
         item assigned to someone at a :term:`meeting` which needs to be resolved in some manner
 
@@ -72,6 +88,21 @@ Glossary
     membership admin
         :term:`members <member>` with this :term:`security role` serve in a supervisory position and
         can manage membership information
+
+    direct access
+        a :term:`system`/:term:`access level` pair assigned directly to a single :term:`position`, rather than
+        through an :term:`access type`. Used for a one-off access requirement not worth bundling into an
+        :term:`access type`.
+
+    system
+        an external or internal service that a :term:`member` may need access to because of a :term:`position`
+        they hold, e.g., Google Workspace, MailChimp, Canva, the club website, a RunSignUp race, or
+        membertility itself
+
+    systems admin
+        :term:`members <member>` with this :term:`security role` manage which :term:`systems <system>` and
+        :term:`access levels <access level>` are required by each :term:`position`, and resolve the
+        :term:`access checklist`
 
     minutes
         record of :term:`meeting` :term:`agenda`, discussions, :term:`votes <vote>`, etc.

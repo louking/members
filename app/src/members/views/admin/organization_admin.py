@@ -16,9 +16,11 @@ from dominate.tags import div, input_, button, dd, label
 from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, TaskGroup, AgendaHeading, UserPosition, Position, Tag
+from ...model import AccessType, SystemAccessLevel
 from ...model import localinterest_query_params, localinterest_active_position_query_params, localinterest_viafilter
 from ...helpers import members_active, member_qualifiers_active, memberqualifierstr, all_active_members
 from ...helpers import member_position_active, member_positions, positions_active, members_active_currfuture
+from ...organization_access import compute_required_access, sync_access_notices
 from .viewhelpers import dtrender, localinterest, json_login_required
 from ...version import __docversion__
 
@@ -82,8 +84,8 @@ position_yadcf_options = [
     yadcfoption('is_active:name', 'active-filter', 'multi_select', uselist=True, placeholder='Select active status')
 ]
 
-position_dbattrs = 'id,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,__readonly__'.split(',')
-position_formfields = 'rowid,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,users'.split(',')
+position_dbattrs = 'id,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,accesstypes,direct_access,__readonly__'.split(',')
+position_formfields = 'rowid,interest_id,position,description,is_active,taskgroups,emailgroups,tags,agendaheading,accesstypes,direct_access,users'.split(',')
 position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
@@ -155,6 +157,24 @@ position_view = DbCrudApiInterestsRolePermissions(
                                               'queryparams': localinterest_query_params,
                                               }}
                          },
+                        {'data': 'accesstypes', 'name': 'accesstypes', 'label': 'Access Types',
+                         'fieldInfo': 'system access bundles required by members who hold this position; see #716',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': AccessType, 'labelfield': 'name', 'formfield': 'accesstypes',
+                                              'dbfield': 'accesstypes', 'uselist': True,
+                                              'searchbox': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
+                        {'data': 'direct_access', 'name': 'direct_access', 'label': 'Direct Access',
+                         'fieldInfo': 'one-off system access required by this position, not worth bundling into an access type',
+                         '_treatment': {
+                             'relationship': {'fieldmodel': SystemAccessLevel, 'labelfield': 'label', 'formfield': 'direct_access',
+                                              'dbfield': 'direct_access', 'uselist': True,
+                                              'searchbox': True,
+                                              'queryparams': localinterest_query_params,
+                                              }}
+                         },
                     ],
                     servercolumns = None,  # not server side
                     idSrc = 'rowid',
@@ -197,6 +217,38 @@ positiondate_dbmapping['finishdate'] = lambda formrow: dtrender.asc2dt(formrow['
 positiondate_formmapping['finishdate'] = lambda dbrow: dtrender.dt2asc(dbrow.finishdate) if dbrow.finishdate else ''
 
 class PositionDateView(DbCrudApiInterestsRolePermissions):
+    def editor_method_prehook(self, form):
+        '''
+        capture required-access snapshot for any user(s) this create/edit/remove may affect,
+        before any UserPosition change is made -- see #716 / organization_access.sync_access_notices.
+        Both the row's existing user (edit/remove) and any user picked on the form (create/edit,
+        in case an edit reassigns the row to a different user) are captured, so a reassignment
+        gets a correct diff for both the old and new user.
+
+        :param form: form data
+        '''
+        userids = set()
+        if self.action in ('edit', 'remove'):
+            thisid = request.view_args.get('thisid')
+            up = UserPosition.query.filter_by(id=thisid).one_or_none() if thisid else None
+            if up and up.user_id:
+                userids.add(up.user_id)
+        if self.action in ('create', 'edit'):
+            requestdata = get_request_data(form)
+            for row in requestdata.values():
+                userid = row.get('user')
+                if userid:
+                    try:
+                        userids.add(int(userid))
+                    except (TypeError, ValueError):
+                        pass
+
+        self._access_before = {}
+        for userid in userids:
+            user = LocalUser.query.filter_by(id=userid).one_or_none()
+            if user:
+                self._access_before[userid] = compute_required_access(user)
+
     def editor_method_postcommit(self, formdata):
         '''
         updates to taskgroups and tags affect multiple rows related to the user(s) impacted, so need to update
@@ -217,6 +269,14 @@ class PositionDateView(DbCrudApiInterestsRolePermissions):
                 ups = UserPosition.query.filter_by(user_id=userid).all()
                 otherrows += [self.dte.get_response_data(up) for up in ups if up.id not in upids]
             self._responsedata += otherrows
+
+        # update access checklist for anyone whose position membership changed above
+        # (runs after commit, so compute_required_access() reflects the persisted change)
+        interest = localinterest()
+        for userid, before in getattr(self, '_access_before', {}).items():
+            user = LocalUser.query.filter_by(id=userid).one_or_none()
+            if user:
+                sync_access_notices(interest, user, before)
 
 def positiondate_pretablehtml():
     pretablehtml = div()
@@ -491,6 +551,11 @@ class PositionWizardApi(MethodView):
                 resultmemberids = requestdata['keyless']['members'].split(', ')
             resultmembers = [LocalUser.query.filter_by(id=id).one() for id in resultmemberids]
 
+            # capture required-access snapshot before any UserPosition changes below, for the
+            # checklist diff at the end (see #716 / organization_access.sync_access_notices)
+            access_affected_members = {m.id: m for m in currmembers + resultmembers}
+            access_before = {mid: compute_required_access(m) for mid, m in access_affected_members.items()}
+
             # terminate all future user/positions in this position as we're basing our update on effectivedate assertion by admin
             # delete all of these which are strictly in the future
             # NOTE: only do this for members currently active on effectivedate; purely future members (startdate > effectivedate)
@@ -598,6 +663,14 @@ class PositionWizardApi(MethodView):
                     elif futureup.qualifier == qualifier and futureup.startdate == finishdate + timedelta(1):
                         futureup.startdate = previousdatedt + timedelta(1)
                 
+            # update access checklist for anyone whose position membership changed above
+            # (must flush first so positions_active() sees pending adds/deletes -- see
+            # helpers.is_userposition_active()'s inspect(...).deleted check)
+            db.session.flush()
+            for mid, member in access_affected_members.items():
+                sync_access_notices(localinterest(), member, access_before[mid],
+                                     reason_position=self.position, effective_date=effectivedatedt)
+
             # commit all the changes and return success
             # NOTE: in afterdatatables.js else if (location.pathname.includes('/positions'))
             # table is redrawn on submitComplete in case this action caused visible changes
