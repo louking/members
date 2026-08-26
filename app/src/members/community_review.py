@@ -29,21 +29,53 @@ def _resolve_category(categories: list[dict], slug: str) -> dict | None:
     return None
 
 
-def fetch_category_moderator_groups(discourse, category_id: int, group_id_to_name: dict) -> list[str]:
+def fetch_category_moderator_groups(discourse, category_id: int, groups_by_id: dict, log=None) -> list[str]:
     """Return the moderator group name(s) configured for a category.
 
-    Discourse exposes this per-category, as group ids, via GET /c/{id}/show.json's
-    topic_posting_review_group_ids and reply_posting_review_group_ids (not on the
-    GET /categories.json list response, which doesn't include these fields). A
-    category can have more than one group configured — the two lists are set
-    independently (new topics vs. replies) — so both are unioned since either
-    implies that group reviews items pending in this category. [] if none configured.
+    Discourse exposes this per-category via GET /c/{id}/show.json's
+    moderating_group_ids (not on the GET /categories.json list response, which
+    doesn't include this field) — this is the "In addition to staff, content in
+    this category can also be reviewed by:" group list on the category's
+    Moderation admin tab.
+
+    Confirmed live NOT to be topic_posting_review_group_ids/reply_posting_review_group_ids,
+    despite those names sounding right: those two instead back the *separate*
+    "Groups that do not require approval" exemption lists under New topic/reply
+    approval on the same tab — who's exempted from review, not who reviews.
+    They can overlap in practice (an operator adding the same group to both lists)
+    which is how this went unnoticed: an earlier version of this function read
+    those two fields and happened to still catch the real moderator groups because
+    they'd also been added to the exemption lists — until a category also had an
+    exemption-only group (meant just to let trusted posters skip review, not to
+    moderate) with "Who can message this group" set to Nobody, which broke the
+    *entire* PM (Discourse's target-recipient resolution fails the whole send with
+    a generic "could not be found" error if even one recipient is unmessageable)
+    and surfaced the wrong-field bug. See github.com/louking/members#721.
+
+    groups_by_id maps group id -> full group dict (as returned by fetch_groups()),
+    not just a name, so a group's messageable_level can still be checked here as a
+    defensive fallback — skipped (with a warning, since it's silent otherwise) so
+    one unmessageable group can't take down notices to every other group configured
+    on the same category, even now that the field itself should only ever contain
+    actual moderator groups.
     """
+    if log is None:
+        log = logging.getLogger(__name__)
     detail = discourse.c._(str(category_id)).show.json.get({})
     category = detail.get('category', {})
-    group_ids = set(category.get('topic_posting_review_group_ids') or [])
-    group_ids.update(category.get('reply_posting_review_group_ids') or [])
-    return sorted(group_id_to_name[gid] for gid in group_ids if gid in group_id_to_name)
+    group_ids = set(category.get('moderating_group_ids') or [])
+    names = []
+    for gid in group_ids:
+        grp = groups_by_id.get(gid)
+        if grp is None:
+            continue
+        if grp.get('messageable_level') == 0:
+            log.warning("fetch_category_moderator_groups(): category %s: group %r (id=%s) is not "
+                        "messageable (Who can message this group = Nobody); excluding it from notices",
+                        category_id, grp.get('name'), gid)
+            continue
+        names.append(grp['name'])
+    return sorted(names)
 
 
 def fetch_pending_reviewables(discourse, category_id: int, per_page: int = 50, log=None) -> list[dict]:
@@ -172,7 +204,7 @@ def check_pending_reviews(interest: str, discourse, category_slugs: list[str], b
         escalation_delta = timedelta(hours=escalation_hours)
 
         categories = fetch_categories(discourse)
-        group_id_to_name = {grp['id']: grp['name'] for grp in fetch_groups(discourse)}
+        groups_by_id = {grp['id']: grp for grp in fetch_groups(discourse)}
 
         for slug in category_slugs:
             category = _resolve_category(categories, slug)
@@ -182,7 +214,7 @@ def check_pending_reviews(interest: str, discourse, category_slugs: list[str], b
                 continue
 
             category_id = category['id']
-            group_names = fetch_category_moderator_groups(discourse, category_id, group_id_to_name)
+            group_names = fetch_category_moderator_groups(discourse, category_id, groups_by_id, log=log)
             if not group_names:
                 log.warning('check_pending_reviews(): category %r (id=%s) has no moderator group configured', slug, category_id)
                 counts['errors'] += 1
@@ -227,7 +259,8 @@ def check_pending_reviews(interest: str, discourse, category_slugs: list[str], b
                     try:
                         notify_fn(discourse, group_names, subject, body)
                     except Exception as exc:
-                        log.error('check_pending_reviews(): error sending notification for category %r: %s', slug, exc)
+                        log.error('check_pending_reviews(): error sending notification for category %r to groups %s: %s',
+                                  slug, group_names, exc)
                         counts['errors'] += 1
                         continue
 

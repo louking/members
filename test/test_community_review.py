@@ -42,16 +42,31 @@ def test_resolve_category_returns_none_when_not_found():
 # fetch_category_moderator_groups
 # ----------------------------------------------------------------------
 
-def test_fetch_category_moderator_groups_unions_topic_and_reply_groups():
-    detail = {'category': {'topic_posting_review_group_ids': [1, 2], 'reply_posting_review_group_ids': [2, 3]}}
+def test_fetch_category_moderator_groups_reads_moderating_group_ids():
+    detail = {'category': {'moderating_group_ids': [1, 2],
+                            # exemption-list fields; must NOT be read as moderator groups
+                            'topic_posting_review_group_ids': [1, 3], 'reply_posting_review_group_ids': [3]}}
     discourse = FakeDiscourse({'c.10.show.json': detail})
-    group_id_to_name = {1: 'club-mods', 2: 'cal-mods', 3: 'staff'}
-    assert fetch_category_moderator_groups(discourse, 10, group_id_to_name) == ['cal-mods', 'club-mods', 'staff']
+    groups_by_id = {1: {'name': 'club-mods'}, 2: {'name': 'cal-mods'}, 3: {'name': 'preapproved-posters'}}
+    assert fetch_category_moderator_groups(discourse, 10, groups_by_id) == ['cal-mods', 'club-mods']
 
 
 def test_fetch_category_moderator_groups_empty_when_none_configured():
     discourse = FakeDiscourse({'c.10.show.json': {'category': {}}})
     assert fetch_category_moderator_groups(discourse, 10, {}) == []
+
+
+def test_fetch_category_moderator_groups_excludes_unmessageable_group(caplog):
+    # a group with "Who can message this group" = Nobody (messageable_level 0) can't
+    # receive a PM at all, and including it alongside messageable groups would fail
+    # the whole notice — so it's excluded here rather than left to fail at send time
+    detail = {'category': {'moderating_group_ids': [1, 2]}}
+    discourse = FakeDiscourse({'c.10.show.json': detail})
+    groups_by_id = {1: {'name': 'club-mods', 'messageable_level': 3}, 2: {'name': 'preapproved-posters', 'messageable_level': 0}}
+    with caplog.at_level(logging.WARNING):
+        result = fetch_category_moderator_groups(discourse, 10, groups_by_id)
+    assert result == ['club-mods']
+    assert 'preapproved-posters' in caplog.text
 
 
 # ----------------------------------------------------------------------
@@ -219,8 +234,7 @@ def test_check_pending_reviews_notifies_escalates_and_resolves(reviewsetup):
         ]}},
         'groups.json': lambda params: {'groups': [{'id': 1, 'name': 'club-mods'}, {'id': 2, 'name': 'cal-mods'}]}
                                        if params['page'] == 0 else {'groups': []},
-        'c.10.show.json': {'category': {'topic_posting_review_group_ids': [1],
-                                        'reply_posting_review_group_ids': [2]}},
+        'c.10.show.json': {'category': {'moderating_group_ids': [1, 2]}},
         'review.json': {'reviewables': reviewables, 'users': []},
     }
     discourse = FakeDiscourse(responses)
@@ -259,7 +273,7 @@ def test_check_pending_reviews_dry_run_makes_no_changes(reviewsetup):
             {'id': 10, 'slug': 'public-calendar-events', 'name': 'Public Calendar Events'},
         ]}},
         'groups.json': lambda params: {'groups': [{'id': 1, 'name': 'club-mods'}]} if params['page'] == 0 else {'groups': []},
-        'c.10.show.json': {'category': {'topic_posting_review_group_ids': [1], 'reply_posting_review_group_ids': []}},
+        'c.10.show.json': {'category': {'moderating_group_ids': [1]}},
         'review.json': {'reviewables': reviewables, 'users': []},
     }
     discourse = FakeDiscourse(responses)
