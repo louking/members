@@ -93,6 +93,33 @@ systemaccesslevel_formfields = 'rowid,interest_id,system,name,slug,description,i
 systemaccesslevel_dbmapping = dict(zip(systemaccesslevel_dbattrs, systemaccesslevel_formfields))
 systemaccesslevel_formmapping = dict(zip(systemaccesslevel_formfields, systemaccesslevel_dbattrs))
 
+def systemaccesslevel_validate(action, formdata):
+    '''
+    slug must be unique within its system, not globally -- the built-in _unique clientcolumn
+    option can't express per-system scoping (loutilities.tables.validatedb() only scopes by
+    self.queryparams, i.e. interest) and only runs on create, not edit, so this covers both
+    here instead (see #716)
+    '''
+    results = []
+    if action not in ('create', 'edit'):
+        return results
+
+    slug = (formdata.get('slug') or '').strip()
+    systemfield = formdata.get('system') or {}
+    systemid = systemfield.get('id') if isinstance(systemfield, dict) else systemfield
+    if not slug or not systemid:
+        return results
+
+    query = SystemAccessLevel.query.filter_by(system_id=systemid, slug=slug)
+    if action == 'edit':
+        thisid = request.view_args.get('thisid')
+        if thisid:
+            query = query.filter(SystemAccessLevel.id != int(thisid))
+    if query.first():
+        results.append({'name': 'slug', 'status': 'duplicate slug for this system, must be unique'})
+
+    return results
+
 systemaccesslevel_view = DbCrudApiInterestsRolePermissions(
     roles_accepted=systemsadmin_roles,
     local_interest_model=LocalInterest,
@@ -109,6 +136,7 @@ systemaccesslevel_view = DbCrudApiInterestsRolePermissions(
     dbmapping=systemaccesslevel_dbmapping,
     formmapping=systemaccesslevel_formmapping,
     checkrequired=True,
+    validate=systemaccesslevel_validate,
     clientcolumns=[
         {'data': 'system', 'name': 'system', 'label': 'System',
          'className': 'field_req',
