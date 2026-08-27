@@ -13,7 +13,7 @@ from flask import g
 
 # homegrown
 from members.views.admin import organization_admin
-from members.views.admin.organization_admin import PositionWizardApi, PositionsPicker
+from members.views.admin.organization_admin import PositionWizardApi, PositionsPicker, position_view
 from members.model import db, LocalInterest, LocalUser, Position, UserPosition
 from members.model import System, SystemAccessLevel, PositionAccessNotice
 from members.model import POSITIONACCESSNOTICE_ACTION_GRANT, POSITIONACCESSNOTICE_ACTION_REVOKE
@@ -289,6 +289,115 @@ def test_post_no_revoke_notice_when_another_position_still_requires_access(posit
     assert resp.json == {'status': 'success'}
     assert PositionAccessNotice.query.filter_by(
         user=member1, action=POSITIONACCESSNOTICE_ACTION_REVOKE).count() == 0
+
+
+# ----------------------------------------------------------------------
+# PositionView -- access checklist reacts to a position's own required
+# access changing, not just to who holds it (see #720)
+# ----------------------------------------------------------------------
+
+def _position_edit_ctx(bareapp, position_id):
+    bareapp.add_url_rule('/rest/<thisid>', endpoint='dummy_position_rest', view_func=lambda **kw: '')
+    return bareapp.test_request_context(f'/rest/{position_id}')
+
+
+def test_positionview_edit_creates_grant_notice_when_direct_access_added(positionsetup, bareapp):
+    localinterest = positionsetup['localinterest']
+    position = positionsetup['position']
+    member1 = positionsetup['member1']
+    system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
+    db.session.add_all([system, level])
+    up = UserPosition(user=member1, position=position, interest=localinterest,
+                      startdate=date(2026, 1, 1), finishdate=None)
+    db.session.add(up)
+    db.session.commit()
+
+    position_view.action = 'edit'
+    with _position_edit_ctx(bareapp, position.id):
+        position_view.editor_method_prehook({})
+        # simulate the edit the real Editor flow would apply
+        position.direct_access = [level]
+        db.session.commit()
+        position_view.editor_method_postcommit({})
+
+    notices = PositionAccessNotice.query.filter_by(user=member1).all()
+    assert len(notices) == 1
+    assert notices[0].action == POSITIONACCESSNOTICE_ACTION_GRANT
+    assert notices[0].reason_position == position
+
+
+def test_positionview_edit_creates_revoke_notice_when_direct_access_removed(positionsetup, bareapp):
+    localinterest = positionsetup['localinterest']
+    position = positionsetup['position']
+    member1 = positionsetup['member1']
+    system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
+    db.session.add_all([system, level])
+    position.direct_access = [level]
+    up = UserPosition(user=member1, position=position, interest=localinterest,
+                      startdate=date(2026, 1, 1), finishdate=None)
+    db.session.add(up)
+    db.session.commit()
+
+    position_view.action = 'edit'
+    with _position_edit_ctx(bareapp, position.id):
+        position_view.editor_method_prehook({})
+        position.direct_access = []
+        db.session.commit()
+        position_view.editor_method_postcommit({})
+
+    notices = PositionAccessNotice.query.filter_by(user=member1).all()
+    assert len(notices) == 1
+    assert notices[0].action == POSITIONACCESSNOTICE_ACTION_REVOKE
+
+
+def test_positionview_edit_creates_revoke_notice_when_position_deactivated(positionsetup, bareapp):
+    localinterest = positionsetup['localinterest']
+    position = positionsetup['position']
+    member1 = positionsetup['member1']
+    system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
+    db.session.add_all([system, level])
+    position.direct_access = [level]
+    up = UserPosition(user=member1, position=position, interest=localinterest,
+                      startdate=date(2026, 1, 1), finishdate=None)
+    db.session.add(up)
+    db.session.commit()
+
+    position_view.action = 'edit'
+    with _position_edit_ctx(bareapp, position.id):
+        position_view.editor_method_prehook({})
+        position.is_active = False
+        db.session.commit()
+        position_view.editor_method_postcommit({})
+
+    notices = PositionAccessNotice.query.filter_by(user=member1).all()
+    assert len(notices) == 1
+    assert notices[0].action == POSITIONACCESSNOTICE_ACTION_REVOKE
+
+
+def test_positionview_edit_no_notice_when_access_unaffected(positionsetup, bareapp):
+    localinterest = positionsetup['localinterest']
+    position = positionsetup['position']
+    member1 = positionsetup['member1']
+    system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
+    db.session.add_all([system, level])
+    position.direct_access = [level]
+    up = UserPosition(user=member1, position=position, interest=localinterest,
+                      startdate=date(2026, 1, 1), finishdate=None)
+    db.session.add(up)
+    db.session.commit()
+
+    position_view.action = 'edit'
+    with _position_edit_ctx(bareapp, position.id):
+        position_view.editor_method_prehook({})
+        position.description = 'updated description'
+        db.session.commit()
+        position_view.editor_method_postcommit({})
+
+    assert PositionAccessNotice.query.filter_by(user=member1).count() == 0
 
 
 # ----------------------------------------------------------------------

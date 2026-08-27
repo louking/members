@@ -3,6 +3,7 @@ access_admin - system/access-type reference data and the position-access checkli
 ===============================================================================================
 '''
 # standard
+from datetime import date
 
 # pypi
 from flask import request
@@ -13,10 +14,12 @@ from . import bp
 from ...model import db
 from ...model import LocalInterest, LocalUser, Position, System, SystemAccessLevel, AccessType, PositionAccessNotice
 from ...model import localinterest_query_params
-from .viewhelpers import dtrender, user2localuser
+from .viewhelpers import dtrender, localinterest, user2localuser
 from ...version import __docversion__
 
 from ...roles import ROLE_SYSTEMS_ADMIN
+from ...helpers import members_active
+from ...organization_access import compute_required_access, sync_access_notices
 
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
@@ -184,7 +187,42 @@ accesstype_formfields = 'rowid,interest_id,name,slug,description,is_active,acces
 accesstype_dbmapping = dict(zip(accesstype_dbattrs, accesstype_formfields))
 accesstype_formmapping = dict(zip(accesstype_formfields, accesstype_dbattrs))
 
-accesstype_view = DbCrudApiInterestsRolePermissions(
+class AccessTypeView(DbCrudApiInterestsRolePermissions):
+    def editor_method_prehook(self, form):
+        '''
+        capture required-access snapshot for every current holder of every position that uses
+        this access type, before an edit/removal is applied -- see #720. An access type's own
+        access members can change what positions using it require, with no UserPosition
+        touched, so without this hook an existing holder's requirement could change with no
+        checklist entry prompting the admin to act on it
+
+        :param form: form data
+        '''
+        self._access_before = {}
+        if self.action in ('edit', 'remove'):
+            thisid = request.view_args.get('thisid')
+            accesstype = AccessType.query.filter_by(id=thisid).one_or_none() if thisid else None
+            if accesstype:
+                affected_members = set()
+                for position in accesstype.positions:
+                    affected_members.update(members_active(position, date.today()))
+                for member in affected_members:
+                    self._access_before[member.id] = compute_required_access(member)
+
+    def editor_method_postcommit(self, form):
+        '''
+        update access checklist for every member captured in editor_method_prehook -- see #720
+
+        :param form: form data
+        '''
+        super().editor_method_postcommit(form)
+        interest = localinterest()
+        for userid, before in self._access_before.items():
+            user = LocalUser.query.filter_by(id=userid).one_or_none()
+            if user:
+                sync_access_notices(interest, user, before)
+
+accesstype_view = AccessTypeView(
     roles_accepted=systemsadmin_roles,
     local_interest_model=LocalInterest,
     app=bp,  # use blueprint instead of app

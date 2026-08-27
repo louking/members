@@ -4,14 +4,16 @@ test_access_admin - test members.views.admin.access_admin
 '''
 
 # standard
+from datetime import date
 
 # pypi
 import pytest
 from flask import g
 
 # homegrown
-from members.views.admin.access_admin import systemaccesslevel_validate
-from members.model import db, LocalInterest, System, SystemAccessLevel
+from members.views.admin.access_admin import systemaccesslevel_validate, accesstype_view
+from members.model import db, LocalInterest, LocalUser, Position, UserPosition, System, SystemAccessLevel, AccessType
+from members.model import PositionAccessNotice, POSITIONACCESSNOTICE_ACTION_GRANT, POSITIONACCESSNOTICE_ACTION_REVOKE
 from loutilities.user.model import Interest
 
 
@@ -86,3 +88,89 @@ def test_validate_noop_on_refresh(levelsetup, bare_dbapp):
     with bare_dbapp.test_request_context('/'):
         results = systemaccesslevel_validate('refresh', _formdata(levelsetup['system1'].id, 'admin'))
     assert results == []
+
+
+# ----------------------------------------------------------------------
+# AccessTypeView -- access checklist reacts to an access type's own
+# access members changing, for every position/holder that uses it
+# (see #720)
+# ----------------------------------------------------------------------
+
+@pytest.fixture
+def accesstypesetup(bare_dbapp):
+    interest_row = Interest(interest='fsrc', description='FSRC')
+    localinterest = LocalInterest(interest_id=None)
+    db.session.add_all([interest_row, localinterest])
+    db.session.commit()
+    localinterest.interest_id = interest_row.id
+    db.session.commit()
+    g.interest = 'fsrc'
+
+    system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
+    accesstype = AccessType(name='RD Bundle', slug='rd-bundle', interest=localinterest)
+    position = Position(position='Race Director', interest=localinterest, accesstypes=[accesstype])
+    member = LocalUser(name='Jane Doe', email='jane@example.com', active=True, interest=localinterest)
+    db.session.add_all([system, level, accesstype, position, member])
+    up = UserPosition(user=member, position=position, interest=localinterest,
+                      startdate=date(2026, 1, 1), finishdate=None)
+    db.session.add(up)
+    db.session.commit()
+
+    bare_dbapp.add_url_rule('/rest/<thisid>', endpoint='dummy_accesstype_rest', view_func=lambda **kw: '')
+
+    return {'localinterest': localinterest, 'system': system, 'level': level, 'accesstype': accesstype,
+            'position': position, 'member': member}
+
+
+def test_accesstypeview_edit_creates_grant_notice_for_holders(accesstypesetup, bare_dbapp):
+    accesstype = accesstypesetup['accesstype']
+    level = accesstypesetup['level']
+    member = accesstypesetup['member']
+
+    accesstype_view.action = 'edit'
+    with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
+        accesstype_view.editor_method_prehook({})
+        accesstype.access = [level]
+        db.session.commit()
+        accesstype_view.editor_method_postcommit({})
+
+    notices = PositionAccessNotice.query.filter_by(user=member).all()
+    assert len(notices) == 1
+    assert notices[0].action == POSITIONACCESSNOTICE_ACTION_GRANT
+
+
+def test_accesstypeview_edit_creates_revoke_notice_for_holders(accesstypesetup, bare_dbapp):
+    accesstype = accesstypesetup['accesstype']
+    level = accesstypesetup['level']
+    member = accesstypesetup['member']
+    accesstype.access = [level]
+    db.session.commit()
+
+    accesstype_view.action = 'edit'
+    with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
+        accesstype_view.editor_method_prehook({})
+        accesstype.access = []
+        db.session.commit()
+        accesstype_view.editor_method_postcommit({})
+
+    notices = PositionAccessNotice.query.filter_by(user=member).all()
+    assert len(notices) == 1
+    assert notices[0].action == POSITIONACCESSNOTICE_ACTION_REVOKE
+
+
+def test_accesstypeview_edit_no_notice_when_access_unaffected(accesstypesetup, bare_dbapp):
+    accesstype = accesstypesetup['accesstype']
+    level = accesstypesetup['level']
+    member = accesstypesetup['member']
+    accesstype.access = [level]
+    db.session.commit()
+
+    accesstype_view.action = 'edit'
+    with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
+        accesstype_view.editor_method_prehook({})
+        accesstype.description = 'updated description'
+        db.session.commit()
+        accesstype_view.editor_method_postcommit({})
+
+    assert PositionAccessNotice.query.filter_by(user=member).count() == 0

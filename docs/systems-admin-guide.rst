@@ -37,13 +37,22 @@ types <access type>` and its :term:`direct access`.
 
 Access Checklist
 =============================
-Whenever a :term:`member's <member>` :term:`positions <position>` change -- using the :ref:`Position Wizard` or
-the :ref:`Position Dates view` -- membertility recomputes what :term:`systems <system>`/:term:`access
-levels <access level>` that :term:`member` now needs, compares it to what they needed before the change, and
-adds an entry to the :ref:`Access Checklist view` for anything that changed:
+Whenever a :term:`member's <member>` required access changes, membertility recomputes what :term:`systems
+<system>`/:term:`access levels <access level>` that :term:`member` now needs, compares it to what they needed
+before the change, and adds an entry to the :ref:`Access Checklist view` for anything that changed:
 
     * if the :term:`member` newly needs access to a :term:`system`, a **grant** entry is added
     * if the :term:`member` no longer needs access to a :term:`system`, a **revoke** entry is added
+
+This happens for either kind of change that can affect what a :term:`member` needs:
+
+    * their :term:`positions <position>` changing -- using the :ref:`Position Wizard` or the
+      :ref:`Position Dates view`
+    * a :term:`position` or :term:`access type` they already hold changing what it requires -- editing a
+      :term:`position's <position>` :term:`access types <access type>`/:term:`direct access` (or its
+      **Active** flag) in the :ref:`Positions view`, or editing an :term:`access type's <access type>` own
+      system access in the :ref:`Access Types view` -- in which case every current holder affected by the
+      change is checked, not just one :term:`member`
 
 If a :term:`member` holds more than one :term:`position` that both require the same
 :term:`system`/:term:`access level`, losing one of those :term:`positions <position>` does **not** add a
@@ -53,10 +62,3 @@ what the :term:`member` needs shows up on the checklist.
 The :ref:`Access Checklist view` doesn't grant or revoke access on its own -- it's a reminder for the
 :term:`systems admin` to go make the actual change in the real :term:`system` (MailChimp, RunSignUp, etc.).
 Once that's done, edit the entry's **Resolved** date to check it off the list.
-
-.. hint::
-    Changing what a :term:`position` or :term:`access type` requires (in the :ref:`Positions view` or
-    :ref:`Access Types view`) does **not** by itself add anything to the :ref:`Access Checklist view` -- the
-    checklist only reacts to a :term:`member's <member>` :term:`positions <position>` changing, not to a
-    :term:`position's <position>` requirements changing. Review access for anyone already holding an affected
-    :term:`position` by hand after making that kind of change.

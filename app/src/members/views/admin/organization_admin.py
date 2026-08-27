@@ -90,7 +90,41 @@ position_dbmapping = dict(zip(position_dbattrs, position_formfields))
 position_formmapping = dict(zip(position_formfields, position_dbattrs))
 position_formmapping['users'] = position_members
 
-position_view = DbCrudApiInterestsRolePermissions(
+class PositionView(DbCrudApiInterestsRolePermissions):
+    def editor_method_prehook(self, form):
+        '''
+        capture required-access snapshot for every current holder of this position before
+        an edit/removal is applied -- see #720. Position.accesstypes/direct_access/is_active
+        all factor into compute_required_access(), and none of them touch UserPosition, so
+        without this hook an existing holder's access requirement could change with no
+        checklist entry prompting the admin to act on it
+
+        :param form: form data
+        '''
+        self._access_position = None
+        self._access_before = {}
+        if self.action in ('edit', 'remove'):
+            thisid = request.view_args.get('thisid')
+            position = Position.query.filter_by(id=thisid).one_or_none() if thisid else None
+            if position:
+                self._access_position = position
+                for member in members_active(position, date.today()):
+                    self._access_before[member.id] = compute_required_access(member)
+
+    def editor_method_postcommit(self, form):
+        '''
+        update access checklist for every member captured in editor_method_prehook -- see #720
+
+        :param form: form data
+        '''
+        super().editor_method_postcommit(form)
+        interest = localinterest()
+        for userid, before in self._access_before.items():
+            user = LocalUser.query.filter_by(id=userid).one_or_none()
+            if user:
+                sync_access_notices(interest, user, before, reason_position=self._access_position)
+
+position_view = PositionView(
                     roles_accepted = organization_roles,
                     local_interest_model = LocalInterest,
                     app = bp,   # use blueprint instead of app
