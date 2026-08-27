@@ -25,6 +25,26 @@ user_view = LocalUserView(
     endpoint='userrole.members',
     rule='/members',
     templateargs={'adminguide': orgadminguide},
+    buttons=[
+        {
+            'extend': 'create',
+            'editor': {'eval': 'editor'},
+            'formButtons': [
+                {'text': 'Create and Send', 'action': {'eval': 'user_create_send_notification_button'}},
+                {'text': 'Create', 'action': {'eval': 'submit_button'}},
+            ]
+        },
+        {
+            'extend': 'editRefresh',
+            'text': 'Edit',
+            'editor': {'eval': 'editor'},
+            'formButtons': [
+                {'text': 'Reset Password', 'action': {'eval': 'reset_password_button'}},
+                {'text': 'Update', 'action': {'eval': 'submit_button'}},
+            ]
+        },
+        'csv',
+    ],
 )
 user_view.register()
 
