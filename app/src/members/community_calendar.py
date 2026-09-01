@@ -14,7 +14,7 @@ all of them in one (paged) Data Explorer query instead.
 # standard
 import logging as _logging
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
@@ -41,13 +41,18 @@ def _tag_names(tags: list) -> set[str]:
     return set(tags)
 
 
-def _parse_event_datetime(dt_str: str, tz_name: str) -> datetime:
-    """Parse a Discourse event datetime string to an aware datetime.
+def _parse_event_datetime(dt_str: str, tz_name: str) -> date | datetime:
+    """Parse a Discourse event datetime string to an aware datetime (or a date).
 
     Discourse returns either offset-aware strings ("2026-03-03T17:30:00.000-05:00")
     or naive strings ("2026-02-02T18:00:00") that must be localised using the
-    event's timezone field.  Always returns a datetime with the named IANA timezone
-    (ZoneInfo) so icalendar serialises TZID=America/New_York rather than UTC-05:00.
+    event's timezone field.  Timed values always come back as a datetime with the
+    named IANA timezone (ZoneInfo) so icalendar serialises TZID=America/New_York
+    rather than UTC-05:00.
+
+    All-day discourse-calendar events instead return a bare date ("2026-09-26"),
+    which comes back as a datetime.date (no time, no timezone) so icalendar
+    serialises DTSTART/DTEND as VALUE=DATE.
     """
     tz = ZoneInfo(tz_name or 'UTC')
     for fmt in ('%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S%z'):
@@ -60,6 +65,10 @@ def _parse_event_datetime(dt_str: str, tz_name: str) -> datetime:
             return datetime.strptime(dt_str, fmt).replace(tzinfo=tz)
         except ValueError:
             pass
+    try:
+        return datetime.strptime(dt_str, '%Y-%m-%d').date()
+    except ValueError:
+        pass
     raise ValueError(f"Cannot parse datetime: {dt_str!r}")
 
 
@@ -141,8 +150,24 @@ def _build_vevent(event: dict, base_url: str, location: str | None = None) -> Ev
     tz_name = event.get('timezone') or 'UTC'
     summary = event.get('name') or event['post']['topic']['title']
     cal_event.add('SUMMARY', summary)
-    cal_event.add('DTSTART', _parse_event_datetime(event['starts_at'], tz_name))
-    cal_event.add('DTEND', _parse_event_datetime(event['ends_at'], tz_name))
+
+    dtstart = _parse_event_datetime(event['starts_at'], tz_name)
+    ends_at = event.get('ends_at')
+    dtend = _parse_event_datetime(ends_at, tz_name) if ends_at else None
+
+    # all-day events come back as a bare date (see _parse_event_datetime) and may
+    # omit ends_at. Per RFC 5545 an all-day DTEND is exclusive, so a same-day or
+    # missing end has to become start + 1 day; a later end date is taken to
+    # already be the intended exclusive end and passed through as-is.
+    if isinstance(dtstart, date) and not isinstance(dtstart, datetime):
+        end_is_date = dtend is not None and not isinstance(dtend, datetime)
+        if not end_is_date or dtend <= dtstart:
+            dtend = dtstart + timedelta(days=1)
+    elif dtend is None:
+        dtend = dtstart
+
+    cal_event.add('DTSTART', dtstart)
+    cal_event.add('DTEND', dtend)
     cal_event.add('URL', base_url.rstrip('/') + event['post']['url'])
     cal_event.add('UID', f"discourse-event-{event['id']}@{urlparse(base_url).netloc}")
     if location:

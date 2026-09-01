@@ -69,6 +69,12 @@ def test_parse_event_datetime_invalid_raises():
         _parse_event_datetime('not-a-date', 'UTC')
 
 
+def test_parse_event_datetime_bare_date_returns_plain_date():
+    d = _parse_event_datetime('2026-09-26', 'America/New_York')
+    assert d == date(2026, 9, 26)
+    assert not isinstance(d, datetime)
+
+
 # ----------------------------------------------------------------------
 # _fetch_location / fetch_event_locations
 # ----------------------------------------------------------------------
@@ -172,6 +178,48 @@ def test_build_vevent_falls_back_to_topic_title_when_no_name():
     vevent = _build_vevent(event, 'https://community.steeplechasers.org')
     assert str(vevent['SUMMARY']) == 'Some Topic'
     assert 'LOCATION' not in vevent
+
+
+def test_build_vevent_all_day_event_uses_date_values_with_exclusive_end():
+    event = {
+        'id': 7,
+        'name': 'Club Picnic',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-09-26',
+        'ends_at': '2026-09-26',
+        'post': {'url': '/t/club-picnic/7'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert vevent['DTSTART'].dt == date(2026, 9, 26)
+    # RFC 5545: all-day DTEND is exclusive, so a same-day event ends the next day
+    assert vevent['DTEND'].dt == date(2026, 9, 27)
+
+
+def test_build_vevent_all_day_event_without_ends_at():
+    event = {
+        'id': 8,
+        'name': 'Registration Opens',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-09-26',
+        'post': {'url': '/t/registration-opens/8'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert vevent['DTSTART'].dt == date(2026, 9, 26)
+    assert vevent['DTEND'].dt == date(2026, 9, 27)
+
+
+def test_build_vevent_multi_day_all_day_event_keeps_end_date():
+    event = {
+        'id': 9,
+        'name': 'Race Weekend',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-09-26',
+        'ends_at': '2026-09-28',
+        'post': {'url': '/t/race-weekend/9'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert vevent['DTSTART'].dt == date(2026, 9, 26)
+    assert vevent['DTEND'].dt == date(2026, 9, 28)
 
 
 # ----------------------------------------------------------------------
