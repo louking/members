@@ -209,13 +209,17 @@ class AccessTypeView(DbCrudApiInterestsRolePermissions):
                 for member in affected_members:
                     self._access_before[member.id] = compute_required_access(member)
 
-    def editor_method_postcommit(self, form):
+    def editor_method_posthook(self, form):
         '''
-        update access checklist for every member captured in editor_method_prehook -- see #720
+        update access checklist for every member captured in editor_method_prehook -- see #720.
+        Has to run here, before commit, not in editor_method_postcommit -- any
+        PositionAccessNotice rows sync_access_notices() creates are only db.session.add()-ed,
+        and creating them after the framework's own commit with no further commit call would
+        leave them pending-only and never actually persist once the request's session is torn
+        down (confirmed live -- zero PositionAccessNotice rows ever landed in the database)
 
         :param form: form data
         '''
-        super().editor_method_postcommit(form)
         interest = localinterest()
         for userid, before in self._access_before.items():
             user = LocalUser.query.filter_by(id=userid).one_or_none()

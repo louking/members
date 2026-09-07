@@ -111,13 +111,17 @@ class PositionView(DbCrudApiInterestsRolePermissions):
                 for member in members_active(position, date.today()):
                     self._access_before[member.id] = compute_required_access(member)
 
-    def editor_method_postcommit(self, form):
+    def editor_method_posthook(self, form):
         '''
-        update access checklist for every member captured in editor_method_prehook -- see #720
+        update access checklist for every member captured in editor_method_prehook -- see #720.
+        Has to run here, before commit, not in editor_method_postcommit -- any
+        PositionAccessNotice rows sync_access_notices() creates are only db.session.add()-ed,
+        and creating them after the framework's own commit with no further commit call would
+        leave them pending-only and never actually persist once the request's session is torn
+        down (confirmed live -- zero PositionAccessNotice rows ever landed in the database)
 
         :param form: form data
         '''
-        super().editor_method_postcommit(form)
         interest = localinterest()
         for userid, before in self._access_before.items():
             user = LocalUser.query.filter_by(id=userid).one_or_none()
@@ -283,6 +287,24 @@ class PositionDateView(DbCrudApiInterestsRolePermissions):
             if user:
                 self._access_before[userid] = compute_required_access(user)
 
+    def editor_method_posthook(self, form):
+        '''
+        update access checklist for anyone whose position membership changed above. This has
+        to run here, before commit, not in editor_method_postcommit -- any PositionAccessNotice
+        rows sync_access_notices() creates are only db.session.add()-ed, and creating them
+        after the framework's own commit with no further commit call would leave them
+        pending-only and never actually persist once the request's session is torn down
+        (see #716/#720; confirmed live -- zero PositionAccessNotice rows ever landed in the
+        database despite the position-date edits that should have generated them)
+
+        :param form: form data
+        '''
+        interest = localinterest()
+        for userid, before in getattr(self, '_access_before', {}).items():
+            user = LocalUser.query.filter_by(id=userid).one_or_none()
+            if user:
+                sync_access_notices(interest, user, before)
+
     def editor_method_postcommit(self, formdata):
         '''
         updates to taskgroups and tags affect multiple rows related to the user(s) impacted, so need to update
@@ -303,14 +325,6 @@ class PositionDateView(DbCrudApiInterestsRolePermissions):
                 ups = UserPosition.query.filter_by(user_id=userid).all()
                 otherrows += [self.dte.get_response_data(up) for up in ups if up.id not in upids]
             self._responsedata += otherrows
-
-        # update access checklist for anyone whose position membership changed above
-        # (runs after commit, so compute_required_access() reflects the persisted change)
-        interest = localinterest()
-        for userid, before in getattr(self, '_access_before', {}).items():
-            user = LocalUser.query.filter_by(id=userid).one_or_none()
-            if user:
-                sync_access_notices(interest, user, before)
 
 def positiondate_pretablehtml():
     pretablehtml = div()

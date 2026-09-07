@@ -124,6 +124,17 @@ def accesstypesetup(bare_dbapp):
 
 
 def test_accesstypeview_edit_creates_grant_notice_for_holders(accesstypesetup, bare_dbapp):
+    '''
+    calls the hooks in the same order the framework actually does -- prehook, then the edit
+    itself, then posthook, then a single commit -- and confirms the notice survives a
+    subsequent rollback (i.e. was truly committed, not merely flushed-and-visible within the
+    same still-open session). See the equivalent PositionView test in
+    test_organization_admin.py for why this ordering matters: an earlier version of this test
+    committed the accesstype edit *before* calling the hook, which passed even though the real
+    admin UI created zero PositionAccessNotice rows in production (#720's original fix put the
+    sync call in editor_method_postcommit, which runs after the framework's own commit with
+    no further commit -- so the row was only ever pending, never persisted)
+    '''
     accesstype = accesstypesetup['accesstype']
     level = accesstypesetup['level']
     member = accesstypesetup['member']
@@ -132,9 +143,10 @@ def test_accesstypeview_edit_creates_grant_notice_for_holders(accesstypesetup, b
     with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
         accesstype_view.editor_method_prehook({})
         accesstype.access = [level]
+        accesstype_view.editor_method_posthook({})
         db.session.commit()
-        accesstype_view.editor_method_postcommit({})
 
+    db.session.rollback()
     notices = PositionAccessNotice.query.filter_by(user=member).all()
     assert len(notices) == 1
     assert notices[0].action == POSITIONACCESSNOTICE_ACTION_GRANT
@@ -151,8 +163,8 @@ def test_accesstypeview_edit_creates_revoke_notice_for_holders(accesstypesetup, 
     with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
         accesstype_view.editor_method_prehook({})
         accesstype.access = []
+        accesstype_view.editor_method_posthook({})
         db.session.commit()
-        accesstype_view.editor_method_postcommit({})
 
     notices = PositionAccessNotice.query.filter_by(user=member).all()
     assert len(notices) == 1
@@ -170,7 +182,7 @@ def test_accesstypeview_edit_no_notice_when_access_unaffected(accesstypesetup, b
     with bare_dbapp.test_request_context(f'/rest/{accesstype.id}'):
         accesstype_view.editor_method_prehook({})
         accesstype.description = 'updated description'
+        accesstype_view.editor_method_posthook({})
         db.session.commit()
-        accesstype_view.editor_method_postcommit({})
 
     assert PositionAccessNotice.query.filter_by(user=member).count() == 0

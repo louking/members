@@ -302,6 +302,16 @@ def _position_edit_ctx(bareapp, position_id):
 
 
 def test_positionview_edit_creates_grant_notice_when_direct_access_added(positionsetup, bareapp):
+    '''
+    calls the hooks in the same order the framework actually does -- prehook, then the edit
+    itself, then posthook, then a single commit -- and confirms the notice survives a
+    subsequent rollback (i.e. was truly committed, not merely flushed-and-visible within the
+    same still-open session). This is the shape of bug that let #720's fix silently create
+    PositionAccessNotice rows that never persisted: an earlier version of this test committed
+    the position edit *before* calling the hook, which made the pending add visible to the
+    very next query via autoflush even though nothing had actually committed it -- passing
+    the test while the real admin UI still created zero rows in production
+    '''
     localinterest = positionsetup['localinterest']
     position = positionsetup['position']
     member1 = positionsetup['member1']
@@ -316,11 +326,14 @@ def test_positionview_edit_creates_grant_notice_when_direct_access_added(positio
     position_view.action = 'edit'
     with _position_edit_ctx(bareapp, position.id):
         position_view.editor_method_prehook({})
-        # simulate the edit the real Editor flow would apply
+        # simulate the edit the real Editor flow would apply, uncommitted
         position.direct_access = [level]
+        position_view.editor_method_posthook({})
+        # simulate the framework's own self.commit(), which runs after posthook
         db.session.commit()
-        position_view.editor_method_postcommit({})
 
+    # prove it's really persisted, not just flushed-and-visible in this same session
+    db.session.rollback()
     notices = PositionAccessNotice.query.filter_by(user=member1).all()
     assert len(notices) == 1
     assert notices[0].action == POSITIONACCESSNOTICE_ACTION_GRANT
@@ -344,8 +357,8 @@ def test_positionview_edit_creates_revoke_notice_when_direct_access_removed(posi
     with _position_edit_ctx(bareapp, position.id):
         position_view.editor_method_prehook({})
         position.direct_access = []
+        position_view.editor_method_posthook({})
         db.session.commit()
-        position_view.editor_method_postcommit({})
 
     notices = PositionAccessNotice.query.filter_by(user=member1).all()
     assert len(notices) == 1
@@ -369,8 +382,8 @@ def test_positionview_edit_creates_revoke_notice_when_position_deactivated(posit
     with _position_edit_ctx(bareapp, position.id):
         position_view.editor_method_prehook({})
         position.is_active = False
+        position_view.editor_method_posthook({})
         db.session.commit()
-        position_view.editor_method_postcommit({})
 
     notices = PositionAccessNotice.query.filter_by(user=member1).all()
     assert len(notices) == 1
@@ -394,8 +407,8 @@ def test_positionview_edit_no_notice_when_access_unaffected(positionsetup, barea
     with _position_edit_ctx(bareapp, position.id):
         position_view.editor_method_prehook({})
         position.description = 'updated description'
+        position_view.editor_method_posthook({})
         db.session.commit()
-        position_view.editor_method_postcommit({})
 
     assert PositionAccessNotice.query.filter_by(user=member1).count() == 0
 
