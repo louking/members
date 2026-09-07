@@ -69,6 +69,9 @@ class LocalRoleView(RoleView):
         self.kwargs = kwargs
         args = dict(
             templateargs={'adminguide': superadminguide},
+            # RoleView defaults buttons to ['create', 'editRefresh', 'remove'];
+            # restate them here plus 'csv' since args.update(kwargs) replaces buttons wholesale
+            buttons=['create', 'editRefresh', 'remove', 'csv'],
         )
         args.update(kwargs)
 
