@@ -4,14 +4,14 @@ test_access_admin - test members.views.admin.access_admin
 '''
 
 # standard
-from datetime import date
+from datetime import date, datetime, timezone
 
 # pypi
 import pytest
 from flask import g
 
 # homegrown
-from members.views.admin.access_admin import systemaccesslevel_validate, accesstype_view
+from members.views.admin.access_admin import systemaccesslevel_validate, accesstype_view, positionaccessnotice_validate
 from members.model import db, LocalInterest, LocalUser, Position, UserPosition, System, SystemAccessLevel, AccessType
 from members.model import PositionAccessNotice, POSITIONACCESSNOTICE_ACTION_GRANT, POSITIONACCESSNOTICE_ACTION_REVOKE
 from loutilities.user.model import Interest
@@ -186,3 +186,98 @@ def test_accesstypeview_edit_no_notice_when_access_unaffected(accesstypesetup, b
         db.session.commit()
 
     assert PositionAccessNotice.query.filter_by(user=member).count() == 0
+
+
+# ----------------------------------------------------------------------
+# PositionAccessNoticeView -- only Resolved should be editable. Confirmed live: 'type':
+# 'readonly' on a relationship-treatment clientcolumn (user/system/accesslevel/
+# reason_position) is purely cosmetic in loutilities.tables -- the constructor unconditionally
+# makes it writable server-side regardless, so without the dbmapping patch in access_admin.py,
+# an admin could reassign a notice's Member/System/Access Level/Position via the edit modal
+# and have it silently persist. See louking/loutilities#109
+# ----------------------------------------------------------------------
+
+@pytest.fixture
+def noticesetup(bare_dbapp):
+    interest_row = Interest(interest='fsrc', description='FSRC')
+    localinterest = LocalInterest(interest_id=None)
+    db.session.add_all([interest_row, localinterest])
+    db.session.commit()
+    localinterest.interest_id = interest_row.id
+    db.session.commit()
+    g.interest = 'fsrc'
+
+    system1 = System(name='MailChimp', slug='mailchimp', interest=localinterest)
+    system2 = System(name='RunSignUp', slug='runsignup', interest=localinterest)
+    level1 = SystemAccessLevel(system=system1, name='Admin', slug='admin', interest=localinterest)
+    level2 = SystemAccessLevel(system=system2, name='Admin', slug='admin', interest=localinterest)
+    position1 = Position(position='Race Director', interest=localinterest)
+    position2 = Position(position='Membership Chair', interest=localinterest)
+    member1 = LocalUser(name='Jane Doe', email='jane@example.com', active=True, interest=localinterest)
+    member2 = LocalUser(name='John Smith', email='john@example.com', active=True, interest=localinterest)
+    db.session.add_all([system1, system2, level1, level2, position1, position2, member1, member2])
+    db.session.commit()
+
+    notice = PositionAccessNotice(
+        interest=localinterest, user=member1, system=system1, accesslevel=level1,
+        action=POSITIONACCESSNOTICE_ACTION_GRANT, reason_position=position1,
+        effective_date=date(2026, 1, 1), detected_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    db.session.add(notice)
+    db.session.commit()
+
+    # positionaccessnotice_validate() reads request.view_args['thisid'] for edit actions,
+    # which only gets populated by real route matching
+    bare_dbapp.add_url_rule('/rest/<thisid>', endpoint='dummy_notice_rest', view_func=lambda **kw: '')
+
+    return {
+        'localinterest': localinterest, 'notice': notice, 'member1': member1, 'member2': member2,
+        'system1': system1, 'system2': system2, 'level1': level1, 'level2': level2,
+        'position1': position1, 'position2': position2,
+    }
+
+
+def test_edit_rejects_reassigned_relationship_fields(noticesetup, bare_dbapp):
+    notice = noticesetup['notice']
+
+    # exactly what the edit modal in the screenshots submitted: a different member, system,
+    # access level, and position, alongside a legitimate resolved_at change
+    formdata = {
+        'user': {'id': str(noticesetup['member2'].id)},
+        'system': {'id': str(noticesetup['system2'].id)},
+        'accesslevel': {'id': str(noticesetup['level2'].id)},
+        'reason_position': {'id': str(noticesetup['position2'].id)},
+        'resolved_at': '2026-09-08',
+    }
+    with bare_dbapp.test_request_context(f'/rest/{notice.id}'):
+        results = positionaccessnotice_validate('edit', formdata)
+
+    fields_flagged = {r['name'] for r in results}
+    # '.id' suffix matches Editor's own field name for a relationship column (valuefield
+    # defaults to 'id') -- a bare 'user' fieldError isn't a field Editor's client-side code
+    # recognizes and throws "Uncaught Error: Unknown field: user" trying to process it
+    assert fields_flagged == {'user.id', 'system.id', 'accesslevel.id', 'reason_position.id'}
+
+
+def test_edit_allows_resolved_at_only_change(noticesetup, bare_dbapp):
+    notice = noticesetup['notice']
+
+    # unchanged relationship fields (matching current values) plus a legitimate resolved_at
+    # edit -- the only kind of edit this view should actually accept
+    formdata = {
+        'user': {'id': str(noticesetup['member1'].id)},
+        'system': {'id': str(noticesetup['system1'].id)},
+        'accesslevel': {'id': str(noticesetup['level1'].id)},
+        'reason_position': {'id': str(noticesetup['position1'].id)},
+        'resolved_at': '2026-09-08',
+    }
+    with bare_dbapp.test_request_context(f'/rest/{notice.id}'):
+        results = positionaccessnotice_validate('edit', formdata)
+
+    assert results == []
+
+
+def test_validate_noop_on_create(noticesetup, bare_dbapp):
+    with bare_dbapp.test_request_context('/'):
+        results = positionaccessnotice_validate('create', {})
+    assert results == []

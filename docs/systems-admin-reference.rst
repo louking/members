@@ -117,6 +117,9 @@ take in the real external systems, generated automatically when a :term:`member'
 <position>` change in a way that changes what access they need -- see :ref:`Access Checklist Guide`. Every
 field except **Resolved** is set automatically and can't be edited.
 
+    :Status:
+        **Open** while the entry is still outstanding, **Resolved** once **Resolved** below has been set
+
     :Member:
         the :term:`member` whose required access changed
 
@@ -144,6 +147,24 @@ field except **Resolved** is set automatically and can't be edited.
 
     :Resolved By:
         the :term:`member` who resolved this entry, filled in automatically when **Resolved** is set
+
+The view has the following filters:
+
+    :Show resolved entries:
+        by default only unresolved entries are shown, since that's the normal working view -- check this to
+        also see entries that have already been checked off
+
+    :Member:
+        the :term:`member` of interest
+
+    :System:
+        the :term:`system` of interest
+
+    :Access Level:
+        the :term:`access level` of interest
+
+    :Position:
+        the :term:`position` of interest
 
 .. image:: images/access-checklist-view.*
     :align: center

@@ -8,6 +8,7 @@ from datetime import date
 # pypi
 from flask import request
 from flask_security import current_user
+from dominate.tags import div, input_, label
 
 # homegrown
 from . import bp
@@ -21,6 +22,8 @@ from ...roles import ROLE_SYSTEMS_ADMIN
 from ...helpers import members_active
 from ...organization_access import compute_required_access, sync_access_notices
 
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
+from loutilities.tables import DteDbRelationship
 from loutilities.user.roles import ROLE_SUPER_ADMIN
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 
@@ -286,9 +289,9 @@ accesstype_view.register()
 ###########################################################################################
 
 positionaccessnotice_dbattrs = ('id,interest_id,user,system,accesslevel,action,reason_position,'
-                                 'effective_date,detected_at,resolved_at,__readonly__').split(',')
+                                 'effective_date,detected_at,resolved_at,__readonly__,status').split(',')
 positionaccessnotice_formfields = ('rowid,interest_id,user,system,accesslevel,action,reason_position,'
-                                    'effective_date,detected_at,resolved_at,resolvedby_display').split(',')
+                                    'effective_date,detected_at,resolved_at,resolvedby_display,status').split(',')
 positionaccessnotice_dbmapping = dict(zip(positionaccessnotice_dbattrs, positionaccessnotice_formfields))
 positionaccessnotice_formmapping = dict(zip(positionaccessnotice_formfields, positionaccessnotice_dbattrs))
 
@@ -307,6 +310,111 @@ positionaccessnotice_formmapping['resolved_at'] = lambda dbrow: dtrender.dt2asc(
     if dbrow.resolved_at else ''
 positionaccessnotice_formmapping['resolvedby_display'] = lambda dbrow: dbrow.resolved_by.name \
     if dbrow.resolved_by else ''
+# computed display/filter field -- not a real column, 'type': 'readonly' on the clientcolumn
+# makes the framework treat its dbattr as __readonly__ automatically (see position_formmapping's
+# 'users' for the same pattern). Used both to show status at a glance and as the target of the
+# hidden yadcf filter driving the "show resolved entries" checkbox -- see afterdatatables.js
+positionaccessnotice_formmapping['status'] = lambda dbrow: 'Resolved' if dbrow.resolved_at else 'Open'
+
+def positionaccessnotice_pretablehtml():
+    pretablehtml = div()
+    with pretablehtml:
+        # hide / show resolved entries -- unresolved-only is the normal working view
+        resolvedfilter = div(_class='checkbox-filter')
+        with resolvedfilter:
+            input_(type='checkbox', id='show-resolved-status', name='show-resolved-status', value='show-resolved')
+            label('Show resolved entries', _for='show-resolved-status')
+
+        with filtercontainerdiv(style='margin-bottom: 4px;'):
+            filterdiv('accesschecklist-external-filter-member', 'Member')
+            filterdiv('accesschecklist-external-filter-system', 'System')
+            filterdiv('accesschecklist-external-filter-accesslevel', 'Access Level')
+            filterdiv('accesschecklist-external-filter-position', 'Position')
+
+        # hidden -- driven by the show-resolved-status checkbox in afterdatatables.js, not
+        # shown as its own dropdown (the checkbox is the intended interaction)
+        with filtercontainerdiv(style='display:none;'):
+            filterdiv('status-filter', 'Status')
+
+    return pretablehtml.render()
+
+positionaccessnotice_yadcf_options = [
+    # dotted column_selector paths into each relationship's labelfield key -- a single
+    # (uselist=False) relationship cell's raw data is {"id":.., "<labelfield>":..}, e.g.
+    # accesslevel's is {"id":34,"label":"..."} since its labelfield is 'label'; yadcf needs
+    # the labelfield key specifically, not the whole object (same convention as
+    # distribution_yadcf_options' 'tags.tag:name'/'positions.position:name' above)
+    yadcfoption('user.name:name', 'accesschecklist-external-filter-member', 'multi_select',
+                placeholder='Select member', width='200px'),
+    yadcfoption('system.name:name', 'accesschecklist-external-filter-system', 'multi_select',
+                placeholder='Select system', width='200px'),
+    yadcfoption('accesslevel.label:name', 'accesschecklist-external-filter-accesslevel', 'multi_select',
+                placeholder='Select access level', width='200px'),
+    yadcfoption('reason_position.position:name', 'accesschecklist-external-filter-position', 'multi_select',
+                placeholder='Select position', width='200px'),
+    # data=[...] declares the two possible values explicitly rather than letting yadcf
+    # auto-detect them from what's currently in the table -- multi_select's dropdown only
+    # gets an 'Open'/'Resolved' option for values actually present in the loaded rows, so
+    # without this, exFilterColumn(..., 'Open') silently no-ops (nothing to select) whenever
+    # every currently-loaded row happens to already be resolved (or vice versa)
+    yadcfoption('status:name', 'status-filter', 'multi_select', uselist=True, placeholder='Select status',
+                data=['Open', 'Resolved']),
+]
+
+class ReadOnlySelect2(DteDbRelationship):
+    '''
+    'type': 'readonly' on a clientcolumn doesn't grey out a relationship-treatment field's
+    select2 widget in the Editor form (it's still fully interactive) -- disable it directly
+    instead, same pattern as leadership_tasks_admin.ReadOnlySelect2
+    '''
+    def col_options(self):
+        col = super().col_options()
+        col['opts']['disabled'] = True
+        return col
+
+# only Resolved should be editable on this view; every other field is system-generated.
+# 'type': 'readonly' on the other clientcolumns handles that correctly for plain fields, but
+# NOT for the four relationship-treatment ones (user/system/accesslevel/reason_position) --
+# loutilities.tables' constructor unconditionally makes a '_treatment': {'relationship': ...}
+# field writable server-side (self.dbmapping[dbattr] = thisreln.set), with no readonly check
+# at all. Confirmed live: an admin could reassign a notice's Member/System/Access Level/
+# Position via the edit modal and have it silently persist. A dbmapping patch on the view
+# instance doesn't help either -- Flask's MethodView.as_view() constructs a fresh instance
+# per request from the original constructor kwargs, so the one throwaway module-level
+# instance's dbmapping is never what actually serves a request. Reject the edit outright
+# instead, the same way systemaccesslevel_validate() above does. See louking/loutilities#109
+def positionaccessnotice_validate(action, formdata):
+    results = []
+    if action != 'edit':
+        return results
+
+    thisid = request.view_args.get('thisid')
+    notice = PositionAccessNotice.query.filter_by(id=thisid).one_or_none() if thisid else None
+    if not notice:
+        return results
+
+    def _submitted_id(field):
+        val = formdata.get(field) or {}
+        return val.get('id') if isinstance(val, dict) else val
+
+    for field, currentid in (
+        ('user', notice.user_id),
+        ('system', notice.system_id),
+        ('accesslevel', notice.accesslevel_id),
+        ('reason_position', notice.reason_position_id),
+    ):
+        submitted = _submitted_id(field)
+        if submitted is not None and str(submitted) != str(currentid):
+            # Editor's own field name for a relationship column is '<data>.<valuefield>'
+            # (valuefield defaults to 'id', not overridden for any of these four -- see the
+            # col['ed']['data'] renaming in loutilities.tables' relationship-treatment
+            # handling). A fieldError using the bare dbattr name ('user' instead of 'user.id')
+            # isn't a field Editor's client-side code recognizes, and it throws
+            # "Uncaught Error: Unknown field: user" trying to process the response -- confirmed
+            # live
+            results.append({'name': f'{field}.id', 'status': 'this field is set automatically and cannot be changed'})
+
+    return results
 
 class PositionAccessNoticeView(DbCrudApiInterestsRolePermissions):
     def editor_method_prehook(self, form):
@@ -351,36 +459,51 @@ positionaccessnotice_view = PositionAccessNoticeView(
     dbmapping=positionaccessnotice_dbmapping,
     formmapping=positionaccessnotice_formmapping,
     checkrequired=False,
+    validate=positionaccessnotice_validate,
+    pretablehtml=positionaccessnotice_pretablehtml,
+    yadcfoptions=positionaccessnotice_yadcf_options,
     clientcolumns=[
+        {'data': 'status', 'name': 'status', 'label': 'Status', 'type': 'readonly'},
         {'data': 'user', 'name': 'user', 'label': 'Member', 'type': 'readonly',
          '_treatment': {
-             'relationship': {'fieldmodel': LocalUser, 'labelfield': 'name', 'formfield': 'user',
-                              'dbfield': 'user', 'uselist': False,
-                              'searchbox': True,
-                              'queryparams': localinterest_query_params,
-                              }}
+             'relationship': {
+                 'optionspicker': ReadOnlySelect2(
+                     fieldmodel=LocalUser, labelfield='name', formfield='user',
+                     dbfield='user', uselist=False,
+                     queryparams=localinterest_query_params,
+                 )
+             }}
          },
         {'data': 'action', 'name': 'action', 'label': 'Action', 'type': 'readonly'},
         {'data': 'system', 'name': 'system', 'label': 'System', 'type': 'readonly',
          '_treatment': {
-             'relationship': {'fieldmodel': System, 'labelfield': 'name', 'formfield': 'system',
-                              'dbfield': 'system', 'uselist': False,
-                              'queryparams': localinterest_query_params,
-                              }}
+             'relationship': {
+                 'optionspicker': ReadOnlySelect2(
+                     fieldmodel=System, labelfield='name', formfield='system',
+                     dbfield='system', uselist=False,
+                     queryparams=localinterest_query_params,
+                 )
+             }}
          },
         {'data': 'accesslevel', 'name': 'accesslevel', 'label': 'Access Level', 'type': 'readonly',
          '_treatment': {
-             'relationship': {'fieldmodel': SystemAccessLevel, 'labelfield': 'label', 'formfield': 'accesslevel',
-                              'dbfield': 'accesslevel', 'uselist': False,
-                              'queryparams': localinterest_query_params,
-                              }}
+             'relationship': {
+                 'optionspicker': ReadOnlySelect2(
+                     fieldmodel=SystemAccessLevel, labelfield='label', formfield='accesslevel',
+                     dbfield='accesslevel', uselist=False,
+                     queryparams=localinterest_query_params,
+                 )
+             }}
          },
         {'data': 'reason_position', 'name': 'reason_position', 'label': 'Position', 'type': 'readonly',
          '_treatment': {
-             'relationship': {'fieldmodel': Position, 'labelfield': 'position', 'formfield': 'reason_position',
-                              'dbfield': 'reason_position', 'uselist': False,
-                              'queryparams': localinterest_query_params,
-                              }}
+             'relationship': {
+                 'optionspicker': ReadOnlySelect2(
+                     fieldmodel=Position, labelfield='position', formfield='reason_position',
+                     dbfield='reason_position', uselist=False,
+                     queryparams=localinterest_query_params,
+                 )
+             }}
          },
         {'data': 'effective_date', 'name': 'effective_date', 'label': 'Effective Date', 'type': 'readonly'},
         {'data': 'detected_at', 'name': 'detected_at', 'label': 'Detected', 'type': 'readonly'},

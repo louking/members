@@ -686,5 +686,18 @@ function afterdatatables() {
                 yadcf.exFilterColumn(_dt_table, [[activecol, 'yes']]);
             }
         });
+
+    // special processing for access checklist -- hide resolved entries by default (see #716)
+    } else if (location.pathname.includes('/accesschecklist')) {
+        var statuscol = get_yadcf_col('status-filter');
+        yadcf.exFilterColumn(_dt_table, [[statuscol, 'Open']]);
+
+        $('#show-resolved-status').change(function() {
+            if ($('#show-resolved-status').is(':checked')) {
+                yadcf.exResetAllFilters(_dt_table, [statuscol])
+            } else {
+                yadcf.exFilterColumn(_dt_table, [[statuscol, 'Open']]);
+            }
+        });
     }
 }
