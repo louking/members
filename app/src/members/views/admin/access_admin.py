@@ -35,6 +35,12 @@ systemsadmin_roles = [ROLE_SUPER_ADMIN, ROLE_SYSTEMS_ADMIN]
 adminguide = 'https://members.readthedocs.io/en/{docversion}/systems-admin-guide.html'.format(
     docversion=__docversion__)
 
+# these tables sort client-side (serverside defaults to False). DataTables' built-in string
+# order lower-cases before comparing, but the System column on systemaccesslevels is a
+# relationship column whose sort value doesn't always get that treatment, so force a
+# lower-case compare on the sort orthogonal value for the System name columns.
+ci_sort_render = {'eval': '(d, type) => type === "sort" && typeof d === "string" ? d.toLowerCase() : d'}
+
 ##########################################################################################
 # systems endpoint
 ###########################################################################################
@@ -64,6 +70,7 @@ system_view = DbCrudApiInterestsRolePermissions(
         {'data': 'name', 'name': 'name', 'label': 'System',
          'className': 'field_req',
          '_unique': True,
+         'render': ci_sort_render,
          },
         {'data': 'slug', 'name': 'slug', 'label': 'Slug',
          'className': 'field_req',
@@ -146,6 +153,7 @@ systemaccesslevel_view = DbCrudApiInterestsRolePermissions(
     clientcolumns=[
         {'data': 'system', 'name': 'system', 'label': 'System',
          'className': 'field_req',
+         'dt': {'render': ci_sort_render},
          '_treatment': {
              'relationship': {'fieldmodel': System, 'labelfield': 'name', 'formfield': 'system',
                               'dbfield': 'system', 'uselist': False,
