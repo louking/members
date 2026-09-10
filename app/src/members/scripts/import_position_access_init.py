@@ -1,6 +1,6 @@
 '''
 import_position_access_init - one-time bootstrap import of AccessType bundles and
-position -> access type mapping (see #716)
+per-position access type / direct access mapping (see #716)
 ================================================================================================
 run from 3 levels up, like:
     python -m members.scripts.import_position_access_init <interest> <bundles.csv> <positions.csv>
@@ -14,9 +14,13 @@ bundles.csv columns: access_type_slug, access_type, system_slug, access_level_sl
     create those by hand via the admin UI first. access_type/description only need to be
     present on one row per access_type_slug (ignored on repeats).
 
-positions.csv columns: position, access_type_slug
-    one row per (position, access_type_slug) pairing; a position with multiple bundles gets
-    multiple rows. position is matched by name, access_type_slug against AccessType.slug.
+positions.csv columns: position, access_type_slugs, direct_access_level_slugs
+    one row per position. access_type_slugs is a comma-separated list of AccessType slugs;
+    direct_access_level_slugs is a comma-separated list of system_slug:access_level_slug
+    tokens (the system_slug prefix is required because SystemAccessLevel.slug is only unique
+    within its system). Either list may be empty. Whitespace around a slug or token is
+    trimmed; empty entries (e.g. a trailing comma) are ignored. Additive: an access type or
+    level already attached to the position is left alone.
 
 Throwaway, operator-run script -- not a supported ongoing command, delete once the
 bootstrap import has run. Fails loudly (raises) on any unrecognized name rather than
@@ -36,6 +40,10 @@ from members.model import LocalInterest, Position, System, SystemAccessLevel, Ac
 from loutilities.user.model import Interest
 
 class ParameterError(Exception): pass
+
+def _slug_list(cell):
+    '''comma-separated cell -> list of trimmed non-empty entries'''
+    return [entry.strip() for entry in (cell or '').split(',') if entry.strip()]
 
 def _import_bundles(localinterest, bundles_csv):
     accesstypes_by_slug = {}
@@ -84,38 +92,66 @@ def _import_bundles(localinterest, bundles_csv):
 
 
 def _import_position_mapping(localinterest, positions_csv, accesstypes_by_slug):
-    mapped = 0
+    accesstypes_mapped = 0
+    direct_access_mapped = 0
     with open(positions_csv, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
-        missing = {'position', 'access_type_slug'} - set(reader.fieldnames or [])
+        missing = {'position', 'access_type_slugs', 'direct_access_level_slugs'} - set(reader.fieldnames or [])
         if missing:
             raise ParameterError(f'{positions_csv} is missing required column(s): {", ".join(sorted(missing))}')
 
         for lineno, row in enumerate(reader, start=2):
             positionname = (row['position'] or '').strip()
-            accesstypeslug = (row['access_type_slug'] or '').strip()
-            if not positionname or not accesstypeslug:
-                raise ParameterError(f'{positions_csv} line {lineno}: position and access_type_slug are both required')
+            if not positionname:
+                raise ParameterError(f'{positions_csv} line {lineno}: position is required')
 
             position = Position.query.filter_by(interest=localinterest, position=positionname).one_or_none()
             if not position:
                 raise ParameterError(f'{positions_csv} line {lineno}: no position found named {positionname!r}')
 
-            accesstype = accesstypes_by_slug.get(accesstypeslug) or \
-                AccessType.query.filter_by(interest=localinterest, slug=accesstypeslug).one_or_none()
-            if not accesstype:
-                raise ParameterError(f'{positions_csv} line {lineno}: no access type found with slug {accesstypeslug!r}')
+            for accesstypeslug in _slug_list(row['access_type_slugs']):
+                accesstype = accesstypes_by_slug.get(accesstypeslug) or \
+                    AccessType.query.filter_by(interest=localinterest, slug=accesstypeslug).one_or_none()
+                if not accesstype:
+                    raise ParameterError(
+                        f'{positions_csv} line {lineno}: no access type found with slug {accesstypeslug!r}')
+                if accesstype not in position.accesstypes:
+                    position.accesstypes.append(accesstype)
+                    accesstypes_mapped += 1
 
-            if accesstype not in position.accesstypes:
-                position.accesstypes.append(accesstype)
-                mapped += 1
+            for token in _slug_list(row['direct_access_level_slugs']):
+                if token.count(':') != 1:
+                    raise ParameterError(
+                        f'{positions_csv} line {lineno}: direct access entry {token!r} must be '
+                        'system_slug:access_level_slug')
+                systemslug, levelslug = (part.strip() for part in token.split(':'))
+                if not systemslug or not levelslug:
+                    raise ParameterError(
+                        f'{positions_csv} line {lineno}: direct access entry {token!r} must be '
+                        'system_slug:access_level_slug')
 
-    print(f'mapped {mapped} position/access-type pairing(s) from {positions_csv}')
+                system = System.query.filter_by(interest=localinterest, slug=systemslug).one_or_none()
+                if not system:
+                    raise ParameterError(
+                        f'{positions_csv} line {lineno}: no system found with slug {systemslug!r}')
+
+                level = SystemAccessLevel.query.filter_by(system=system, slug=levelslug).one_or_none()
+                if not level:
+                    raise ParameterError(
+                        f'{positions_csv} line {lineno}: no access level found with slug {levelslug!r} '
+                        f'for system {system.name!r}')
+                if level not in position.direct_access:
+                    position.direct_access.append(level)
+                    direct_access_mapped += 1
+
+    print(f'mapped {accesstypes_mapped} position/access-type and {direct_access_mapped} '
+          f'position/direct-access pairing(s) from {positions_csv}')
 
 
 def main():
     if len(sys.argv) != 4:
-        print(f'usage: python -m members.scripts.import_position_access_init <interest> <bundles.csv> <positions.csv>')
+        print('usage: python -m members.scripts.import_position_access_init '
+              '<interest> <bundles.csv> <positions.csv>')
         sys.exit(1)
     interest, bundles_csv, positions_csv = sys.argv[1:4]
 
