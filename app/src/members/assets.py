@@ -35,7 +35,7 @@ s2_ver = '4.0.13'
 sm_ver = '1.1.1'
 
 # yadcf
-yadcf_ver = '2.0.1.beta.9.louking.3'
+yadcf_ver = '2.0.2.beta.1.louking.1'
 yadcf_suffix = '-2.0'
 
 lodash_ver = '4.17.21'      # lodash.js (see https://lodash.com)
