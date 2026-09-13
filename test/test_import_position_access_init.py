@@ -31,7 +31,7 @@ def importsetup(bare_dbapp):
     system = System(name='MailChimp', slug='mailchimp', interest=localinterest)
     level = SystemAccessLevel(system=system, name='Admin', slug='admin', interest=localinterest)
     # a second system with an access level of the same slug, to prove the system_slug: prefix
-    # on a direct_access_level_slugs token actually disambiguates
+    # on a system_access_level_slugs / direct_access_level_slugs token actually disambiguates
     system2 = System(name='RunSignUp', slug='runsignup', interest=localinterest)
     level2 = SystemAccessLevel(system=system2, name='Admin', slug='admin', interest=localinterest)
     position = Position(position='Race Director', interest=localinterest)
@@ -52,14 +52,21 @@ def _write_csv(tmp_path, name, rows, fieldnames):
     return str(path)
 
 
-BUNDLES_FIELDNAMES = ('access_type_slug', 'access_type', 'system_slug', 'access_level_slug', 'description')
+BUNDLES_FIELDNAMES = ('access_type_slug', 'access_type', 'system_access_level_slugs', 'description')
 POSITIONS_FIELDNAMES = ('position', 'access_type_slugs', 'direct_access_level_slugs')
+
+
+def _bundle_csv(tmp_path):
+    return _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'mailchimp:admin', 'description': ''},
+    ], fieldnames=BUNDLES_FIELDNAMES)
 
 
 def test_import_bundles_creates_accesstype_with_members(importsetup, tmp_path):
     csv_path = _write_csv(tmp_path, 'bundles.csv', [
-        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle', 'system_slug': 'mailchimp',
-         'access_level_slug': 'admin', 'description': 'race director access'},
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'mailchimp:admin', 'description': 'race director access'},
     ], fieldnames=BUNDLES_FIELDNAMES)
 
     accesstypes = _import_bundles(importsetup['localinterest'], csv_path)
@@ -71,30 +78,103 @@ def test_import_bundles_creates_accesstype_with_members(importsetup, tmp_path):
     assert accesstype.access == [importsetup['level']]
 
 
+def test_import_bundles_attaches_multiple_access_levels_from_one_row(importsetup, tmp_path):
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'mailchimp:admin, runsignup:admin', 'description': ''},
+    ], fieldnames=BUNDLES_FIELDNAMES)
+
+    _import_bundles(importsetup['localinterest'], csv_path)
+
+    accesstype = AccessType.query.filter_by(slug='rd-bundle').one()
+    # the runsignup:admin token must resolve to system2's level, not system1's (same slug)
+    assert set(accesstype.access) == {importsetup['level'], importsetup['level2']}
+
+
+def test_import_bundles_allows_empty_access_level_list(importsetup, tmp_path):
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'empty-bundle', 'access_type': 'Empty Bundle',
+         'system_access_level_slugs': '', 'description': ''},
+    ], fieldnames=BUNDLES_FIELDNAMES)
+
+    _import_bundles(importsetup['localinterest'], csv_path)
+
+    accesstype = AccessType.query.filter_by(slug='empty-bundle').one()
+    assert accesstype.access == []
+
+
+def test_import_bundles_reuses_existing_accesstype_by_slug(importsetup, tmp_path):
+    existing = AccessType(slug='rd-bundle', name='Original Name', interest=importsetup['localinterest'])
+    db.session.add(existing)
+    db.session.commit()
+
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'Ignored New Name',
+         'system_access_level_slugs': 'mailchimp:admin', 'description': ''},
+    ], fieldnames=BUNDLES_FIELDNAMES)
+
+    _import_bundles(importsetup['localinterest'], csv_path)
+
+    accesstype = AccessType.query.filter_by(slug='rd-bundle').one()
+    assert accesstype.name == 'Original Name'
+    assert accesstype.access == [importsetup['level']]
+
+
+def test_import_bundles_does_not_duplicate_existing_access_level(importsetup, tmp_path):
+    csv_path = _bundle_csv(tmp_path)
+    _import_bundles(importsetup['localinterest'], csv_path)
+    _import_bundles(importsetup['localinterest'], csv_path)
+
+    accesstype = AccessType.query.filter_by(slug='rd-bundle').one()
+    assert accesstype.access == [importsetup['level']]
+
+
 def test_import_bundles_errors_on_unknown_system(importsetup, tmp_path):
     csv_path = _write_csv(tmp_path, 'bundles.csv', [
-        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle', 'system_slug': 'nosuchsystem',
-         'access_level_slug': 'admin', 'description': ''},
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'nosuchsystem:admin', 'description': ''},
     ], fieldnames=BUNDLES_FIELDNAMES)
 
     with pytest.raises(ParameterError, match='no system found'):
         _import_bundles(importsetup['localinterest'], csv_path)
 
 
-def _bundle_csv(tmp_path):
-    return _write_csv(tmp_path, 'bundles.csv', [
-        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle', 'system_slug': 'mailchimp',
-         'access_level_slug': 'admin', 'description': ''},
+def test_import_bundles_errors_on_unknown_access_level(importsetup, tmp_path):
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'mailchimp:nosuchlevel', 'description': ''},
     ], fieldnames=BUNDLES_FIELDNAMES)
+
+    with pytest.raises(ParameterError, match='no access level found'):
+        _import_bundles(importsetup['localinterest'], csv_path)
+
+
+def test_import_bundles_errors_on_token_without_system_prefix(importsetup, tmp_path):
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'admin', 'description': ''},
+    ], fieldnames=BUNDLES_FIELDNAMES)
+
+    with pytest.raises(ParameterError, match='system_slug:access_level_slug'):
+        _import_bundles(importsetup['localinterest'], csv_path)
+
+
+def test_import_bundles_errors_on_missing_csv_column(importsetup, tmp_path):
+    csv_path = _write_csv(tmp_path, 'bundles.csv', [
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle'},
+    ], fieldnames=('access_type_slug', 'access_type'))
+
+    with pytest.raises(ParameterError, match='missing required column'):
+        _import_bundles(importsetup['localinterest'], csv_path)
 
 
 def test_import_position_mapping_attaches_multiple_access_types_and_direct_access(importsetup, tmp_path):
     # two bundles so the comma-separated access_type_slugs cell has two entries
     accesstypes = _import_bundles(importsetup['localinterest'], _write_csv(tmp_path, 'bundles.csv', [
-        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle', 'system_slug': 'mailchimp',
-         'access_level_slug': 'admin', 'description': ''},
-        {'access_type_slug': 'officer-bundle', 'access_type': 'Officer Bundle', 'system_slug': 'mailchimp',
-         'access_level_slug': 'admin', 'description': ''},
+        {'access_type_slug': 'rd-bundle', 'access_type': 'RD Bundle',
+         'system_access_level_slugs': 'mailchimp:admin', 'description': ''},
+        {'access_type_slug': 'officer-bundle', 'access_type': 'Officer Bundle',
+         'system_access_level_slugs': 'mailchimp:admin', 'description': ''},
     ], fieldnames=BUNDLES_FIELDNAMES))
 
     positions_csv = _write_csv(tmp_path, 'positions.csv', [
