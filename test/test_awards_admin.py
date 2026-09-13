@@ -4,15 +4,16 @@ test_awards_admin - test members.views.admin.awards_admin
 '''
 
 # standard
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 # pypi
 import pytest
-from flask import Flask, g
+from flask import Flask, current_app, g
 
 # homegrown
 from members.views.admin import awards_admin
-from members.views.admin.awards_admin import RaceAwardsApi, AwardPickUpApi, AwardNotesApi
+from members.views.admin.awards_admin import AwardRaceView, RaceAwardsApi, AwardPickUpApi, AwardNotesApi
 from members.model import db, LocalInterest, AwardsRace, AwardsEvent, AwardsDivision, AwardsAwardee
 from loutilities.user.model import Interest
 from loutilities.user.roles import ROLE_SUPER_ADMIN
@@ -204,6 +205,186 @@ def test_update_event_awards_bib_change_after_pickup_links_prev_awardee(awardsse
     assert new.prev_awardee is not None
     assert new.prev_awardee.id == old.id
     assert new.prev_awardee.picked_up is True
+
+
+# ----------------------------------------------------------------------
+# AwardRaceView.update_divisions()
+# ----------------------------------------------------------------------
+# update_divisions() never references self, so it's called unbound (self=None),
+# matching the "standalone algorithm" pattern already used for update_event_awards()
+# above -- no need to construct a real AwardRaceView, which requires the full
+# DbCrudApiInterestsRolePermissions constructor (columns, dbmapping, app blueprint, etc.)
+
+_EVENT_START = '03/10/2026 08:00'  # matches rsudt format ('%m/%d/%Y %H:%M') in awards_admin.py
+
+
+def _rsu_event(event_id=200, name='5K', start_time=_EVENT_START):
+    return {'event_id': event_id, 'name': name, 'start_time': start_time}
+
+
+def _rsu_division(rsu_division_id=1, name='Female Open', shortname='FOpen', priority=1,
+                   num_awards=3, criteria='present'):
+    '''
+    criteria: 'present' includes auto_selection_criteria (gender='F', no age bounds);
+    'none' includes auto_selection_criteria with no gender restriction; 'missing' omits
+    the key entirely (RunSignUp's signature for a division it can't auto-place, e.g. a
+    non-binary division -- see #723)
+    '''
+    division = {
+        'race_division_id': rsu_division_id,
+        'division_name': name,
+        'division_short_name': shortname,
+        'division_priority': priority,
+        'show_top_num': num_awards,
+    }
+    if criteria == 'present':
+        division['auto_selection_criteria'] = {'min_age': None, 'max_age': None, 'gender': 'F'}
+    elif criteria == 'none':
+        division['auto_selection_criteria'] = {'min_age': None, 'max_age': None, 'gender': None}
+    # else 'missing': leave auto_selection_criteria out entirely
+    return division
+
+
+class _FakeRsuDivisions:
+    def __init__(self, divisions_by_event):
+        self._divisions_by_event = divisions_by_event
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def getracedivisions(self, race_id, event_id):
+        return self._divisions_by_event.get(event_id, [])
+
+
+def _fake_rsu_divisions_client(divisions_by_event):
+    def make_client(**kwargs):
+        return _FakeRsuDivisions(divisions_by_event)
+    return make_client
+
+
+def test_update_divisions_creates_new_event_and_gendered_division(awardssetup, monkeypatch):
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=300)]}
+    divisions = {300: [_rsu_division(rsu_division_id=10, criteria='present')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    event = AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=300).one()
+    assert event.name == '5K'
+    division = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=10).one()
+    assert division.name == 'Female Open'
+    assert division.num_awards == 3
+    assert division.gender == 'F'
+    assert division.min_age is None
+    assert division.max_age is None
+
+
+def test_update_divisions_no_criteria_division_currently_collapses_to_none(awardssetup, monkeypatch):
+    '''
+    documents CURRENT (pre-#723-fix) behavior: a division RunSignUp never auto-places
+    (auto_selection_criteria missing entirely) is stored identically to a division RunSignUp
+    computes but genuinely leaves ungendered (criteria present, gender=None) -- both collapse
+    to gender=None/min_age=None/max_age=None. This is exactly the ambiguity #723's fix needs to
+    resolve (by flagging "criteria missing" distinctly) -- once that lands, this test's
+    expectations should change to assert the two cases are distinguishable.
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=301)]}
+    divisions = {301: [
+        _rsu_division(rsu_division_id=11, name='Ungendered (computed)', criteria='none'),
+        _rsu_division(rsu_division_id=12, name='Non-Binary (uncomputed)', criteria='missing'),
+    ]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    event = AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=301).one()
+    computed = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=11).one()
+    uncomputed = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=12).one()
+    assert computed.gender is None
+    assert uncomputed.gender is None  # indistinguishable from `computed` today -- the #723 gap
+
+
+def test_update_divisions_skips_event_with_no_divisions(awardssetup, monkeypatch):
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=302)]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client({302: []}))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    assert AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=302).first() is None
+
+
+def test_update_divisions_skips_event_outside_awards_window(awardssetup, monkeypatch):
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 7
+
+    old_start = (datetime.now() - timedelta(days=365)).strftime('%m/%d/%Y %H:%M')
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=303, start_time=old_start)]}
+    divisions = {303: [_rsu_division(rsu_division_id=13, criteria='present')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    assert AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=303).first() is None
+
+
+def test_update_divisions_reduces_num_awards_deactivates_awardees(awardssetup, monkeypatch):
+    event_row = awardssetup['event']
+    division_row = awardssetup['division']  # rsu_div_id=1, num_awards=3 (see awardssetup fixture)
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    awardees = [
+        AwardsAwardee(interest=awardssetup['localinterest'], div=division_row, event_id=event_row.id,
+                      order=n, active=True, awardee_name=f'Runner {n}', awardee_bib=100 + n)
+        for n in (1, 2, 3)
+    ]
+    db.session.add_all(awardees)
+    db.session.commit()
+
+    rsu_race = {'race_id': awardssetup['race'].rsu_race_id, 'events': [_rsu_event(event_id=event_row.rsu_event_id)]}
+    divisions = {event_row.rsu_event_id: [
+        _rsu_division(rsu_division_id=division_row.rsu_div_id, num_awards=1, criteria='present'),
+    ]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    AwardRaceView.update_divisions(None, awardssetup['race'].id, rsu_race)
+
+    db.session.refresh(division_row)
+    assert division_row.num_awards == 1
+    active_orders = {a.order for a in AwardsAwardee.query.filter_by(div=division_row, active=True).all()}
+    assert active_orders == {1}
+    inactive_orders = {a.order for a in AwardsAwardee.query.filter_by(div=division_row, active=False).all()}
+    assert inactive_orders == {2, 3}
+
+
+def test_update_divisions_deletes_removed_events_and_divisions(awardssetup, monkeypatch):
+    event_row = awardssetup['event']
+    current_app.config['AWARDS_WINDOW'] = 3650
+    event_id = event_row.id
+    division_id = awardssetup['division'].id
+
+    # RunSignUp no longer returns this event at all (e.g. it was deleted upstream)
+    rsu_race = {'race_id': awardssetup['race'].rsu_race_id, 'events': []}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client({}))
+
+    AwardRaceView.update_divisions(None, awardssetup['race'].id, rsu_race)
+    # update_divisions() never commits itself (same as production: the DbCrudApi Editor
+    # framework commits after createrow()/updaterow() returns) -- commit here to match that
+    db.session.commit()
+
+    assert db.session.get(AwardsEvent, event_id) is None
+    assert db.session.get(AwardsDivision, division_id) is None
 
 
 # ----------------------------------------------------------------------
