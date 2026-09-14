@@ -18,6 +18,7 @@ from members.helpers import (
     members_active, members_active_currfuture, member_qualifiers_active,
     memberqualifierstr, all_active_members, get_tags_users, localinterest,
     make_runsignup_client, make_runsignup_fluent_client,
+    get_race_participants, assign_race_divisions, recalc_division_placements,
 )
 from members.model import db, LocalInterest, LocalUser, Position, Tag, UserPosition
 from running.runsignup import RunSignUp
@@ -88,6 +89,113 @@ def test_make_runsignup_fluent_client_missing_config_raises(rsuapp):
     with rsuapp.app_context():
         with pytest.raises(KeyError):
             make_runsignup_fluent_client()
+
+
+# ----------------------------------------------------------------------
+# get_race_participants / assign_race_divisions / recalc_division_placements (#723)
+# ----------------------------------------------------------------------
+# these hit RunSignUp endpoints with no wrapper method on running.runsignup.RunSignUp, so
+# they build the request directly off rsu.session/rsu.client_credentials (the same low-level
+# access point the library's own methods use internally) -- test against a fake session
+# rather than a real HTTP call, same philosophy as make_runsignup_client() above.
+
+class _FakeResponse:
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
+
+    def json(self):
+        return self._payload
+
+
+class _FakeSession:
+    def __init__(self, get_response=None, post_response=None):
+        self._get_response = get_response
+        self._post_response = post_response
+        self.get_calls = []
+        self.post_calls = []
+
+    def get(self, url, params=None):
+        self.get_calls.append({'url': url, 'params': params})
+        return self._get_response
+
+    def post(self, url, params=None, data=None):
+        self.post_calls.append({'url': url, 'params': params, 'data': data})
+        return self._post_response
+
+
+class _FakeRsuClient:
+    def __init__(self, session):
+        self.session = session
+        self.client_credentials = {'api_key': 'testkey', 'api_secret': 'testsecret'}
+        self._rsuget = RunSignUp._rsuget.__get__(self)  # bind the real _rsuget to this fake
+
+
+def test_get_race_participants_passes_supports_nb(monkeypatch):
+    participants = [{'registration_id': 1, 'bib_num': 10, 'user': {'gender': 'X'}}]
+    session = _FakeSession(get_response=_FakeResponse([{'event': {'event_id': 200}, 'participants': participants}]))
+    rsu = _FakeRsuClient(session)
+
+    result = get_race_participants(rsu, race_id=100, event_id=200)
+
+    assert result == participants
+    assert len(session.get_calls) == 1
+    call = session.get_calls[0]
+    assert call['url'] == 'https://api.runsignup.com/rest/race/100/participants'
+    assert call['params']['event_id'] == 200
+    assert call['params']['supports_nb'] == 'T'
+
+
+def test_get_race_participants_empty_response_returns_empty_list(monkeypatch):
+    # _rsuget() returns a list (one entry per matching event); an event with no matches
+    # returns an empty list rather than a dict with a 'participants' key
+    session = _FakeSession(get_response=_FakeResponse([]))
+    rsu = _FakeRsuClient(session)
+
+    assert get_race_participants(rsu, race_id=100, event_id=200) == []
+
+
+def test_assign_race_divisions_posts_expected_request(monkeypatch):
+    session = _FakeSession(post_response=_FakeResponse({'success': True}))
+    rsu = _FakeRsuClient(session)
+    assignments = [{'registration_id': 1, 'race_division_ids': [55]}]
+
+    assign_race_divisions(rsu, race_id=100, event_id=200, assignments=assignments)
+
+    assert len(session.post_calls) == 1
+    call = session.post_calls[0]
+    assert call['url'] == 'https://api.runsignup.com/rest/race/100/divisions/assign-divisions'
+    assert call['params']['event_id'] == 200
+    assert '"registration_id": 1' in call['data']['request']
+    assert '"race_division_ids": [55]' in call['data']['request']
+
+
+def test_assign_race_divisions_raises_on_failure(monkeypatch):
+    session = _FakeSession(post_response=_FakeResponse({'error': {'error_msg': 'nope'}}))
+    rsu = _FakeRsuClient(session)
+
+    with pytest.raises(RuntimeError, match='assign-divisions failed'):
+        assign_race_divisions(rsu, race_id=100, event_id=200, assignments=[])
+
+
+def test_recalc_division_placements_posts_expected_request(monkeypatch):
+    session = _FakeSession(post_response=_FakeResponse({'success': True}))
+    rsu = _FakeRsuClient(session)
+
+    recalc_division_placements(rsu, race_id=100, event_id=200)
+
+    assert len(session.post_calls) == 1
+    call = session.post_calls[0]
+    assert call['url'] == 'https://api.runsignup.com/rest/race/100/results/recalc-division-placements'
+    assert call['params']['event_id'] == 200
+
+
+def test_recalc_division_placements_raises_on_failure(monkeypatch):
+    session = _FakeSession(post_response=_FakeResponse({'error': {'error_msg': 'nope'}}))
+    rsu = _FakeRsuClient(session)
+
+    with pytest.raises(RuntimeError, match='recalc-division-placements failed'):
+        recalc_division_placements(rsu, race_id=100, event_id=200)
 
 
 # ----------------------------------------------------------------------

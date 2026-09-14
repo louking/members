@@ -3,6 +3,7 @@ helpers - commonly needed utilities
 ====================================================================================
 '''
 # standard
+from json import dumps
 from re import compile
 from datetime import date
 
@@ -57,6 +58,69 @@ def make_runsignup_fluent_client(**kwargs):
     :param kwargs: additional RunSignupFluent() arguments, e.g. debug=True
     '''
     return RunSignupFluent(**_rsu_credentials(), **kwargs)
+
+def get_race_participants(rsu, race_id, event_id):
+    '''
+    fetch race participants for an event, with non-binary ('X') gender exposed -- RunSignUp
+    nulls out a registrant's gender for an 'X' (non-binary) registration unless the
+    undocumented-in-the-summary-docs `supports_nb` parameter is passed. See #723.
+
+    :param rsu: open running.runsignup.RunSignUp client (make_runsignup_client())
+    :param race_id: RunSignUp race id
+    :param event_id: RunSignUp event id
+    :return: [participant, participant, ...] (one page only -- fine for a small club race;
+        see RunSignUp's "Get Race Participants" API for the full participant shape)
+    '''
+    data = rsu._rsuget(f'https://api.runsignup.com/rest/race/{race_id}/participants',
+                        event_id=event_id, results_per_page=250, supports_nb='T')
+    return data[0]['participants'] if data else []
+
+def assign_race_divisions(rsu, race_id, event_id, assignments):
+    '''
+    explicitly assign registrants to race divisions RunSignUp has no auto-select criteria
+    for (RunSignUp only allows this for such divisions -- see #723). This completely
+    replaces each registrant's existing manually-assigned divisions, so `assignments`
+    should include every division-less-criteria membership a registrant should have, not
+    just the one being added.
+
+    :param rsu: open running.runsignup.RunSignUp client (make_runsignup_client())
+    :param race_id: RunSignUp race id
+    :param event_id: RunSignUp event id
+    :param assignments: [{'registration_id': int, 'race_division_ids': [int, ...]}, ...]
+    '''
+    creds = rsu.client_credentials.copy()
+    creds.update({'event_id': event_id, 'format': 'json'})
+    resp = rsu.session.post(
+        f'https://api.runsignup.com/rest/race/{race_id}/divisions/assign-divisions',
+        params=creds,
+        data={'request_format': 'json', 'request': dumps({'assignments': assignments})},
+    )
+    data = resp.json()
+    if not data.get('success'):
+        raise RuntimeError(f'assign-divisions failed for race {race_id} event {event_id}: {data}')
+
+def recalc_division_placements(rsu, race_id, event_id):
+    '''
+    ask RunSignUp to recompute division placements for an event's result set. Needed once,
+    right after assign_race_divisions() gives a criteria-less division its first membership
+    (RunSignUp doesn't compute a placement from the assignment alone) -- after that, RunSignUp
+    recomputes it automatically whenever new results are posted, same as any other division.
+    Safe/idempotent to call repeatedly. See #723.
+
+    :param rsu: open running.runsignup.RunSignUp client (make_runsignup_client())
+    :param race_id: RunSignUp race id
+    :param event_id: RunSignUp event id
+    '''
+    creds = rsu.client_credentials.copy()
+    creds.update({'event_id': event_id, 'format': 'json'})
+    resp = rsu.session.post(
+        f'https://api.runsignup.com/rest/race/{race_id}/results/recalc-division-placements',
+        params=creds,
+        data={'request_format': 'json'},
+    )
+    data = resp.json()
+    if not data.get('success'):
+        raise RuntimeError(f'recalc-division-placements failed for race {race_id} event {event_id}: {data}')
 
 def is_valid_date(thisdate):
     '''

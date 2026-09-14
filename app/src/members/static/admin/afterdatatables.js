@@ -699,5 +699,28 @@ function afterdatatables() {
                 yadcf.exFilterColumn(_dt_table, [[statuscol, 'Open']]);
             }
         });
+
+    // special processing for award races -- alert if the Update button's RunSignUp sync
+    // found a new non-binary division, so an admin knows to set its age range on the
+    // Divisions page. Not flash() -- this is a DataTables Editor AJAX flow with no full page
+    // render per action for a session-backed flash to surface on. See #723.
+    } else if (location.pathname.includes('/awardraces')) {
+        editor.on('submitSuccess', function(e, json, data, action) {
+            if (json.new_nonbinary_divisions && json.new_nonbinary_divisions.length > 0) {
+                alert('New non-binary division(s) found:\n' + json.new_nonbinary_divisions.join('\n') +
+                      '\n\nSet their age range on the Divisions page.');
+            }
+        });
+
+    // special processing for award divisions -- default to the latest year found, since a
+    // race can accumulate events across many seasons (see #723). Clear the Year filter to
+    // see all years.
+    } else if (location.pathname.includes('/awarddivisions')) {
+        var yearcol = get_yadcf_col('awarddivisions-external-filter-year');
+        var years = _dt_table.column(yearcol).data().toArray().filter(function(y) { return y; });
+        if (years.length > 0) {
+            var maxyear = years.sort().slice(-1)[0];
+            yadcf.exFilterColumn(_dt_table, [[yearcol, maxyear]]);
+        }
     }
 }

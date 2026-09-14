@@ -12,5 +12,6 @@ what awards have been given out.
 Awards Management 
 --------------------------
 
-:ref:`award races view` and :ref:`race awards view` can be used to manage
-awards. See the reference views for full instructions.
+:ref:`award races view`, :ref:`award divisions view`, and :ref:`race awards
+view` can be used to manage awards. See the reference views for full
+instructions.

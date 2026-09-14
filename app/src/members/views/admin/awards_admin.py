@@ -5,6 +5,7 @@ awards - awards views
 
 # standard
 from datetime import datetime, timedelta
+from re import search as re_search, IGNORECASE
 from traceback import format_exception_only, format_exc
 from itertools import zip_longest
 from csv import DictWriter
@@ -18,15 +19,17 @@ from dominate.tags import select, option, button, input_, i
 from loutilities.user.tables import DbCrudApiInterestsRolePermissions
 from loutilities.user.roles import ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN
 from loutilities.timeu import asctime
-from loutilities.filters import filtercontainerdiv, filterdiv
+from loutilities.filters import filtercontainerdiv, filterdiv, yadcfoption
 from loutilities.transform import Transform
 
 # home grown
 from . import bp
 from ...model import db
 from ...model import LocalInterest, AwardsRace, AwardsEvent, AwardsDivision, AwardsAwardee
+from ...model import localinterest_query_params
 from ...version import __docversion__
-from ...helpers import make_runsignup_client
+from ...helpers import (make_runsignup_client, get_race_participants, assign_race_divisions,
+                        recalc_division_placements)
 from .viewhelpers import localinterest, json_login_required
 
 awards_roles = [ROLE_SUPER_ADMIN, ROLE_AWARDS_ADMIN]
@@ -55,6 +58,10 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
         return racerow, race
 
     def update_divisions(self, race_id, race):
+        # divisions newly defaulted to gender='X' this call (eventname, divname) -- flashed
+        # at the end so an admin knows to go set their age range on the Divisions page (#723)
+        new_nonbinary_divisions = []
+
         # retrieve all events and divisions for this race
         stored_race = AwardsRace.query.filter_by(interest=localinterest(), id=race_id).one()
         stored_events = stored_race.events
@@ -101,7 +108,10 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                     )
                     db.session.add(eventrow)
                 db.session.flush()
-                
+
+                # set when a division's auto_placed value changes this sync -- see below
+                event_needs_recalc = False
+
                 # create or update divisions
                 for division_id in divisions:
                     rsu_division_id = division_id['race_division_id']
@@ -109,19 +119,26 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                     divname = division_id['division_name']
                     shortname = division_id['division_short_name']
                     num_awards = division_id['show_top_num']
+
+                    # RunSignUp omits auto_selection_criteria entirely for a division it can't
+                    # auto-place (no non-binary gender option exists in its own division setup
+                    # UI) -- this is indistinguishable from a division RunSignUp computes but
+                    # leaves genuinely ungendered unless we treat "key missing" differently
+                    # from "key present with gender None". See #723.
+                    has_rsu_criteria = 'auto_selection_criteria' in division_id
                     min_age = division_id.get('auto_selection_criteria', {}).get('min_age', None)
                     max_age = division_id.get('auto_selection_criteria', {}).get('max_age', None)
                     gender = division_id.get('auto_selection_criteria', {}).get('gender', None)
-                    
+
                     # create the division if it doesn't already exist
                     divisionrow = stored_event['divisions'].pop(rsu_division_id, None) if stored_event else None
-                    
+
                     if divisionrow:
                         # update the existing division
                         divisionrow.priority = priority
                         divisionrow.name = divname
                         divisionrow.shortname = shortname
-                        
+
                         # if number of awards for this division has been
                         # reduced, remove any awardees for new non-awards
                         if num_awards < divisionrow.num_awards:
@@ -129,12 +146,40 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                                 if awardee.order > num_awards:
                                     awardee.active = False
                         divisionrow.num_awards = num_awards
-                        
-                        divisionrow.min_age = min_age
-                        divisionrow.max_age = max_age
-                        divisionrow.gender = gender
+
+                        # a division whose auto-select criteria changed (added or removed since
+                        # the last sync) may have placements RunSignUp computed under the OLD
+                        # criteria still sitting in its results -- removing/changing criteria
+                        # does not retroactively clear or recompute them. Confirmed live: a
+                        # division fixed from leaky age-only criteria to no criteria kept
+                        # stale, contaminated placements (a wrong male "winner") until an
+                        # explicit recalc was issued. Force one here so a fixed (or newly
+                        # criteria'd) division starts clean instead of carrying stale results
+                        # forward indefinitely. See #723.
+                        if divisionrow.auto_placed is not None and divisionrow.auto_placed != has_rsu_criteria:
+                            event_needs_recalc = True
+                        # unlike min_age/max_age/gender below, this reflects the current sync's
+                        # finding unconditionally -- it's a status flag, not admin-owned data
+                        divisionrow.auto_placed = has_rsu_criteria
+
+                        # RunSignUp has nothing meaningful to offer for min_age/max_age/gender
+                        # on a division it can't auto-place -- leave whatever's already stored
+                        # (an admin-entered age range, and gender='X' for a non-binary division,
+                        # see #723) alone rather than clobbering it back to None every sync
+                        if has_rsu_criteria:
+                            divisionrow.min_age = min_age
+                            divisionrow.max_age = max_age
+                            divisionrow.gender = gender
                     else:
-                        # create a new division
+                        # create a new division. For one RunSignUp can't auto-place, default
+                        # gender to 'X' only when the name looks like a non-binary division --
+                        # this is just a starting point for an admin to confirm/correct, and,
+                        # unlike the update path above, only happens once (a create only
+                        # happens the first time a division is seen)
+                        if not has_rsu_criteria and re_search(r'non.?binary', divname, flags=IGNORECASE):
+                            gender = 'X'
+                            new_nonbinary_divisions.append((eventname, divname))
+
                         divisionrow = AwardsDivision(
                             interest=localinterest(),
                             event=eventrow,
@@ -146,6 +191,7 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                             min_age=min_age,
                             max_age=max_age,
                             gender=gender,
+                            auto_placed=has_rsu_criteria,
                         )
                         db.session.add(divisionrow)
                     
@@ -158,21 +204,29 @@ class AwardRaceView(DbCrudApiInterestsRolePermissions):
                         current_app.logger.debug(f'deleting {stored_event['divisions'][division_id]}')
                         db.session.delete(stored_event['divisions'][division_id])
 
+                if event_needs_recalc:
+                    recalc_division_placements(rsu, rsu_race_id, rsu_event_id)
+
             # delete any remaining events
             for event_id in stored_events_d:
                 current_app.logger.debug(f'deleting {stored_events_d[event_id]['event']}')
                 db.session.delete(stored_events_d[event_id]['event'])
-                
+
+        return [f'{divname} ({eventname})' for eventname, divname in new_nonbinary_divisions]
+
     def createrow(self, formdata):
         racerow, race = self.create_race(formdata)
-        self.update_divisions(self.created_id, race)
-        
+        # this page is a DataTables Editor AJAX flow, not a full page render per action, so
+        # flash() (session-backed, only shows on the *next* rendered page) doesn't surface here
+        # -- put it in the Editor JSON response instead, for a client-side alert. See #723.
+        self.responsekeys = {'new_nonbinary_divisions': self.update_divisions(self.created_id, race)}
+
         return racerow
 
     def updaterow(self, thisid, formdata):
         racerow, race = self.get_race(thisid, formdata)
-        self.update_divisions(thisid, race)
-        
+        self.responsekeys = {'new_nonbinary_divisions': self.update_divisions(thisid, race)}
+
         return racerow
 
 awardraces_view = AwardRaceView(
@@ -216,6 +270,13 @@ awardraces_view = AwardRaceView(
                 'eval': f'award_races_awards_button("{url_for('admin.raceawards', interest=g.interest)}")'
             }
         },
+        {
+            'extend': 'selected',
+            'text': 'Divisions',
+            'action': {
+                'eval': f'award_races_awards_button("{url_for('admin.awarddivisions', interest=g.interest)}")'
+            }
+        },
 
     ],
     dtoptions={
@@ -226,6 +287,119 @@ awardraces_view = AwardRaceView(
     },
 )
 awardraces_view.register()
+
+
+##########################################################################################
+# awarddivisions endpoint -- admin-editable min_age/max_age/gender for a division RunSignUp
+# can't auto-place (gender='X' for non-binary, see #723). Everything else on a division is
+# sync-managed from RunSignUp and shown read-only for context.
+###########################################################################################
+
+awarddivision_dbattrs = 'id,interest_id,event,name,shortname,priority,num_awards,min_age,max_age,gender,auto_placed'.split(',')
+awarddivision_formfields = 'rowid,interest_id,event,name,shortname,priority,num_awards,min_age,max_age,gender,auto_placed'.split(',')
+awarddivision_dbmapping = dict(zip(awarddivision_dbattrs, awarddivision_formfields))
+awarddivision_formmapping = dict(zip(awarddivision_formfields, awarddivision_dbattrs))
+# computed, display-only column -- no corresponding db attr, so added directly to formmapping
+# rather than via the dbattrs/formfields zip above (same pattern as e.g.
+# leadership_tasks_admin.py's history_formmapping['member'] = lambda tc: ...). Used for the
+# Year filter, since AwardsDivision has no date of its own, only via its event. See #723.
+awarddivision_formmapping['eventyear'] = lambda d: d.event.date[:4] if d.event and d.event.date else None
+
+def awarddivision_pretablehtml():
+    pretablehtml = filtercontainerdiv()
+    with pretablehtml:
+        with filterdiv('awarddivisions-external-filter-year', 'Year'):
+            pass
+        with filterdiv('awarddivisions-external-filter-autoplaced', 'Placement'):
+            pass
+    return pretablehtml.render()
+
+awarddivision_yadcf_options = [
+    yadcfoption('eventyear:name', 'awarddivisions-external-filter-year', 'select',
+               placeholder='All Years', width='100px'),
+    # options auto-populate from the column's rendered text (see the auto_placed clientcolumn's
+    # render function below) -- no fixed data list to keep in sync
+    yadcfoption('auto_placed:name', 'awarddivisions-external-filter-autoplaced', 'select',
+               placeholder='All', width='200px'),
+]
+
+class AwardDivisionView(DbCrudApiInterestsRolePermissions):
+    def beforequery(self):
+        '''
+        scope to divisions for the race given by the race_id query arg (from the Award Races
+        page's Divisions button). AwardsDivision has no direct race_id column, only event_id,
+        so this needs a join through AwardsEvent rather than a plain queryparams equality
+        filter -- see #723.
+        '''
+        super().beforequery()
+        race_id = request.args.get('race_id', None)
+        self.queryfilters = ([AwardsDivision.event.has(AwardsEvent.race_id == race_id)] if race_id
+                             else [AwardsDivision.id == None])  # no race_id -- show nothing, not everything
+
+awarddivision_view = AwardDivisionView(
+    roles_accepted=awards_roles,
+    app=bp,
+    db=db,
+    local_interest_model=LocalInterest,
+    model=AwardsDivision,
+    template='datatables.jinja2',
+    templateargs={'adminguide': adminguide},
+    pagename='Award Divisions',
+    endpoint='admin.awarddivisions',
+    endpointvalues={'interest': '<interest>'},
+    rule='/<interest>/awarddivisions',
+    dbmapping=awarddivision_dbmapping,
+    formmapping=awarddivision_formmapping,
+    checkrequired=True,
+    pretablehtml=awarddivision_pretablehtml,
+    yadcfoptions=awarddivision_yadcf_options,
+    clientcolumns=[
+        {'data': 'eventyear', 'name': 'eventyear', 'label': 'Year', 'type': 'readonly'},
+        {'data': 'event', 'name': 'event', 'label': 'Event',
+         'type': 'readonly',
+         '_treatment': {'relationship': {'fieldmodel': AwardsEvent, 'labelfield': 'name', 'formfield': 'event',
+                                         'dbfield': 'event', 'uselist': False,
+                                         'queryparams': localinterest_query_params,
+                                         }}
+         },
+        {'data': 'name', 'name': 'name', 'label': 'Division', 'type': 'readonly'},
+        {'data': 'shortname', 'name': 'shortname', 'label': 'Short Name', 'type': 'readonly'},
+        {'data': 'priority', 'name': 'priority', 'label': 'Priority', 'type': 'readonly'},
+        {'data': 'num_awards', 'name': 'num_awards', 'label': '# Awards', 'type': 'readonly'},
+        {'data': 'auto_placed', 'name': 'auto_placed', 'label': 'Placement',
+         'type': 'readonly',
+         # gender=='X' means an admin has already configured this division for members' own
+         # assign+recalc automation (#723) -- show that as done ('Configured'), not stuck on
+         # 'Needs Setup' forever just because RunSignUp itself will never auto-place it
+         'render': {'eval': "(d, type, row) => row.gender === 'X' ? 'Configured' : "
+                            "(d === true ? 'Auto-Placed' : (d === false ? 'Needs Setup' : ''))"},
+         'fieldInfo': "Whether this division's placements are handled automatically. 'Needs Setup' "
+                      "means Gender/Min Age/Max Age below must be set by hand; once Gender is set "
+                      "to X this shows 'Configured'.",
+         },
+        {'data': 'gender', 'name': 'gender', 'label': 'Gender',
+         'fieldInfo': "Set to 'X' for a non-binary division RunSignUp can't auto-place. Only takes "
+                      "effect for a division RunSignUp has no criteria for -- edits here are "
+                      "overwritten on the next sync (Update button) for a normal Male/Female division.",
+         },
+        {'data': 'min_age', 'name': 'min_age', 'label': 'Min Age',
+         'fieldInfo': "only enforced for a division RunSignUp can't auto-place (e.g. non-binary)",
+         },
+        {'data': 'max_age', 'name': 'max_age', 'label': 'Max Age',
+         'fieldInfo': "only enforced for a division RunSignUp can't auto-place (e.g. non-binary)",
+         },
+    ],
+    servercolumns=None,  # not server side
+    idSrc='rowid',
+    buttons=['editRefresh'],
+    dtoptions={
+        'scrollCollapse': True,
+        'scrollX': True,
+        'scrollXInner': "100%",
+        'scrollY': True,
+    },
+)
+awarddivision_view.register()
 
 
 class RaceAwardsBase(MethodView):
@@ -307,23 +481,89 @@ class RaceAwardsApi(RaceAwardsBase):
     # ajax-only endpoint -- always return json on auth failure, never redirect
     decorators = [json_login_required]
 
+    def _nonbinary_assignments(self, rsu, rsu_race_id, rsu_event_id, nonbinary_divisions, rsu_results):
+        '''
+        build the {'registration_id', 'race_division_ids'} assignments needed to give
+        RunSignUp's own division-placement engine an explicit, unambiguous membership list
+        for divisions it can't auto-place (gender == 'X', see #723) -- RunSignUp has no
+        non-binary option in its own division auto-select criteria, so these divisions never
+        get a computed placement without this.
+
+        `assign-divisions` completely REPLACES a registrant's manual-division memberships, it
+        doesn't add to them -- confirmed live this matters even within members' own set of
+        flagged divisions, not just for some other integrator's unrelated division: a
+        registrant already correctly placed in one flagged division who became newly eligible
+        for a second one had their first membership silently wiped, because the assignment
+        call only listed the division that still needed one. So: only skip a registrant
+        entirely if EVERY division they're eligible for already has a placement (nothing to
+        do); otherwise include ALL of their eligible divisions in the one call, not just the
+        ones currently missing a placement, so an existing correct membership is never dropped.
+
+        :param rsu: open running.runsignup.RunSignUp client
+        :param rsu_race_id: RunSignUp race id
+        :param rsu_event_id: RunSignUp event id
+        :param nonbinary_divisions: AwardsDivision rows with gender == 'X' for this event
+        :param rsu_results: current geteventresults()['results'] (supports_nb='T')
+        :return: [{'registration_id': int, 'race_division_ids': [int, ...]}, ...]
+        '''
+        placement_by_bib = {result['bib']: result for result in rsu_results}
+        assignments = []
+        for participant in get_race_participants(rsu, rsu_race_id, rsu_event_id):
+            if participant['user']['gender'] != 'X':
+                continue
+            age = participant.get('age')
+            result = placement_by_bib.get(participant.get('bib_num'), {})
+
+            eligible_division_ids = []
+            needs_assignment = False
+            for division in nonbinary_divisions:
+                if division.min_age is not None and (age is None or age < division.min_age):
+                    continue
+                if division.max_age is not None and (age is None or age > division.max_age):
+                    continue
+                eligible_division_ids.append(division.rsu_div_id)
+                if result.get(f'division-{division.rsu_div_id}-placement') is None:
+                    needs_assignment = True
+
+            # nothing to do if no eligible division, or every eligible division already has a
+            # placement (by a prior run, or another integrator) -- this is what makes the
+            # whole workaround a no-op once nothing's missing, not just per-division
+            if needs_assignment and eligible_division_ids:
+                assignments.append({'registration_id': participant['registration_id'],
+                                    'race_division_ids': eligible_division_ids})
+
+        return assignments
+
     def update_event_awards(self, event):
         '''
         update the AwardsAwardee records for the event
         '''
         try:
-            # get the results for this event from RunSignUp
-            with make_runsignup_client() as rsu:
-                # current_app.logger.debug(f'retrieving results for race {event.race.rsu_race_id} event {event.rsu_event_id}')
-                rsu_results_headers = rsu.geteventresults(event.race.rsu_race_id, event.rsu_event_id, '')
-                rsu_results = rsu_results_headers['results']
-                rsu_headers = rsu_results_headers['headers']
+            rsu_race_id = event.race.rsu_race_id
+            rsu_event_id = event.rsu_event_id
 
             # get the divisions for this event, ordered by priority -- this assumes that the database is correct
             db_divisions = AwardsDivision.query.filter_by(event_id=event.id).order_by(AwardsDivision.priority).all()
             rsu_div_ids = [d.rsu_div_id for d in db_divisions]
             rsu_div_lookup = {d.rsu_div_id: d for d in db_divisions}
-            
+
+            # get the results for this event from RunSignUp
+            with make_runsignup_client() as rsu:
+                # current_app.logger.debug(f'retrieving results for race {rsu_race_id} event {rsu_event_id}')
+                rsu_results = rsu.geteventresults(rsu_race_id, rsu_event_id, '', supports_nb='T')['results']
+
+                # give RunSignUp an explicit membership list for any division it can't
+                # auto-place, then let it recompute placements for those divisions -- see #723
+                nonbinary_divisions = [d for d in db_divisions if d.gender == 'X']
+                if nonbinary_divisions:
+                    assignments = self._nonbinary_assignments(rsu, rsu_race_id, rsu_event_id,
+                                                               nonbinary_divisions, rsu_results)
+                    if assignments:
+                        assign_race_divisions(rsu, rsu_race_id, rsu_event_id, assignments)
+                        recalc_division_placements(rsu, rsu_race_id, rsu_event_id)
+                        # re-fetch so the loop below sees the freshly computed placements
+                        rsu_results = rsu.geteventresults(rsu_race_id, rsu_event_id, '', supports_nb='T')['results']
+
             # get the active awardees for the event from the database
             awardees = AwardsAwardee.query.filter_by(event_id=event.id, active=True).all()
             

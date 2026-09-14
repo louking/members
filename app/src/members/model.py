@@ -1238,7 +1238,14 @@ class AwardsDivision(Base):
     max_age     = Column(Integer)  # maximum age for division
     gender      = Column(Text)     # M, F, X (non-binary)
     num_awards  = Column(Integer)  # number of awards for this division, e.g. 3 for 1st, 2nd, 3rd
-    
+    # True if RunSignUp has auto_selection_criteria for this division (computes its own
+    # placements); False if RunSignUp has none (e.g. a non-binary division -- gender='X' --
+    # or any other division needing manual setup). Set fresh on every sync in
+    # AwardRaceView.update_divisions() -- purely an admin-visibility/filter aid, not used to
+    # decide what update_event_awards() auto-assigns (that stays scoped to gender=='X', the
+    # only case members has an algorithm for). See #723.
+    auto_placed = Column(Boolean)
+
     awardees    = relationship('AwardsAwardee', back_populates='div', cascade='all, delete')
     
     # track last update - https://docs.sqlalchemy.org/en/20/dialects/mysql.html#mysql-timestamp-onupdate

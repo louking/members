@@ -42,6 +42,78 @@ then click **Update**.
     :align: center
 
 
+.. _Award Divisions view:
+
+Award Divisions view
+=====================
+**Navigation:** Awards > Races > [select Race] > Divisions
+
+RunSignup cannot automatically compute placements for a division that isn't
+split by gender the normal way -- most commonly a non-binary award division,
+since RunSignup has no gender option for a non-binary registrant when it
+auto-places entrants into divisions. This view lists every division for the
+selected race, across all of its events (including past seasons, if the same
+RunSignup race ID has been reused year over year), and lets you supply what
+RunSignup can't determine on its own.
+
+**Event**, **Division**, **Short Name**, **Priority**, and **# Awards** are
+synced from RunSignup and cannot be edited here.
+
+**Placement** shows one of three values:
+
+    :Auto-Placed:
+        RunSignup computes this division's placements on its own; nothing to
+        do here.
+
+    :Needs Setup:
+        RunSignup has no way to auto-place this division and nobody has
+        configured it yet. It will never show any award winners in the
+        :ref:`race awards view` until **Gender** is set to ``X`` below (and,
+        if the division applies to a specific age range, **Min Age**/**Max
+        Age** are filled in too).
+
+    :Configured:
+        RunSignup still can't auto-place this division, but **Gender** has
+        been set to ``X``, so award placements for it are computed
+        automatically the same way as any other division.
+
+Once a division is Configured, RunSignup's own **Priority** ranking still
+governs it exactly as it does for a normal division -- e.g., if a registrant
+qualifies for both an Overall division and an age-banded one, whichever has
+the higher priority determines which award they actually win. There's
+nothing to configure for this; it just works the same way it already does
+for the Male/Female divisions on the same race.
+
+**Gender**, **Min Age**, and **Max Age** are only editable for a division
+that needs setup or has been configured -- editing them on a division
+RunSignup already auto-places has no effect, since the next **Update** on the
+:ref:`award races view` overwrites them from RunSignup.
+
+Use the **Year** filter to limit the view to one season at a time -- by
+default only the most recent year found is shown. Use the **Placement**
+filter to show only divisions that still need setup.
+
+.. note::
+    After clicking **Update** on the :ref:`award races view`, if the
+    RunSignup sync found a new division whose name looks non-binary, an alert
+    names it so you know to come here and set its age range.
+
+.. image:: images/award-divisions-view.*
+    :align: center
+
+|
+
+**Edit**
+
+To set **Gender**, **Min Age**, or **Max Age** for a division, select its row
+and click **Edit**.
+
+.. image:: images/award-divisions-edit.*
+    :align: center
+
+|
+
+
 .. _Race Awards view:
 
 Race Awards view

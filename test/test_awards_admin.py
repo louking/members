@@ -98,7 +98,16 @@ def _result(order, first_name, last_name, result_id, bib, rsu_div_id=1):
 
 class _FakeRsu:
     def __init__(self, results):
-        self._results = results
+        '''
+        :param results: a results list (returned every call), or a list of results lists to
+            return in sequence -- the latter lets a test simulate update_event_awards()'s
+            re-fetch after assign_race_divisions()/recalc_division_placements() seeing a
+            different (updated) result set than the initial fetch
+        '''
+        if results and isinstance(results[0], list):
+            self._results_sequence = list(results)
+        else:
+            self._results_sequence = [results]
 
     def __enter__(self):
         return self
@@ -106,14 +115,30 @@ class _FakeRsu:
     def __exit__(self, *exc_info):
         return False
 
-    def geteventresults(self, race_id, event_id, individual_result_set_id):
-        return {'results': self._results, 'headers': {}}
+    def geteventresults(self, race_id, event_id, individual_result_set_id, **kwargs):
+        results = self._results_sequence.pop(0) if len(self._results_sequence) > 1 else self._results_sequence[0]
+        return {'results': results, 'headers': {}}
 
 
 def _fake_rsu_client(results):
     def make_client(**kwargs):
         return _FakeRsu(results)
     return make_client
+
+
+def _participant(registration_id, bib_num, gender, age):
+    return {'registration_id': registration_id, 'bib_num': bib_num, 'age': age, 'user': {'gender': gender}}
+
+
+def _with_default_placement(result):
+    '''
+    awardssetup's fixture always creates a division with rsu_div_id=1 in the same event, so
+    update_event_awards()'s loop looks up 'division-1-placement' on every result regardless of
+    what other division a test is targeting -- default it to None (not awarded) unless a test
+    constructs it explicitly
+    '''
+    result.setdefault('division-1-placement', None)
+    return result
 
 
 # ----------------------------------------------------------------------
@@ -208,6 +233,162 @@ def test_update_event_awards_bib_change_after_pickup_links_prev_awardee(awardsse
 
 
 # ----------------------------------------------------------------------
+# RaceAwardsApi.update_event_awards() -- non-binary division assign+recalc (#723)
+# ----------------------------------------------------------------------
+
+def _nonbinary_division(awardssetup, rsu_div_id=2, min_age=None, max_age=None, num_awards=1):
+    division = AwardsDivision(interest=awardssetup['localinterest'], event=awardssetup['event'],
+                              rsu_div_id=rsu_div_id, priority=1, name='Non-Binary Overall',
+                              shortname='NB', num_awards=num_awards, gender='X',
+                              min_age=min_age, max_age=max_age)
+    db.session.add(division)
+    db.session.commit()
+    return division
+
+
+def _patch_assign_recalc(monkeypatch, participants):
+    '''
+    monkeypatch get_race_participants() to return a fixed participant list, and
+    assign_race_divisions()/recalc_division_placements() to no-op while recording their
+    calls, so a test can assert exactly when/how they were invoked
+    '''
+    calls = {'assign': [], 'recalc': []}
+    monkeypatch.setattr(awards_admin, 'get_race_participants', lambda rsu, race_id, event_id: participants)
+    monkeypatch.setattr(awards_admin, 'assign_race_divisions',
+                        lambda rsu, race_id, event_id, assignments: calls['assign'].append(assignments))
+    monkeypatch.setattr(awards_admin, 'recalc_division_placements',
+                        lambda rsu, race_id, event_id: calls['recalc'].append(True))
+    return calls
+
+
+def test_update_event_awards_nonbinary_noop_when_already_placed(awardssetup, monkeypatch):
+    '''
+    if the division's placement is already populated for a non-binary registrant (e.g.
+    another integrator like RaceDay Scoring already assigned+computed it), update_event_awards()
+    must not call assign_race_divisions()/recalc_division_placements() at all -- the gate that
+    makes this work regardless of which timing vendor produced the race's results (#723)
+    '''
+    event = awardssetup['event']
+    division = _nonbinary_division(awardssetup)
+    results = [_with_default_placement(_result(1, 'Alex', 'Runner', 6001, 55, rsu_div_id=division.rsu_div_id))]
+    participants = [_participant(registration_id=900, bib_num=55, gender='X', age=30)]
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client(results))
+    calls = _patch_assign_recalc(monkeypatch, participants)
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert calls['assign'] == []
+    assert calls['recalc'] == []
+    awardee = AwardsAwardee.query.filter_by(event_id=event.id, div=division).one()
+    assert awardee.awardee_bib == 55
+
+
+def test_update_event_awards_nonbinary_assigns_and_recalcs_when_placement_missing(awardssetup, monkeypatch):
+    '''
+    a non-binary registrant with no placement yet in the division gets assigned via
+    assign_race_divisions(), followed by recalc_division_placements(), and the re-fetched
+    (post-recalc) results are what actually create the awardee -- see #723
+    '''
+    event = awardssetup['event']
+    division = _nonbinary_division(awardssetup)
+    before = [_with_default_placement(_result(None, 'Alex', 'Runner', 6001, 55, rsu_div_id=division.rsu_div_id))]
+    after = [_with_default_placement(_result(1, 'Alex', 'Runner', 6001, 55, rsu_div_id=division.rsu_div_id))]
+    participants = [_participant(registration_id=900, bib_num=55, gender='X', age=30)]
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client([before, after]))
+    calls = _patch_assign_recalc(monkeypatch, participants)
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert calls['assign'] == [[{'registration_id': 900, 'race_division_ids': [division.rsu_div_id]}]]
+    assert len(calls['recalc']) == 1
+    awardee = AwardsAwardee.query.filter_by(event_id=event.id, div=division).one()
+    assert awardee.awardee_bib == 55
+
+
+def test_update_event_awards_nonbinary_preserves_existing_membership_in_other_division(awardssetup, monkeypatch):
+    '''
+    assign-divisions completely REPLACES a registrant's manual-division memberships, it
+    doesn't add to them. A registrant already correctly placed in one flagged division who
+    becomes newly eligible for a SECOND flagged division must not lose the first membership --
+    the assignment call has to include every division they're eligible for, not just the one
+    missing a placement. Confirmed live: an assignment call listing only the new division
+    silently wiped out the registrant's already-correct placement in the other one. See #723.
+    '''
+    event = awardssetup['event']
+    division_a = _nonbinary_division(awardssetup, rsu_div_id=2)  # already has a placement
+    division_b = _nonbinary_division(awardssetup, rsu_div_id=3, min_age=40)  # newly eligible, missing
+
+    result = _with_default_placement(_result(1, 'Alex', 'Runner', 6001, 55, rsu_div_id=division_a.rsu_div_id))
+    result[f'division-{division_b.rsu_div_id}-placement'] = None
+    participants = [_participant(registration_id=900, bib_num=55, gender='X', age=45)]
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client([result]))
+    calls = _patch_assign_recalc(monkeypatch, participants)
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert len(calls['assign']) == 1
+    assert len(calls['assign'][0]) == 1
+    assignment = calls['assign'][0][0]
+    assert assignment['registration_id'] == 900
+    assert set(assignment['race_division_ids']) == {division_a.rsu_div_id, division_b.rsu_div_id}
+
+
+def test_update_event_awards_nonbinary_respects_age_range(awardssetup, monkeypatch):
+    '''
+    a non-binary registrant outside the division's admin-entered age range is never included
+    in the assignment, even though they're gender == 'X'
+    '''
+    event = awardssetup['event']
+    division = _nonbinary_division(awardssetup, min_age=40, max_age=None)
+    results = [_with_default_placement(_result(None, 'Young', 'Runner', 6002, 56, rsu_div_id=division.rsu_div_id))]
+    participants = [_participant(registration_id=901, bib_num=56, gender='X', age=25)]  # too young for 40+
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client(results))
+    calls = _patch_assign_recalc(monkeypatch, participants)
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert calls['assign'] == []
+    assert calls['recalc'] == []
+    assert AwardsAwardee.query.filter_by(event_id=event.id, div=division).count() == 0
+
+
+def test_update_event_awards_nonbinary_ignores_binary_gender_participants(awardssetup, monkeypatch):
+    '''
+    a Male/Female registrant is never assigned to a non-binary division, regardless of age
+    fit -- guards the exclusion this whole workaround depends on
+    '''
+    event = awardssetup['event']
+    division = _nonbinary_division(awardssetup)
+    results = [_with_default_placement(_result(None, 'Some', 'Body', 6003, 57, rsu_div_id=division.rsu_div_id))]
+    participants = [_participant(registration_id=902, bib_num=57, gender='M', age=30)]
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client(results))
+    calls = _patch_assign_recalc(monkeypatch, participants)
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert calls['assign'] == []
+    assert calls['recalc'] == []
+
+
+def test_update_event_awards_no_nonbinary_divisions_skips_participant_fetch(awardssetup, monkeypatch):
+    '''
+    an event with no gender=='X' division never calls get_race_participants()/assign/recalc
+    at all -- the common case (most events have no non-binary division) shouldn't cost any
+    extra API calls
+    '''
+    event = awardssetup['event']  # awardssetup's division has gender=None, not 'X'
+    results = [_result(1, 'Jane', 'Doe', 5001, 42)]
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_client(results))
+    fetch_calls = []
+    monkeypatch.setattr(awards_admin, 'get_race_participants',
+                        lambda rsu, race_id, event_id: fetch_calls.append(True))
+
+    RaceAwardsApi().update_event_awards(event)
+
+    assert fetch_calls == []
+
+
+# ----------------------------------------------------------------------
 # AwardRaceView.update_divisions()
 # ----------------------------------------------------------------------
 # update_divisions() never references self, so it's called unbound (self=None),
@@ -283,34 +464,182 @@ def test_update_divisions_creates_new_event_and_gendered_division(awardssetup, m
     assert division.gender == 'F'
     assert division.min_age is None
     assert division.max_age is None
+    assert division.auto_placed is True
 
 
-def test_update_divisions_no_criteria_division_currently_collapses_to_none(awardssetup, monkeypatch):
+def test_update_divisions_ungendered_computed_division_unaffected(awardssetup, monkeypatch):
     '''
-    documents CURRENT (pre-#723-fix) behavior: a division RunSignUp never auto-places
-    (auto_selection_criteria missing entirely) is stored identically to a division RunSignUp
-    computes but genuinely leaves ungendered (criteria present, gender=None) -- both collapse
-    to gender=None/min_age=None/max_age=None. This is exactly the ambiguity #723's fix needs to
-    resolve (by flagging "criteria missing" distinctly) -- once that lands, this test's
-    expectations should change to assert the two cases are distinguishable.
+    a division RunSignUp genuinely computes but leaves ungendered (criteria present,
+    gender=None) is unaffected by the #723 fix -- still synced from RunSignUp every time
     '''
     race_row = awardssetup['race']
     current_app.config['AWARDS_WINDOW'] = 3650
 
     rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=301)]}
-    divisions = {301: [
-        _rsu_division(rsu_division_id=11, name='Ungendered (computed)', criteria='none'),
-        _rsu_division(rsu_division_id=12, name='Non-Binary (uncomputed)', criteria='missing'),
-    ]}
+    divisions = {301: [_rsu_division(rsu_division_id=11, name='Combined Open', criteria='none')]}
     monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
 
     AwardRaceView.update_divisions(None, race_row.id, rsu_race)
 
     event = AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=301).one()
     computed = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=11).one()
-    uncomputed = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=12).one()
     assert computed.gender is None
-    assert uncomputed.gender is None  # indistinguishable from `computed` today -- the #723 gap
+    assert computed.min_age is None
+    assert computed.max_age is None
+
+
+def test_update_divisions_defaults_gender_x_for_new_nonbinary_named_division(awardssetup, monkeypatch):
+    '''
+    a new division RunSignUp can't auto-place (criteria missing) defaults to gender='X'
+    when its name matches a non-binary pattern -- see #723. min_age/max_age are left None;
+    an admin fills those in via the UI once the division shows up. update_divisions() also
+    returns a description of any such new division, so createrow()/updaterow() can surface it
+    to the client via the DataTables Editor JSON response (self.responsekeys) for a
+    submitSuccess alert -- not flash(), since this page is an AJAX-driven DataTables Editor
+    flow with no full page render per action for a session-backed flash to surface on.
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=302)]}
+    divisions = {302: [_rsu_division(rsu_division_id=12, name='Non-Binary Overall', criteria='missing')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    new_divisions = AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    assert new_divisions == ['Non-Binary Overall (5K)']
+    event = AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=302).one()
+    division = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=12).one()
+    assert division.gender == 'X'
+    assert division.min_age is None
+    assert division.max_age is None
+    assert division.auto_placed is False
+
+
+def test_update_divisions_leaves_gender_none_for_uncomputed_division_not_named_nonbinary(awardssetup, monkeypatch):
+    '''
+    a criteria-less division that ISN'T named like a non-binary one (e.g. some other
+    manually-curated combined award) is left gender=None -- the name match only defaults
+    gender for divisions that look non-binary, not every criteria-less division
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=303)]}
+    divisions = {303: [_rsu_division(rsu_division_id=13, name='Team Captain Award', criteria='missing')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    new_divisions = AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    assert new_divisions == []
+    event = AwardsEvent.query.filter_by(race_id=race_row.id, rsu_event_id=303).one()
+    division = AwardsDivision.query.filter_by(event_id=event.id, rsu_div_id=13).one()
+    assert division.gender is None
+
+
+def test_update_divisions_preserves_admin_edits_across_resync(awardssetup, monkeypatch):
+    '''
+    once a division RunSignUp can't auto-place has admin-entered gender/min_age/max_age
+    (whether from the create-time default above or a later admin edit), re-syncing must not
+    clobber them back to None -- RunSignUp has nothing meaningful to offer for these fields
+    on such a division. priority/name/num_awards should still update normally from RunSignUp.
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+    event_row = AwardsEvent(interest=awardssetup['localinterest'], race=race_row, rsu_event_id=304,
+                            name='Mile', date='2026-03-10')
+    db.session.add(event_row)
+    db.session.commit()
+    division_row = AwardsDivision(interest=awardssetup['localinterest'], event=event_row, rsu_div_id=14,
+                                  priority=5, name='Non-Binary Overall', shortname='NB', num_awards=1,
+                                  gender='X', min_age=18, max_age=39)
+    db.session.add(division_row)
+    db.session.commit()
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=304)]}
+    divisions = {304: [_rsu_division(rsu_division_id=14, name='Non-Binary Overall', priority=1,
+                                     num_awards=2, criteria='missing')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    db.session.refresh(division_row)
+    assert division_row.gender == 'X'
+    assert division_row.min_age == 18
+    assert division_row.max_age == 39
+    assert division_row.priority == 1  # still synced from RunSignUp
+    assert division_row.num_awards == 2  # still synced from RunSignUp
+    assert division_row.auto_placed is False
+
+
+def test_update_divisions_auto_placed_flips_true_when_rsu_adds_criteria(awardssetup, monkeypatch):
+    '''
+    auto_placed reflects the CURRENT sync's finding unconditionally, unlike gender/min_age/
+    max_age -- if RunSignUp later adds real auto-select criteria to a division it previously
+    couldn't place (e.g. an RD fixes the division's setup in RunSignUp), the next sync should
+    flip auto_placed to True and resume syncing gender/min_age/max_age from RunSignUp again.
+    This transition also triggers a recalc: a division whose criteria just changed may have
+    placements RunSignUp computed under the OLD criteria still sitting in its results (removing/
+    adding criteria doesn't retroactively clear or recompute them) -- confirmed live, a division
+    fixed from leaky age-only criteria to no criteria kept a stale, contaminated "winner" until
+    an explicit recalc was issued. See #723.
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+    event_row = AwardsEvent(interest=awardssetup['localinterest'], race=race_row, rsu_event_id=305,
+                            name='Mile', date='2026-03-10')
+    db.session.add(event_row)
+    db.session.commit()
+    division_row = AwardsDivision(interest=awardssetup['localinterest'], event=event_row, rsu_div_id=15,
+                                  priority=5, name='Female Open', shortname='FOpen', num_awards=1,
+                                  gender='X', min_age=18, max_age=39, auto_placed=False)
+    db.session.add(division_row)
+    db.session.commit()
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=305)]}
+    divisions = {305: [_rsu_division(rsu_division_id=15, name='Female Open', criteria='present')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+    recalc_calls = []
+    monkeypatch.setattr(awards_admin, 'recalc_division_placements',
+                        lambda rsu, race_id, event_id: recalc_calls.append((race_id, event_id)))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    db.session.refresh(division_row)
+    assert division_row.auto_placed is True
+    assert division_row.gender == 'F'
+    assert division_row.min_age is None
+    assert division_row.max_age is None
+    assert recalc_calls == [(race_row.rsu_race_id, 305)]
+
+
+def test_update_divisions_no_criteria_change_skips_recalc(awardssetup, monkeypatch):
+    '''
+    a division whose auto_placed value is unchanged from the prior sync doesn't trigger a
+    recalc -- only an actual transition (criteria added or removed) does
+    '''
+    race_row = awardssetup['race']
+    current_app.config['AWARDS_WINDOW'] = 3650
+    event_row = AwardsEvent(interest=awardssetup['localinterest'], race=race_row, rsu_event_id=306,
+                            name='Mile', date='2026-03-10')
+    db.session.add(event_row)
+    db.session.commit()
+    division_row = AwardsDivision(interest=awardssetup['localinterest'], event=event_row, rsu_div_id=16,
+                                  priority=1, name='Female Open', shortname='FOpen', num_awards=1,
+                                  gender='F', auto_placed=True)
+    db.session.add(division_row)
+    db.session.commit()
+
+    rsu_race = {'race_id': race_row.rsu_race_id, 'events': [_rsu_event(event_id=306)]}
+    divisions = {306: [_rsu_division(rsu_division_id=16, name='Female Open', criteria='present')]}
+    monkeypatch.setattr(awards_admin, 'make_runsignup_client', _fake_rsu_divisions_client(divisions))
+    recalc_calls = []
+    monkeypatch.setattr(awards_admin, 'recalc_division_placements',
+                        lambda rsu, race_id, event_id: recalc_calls.append((race_id, event_id)))
+
+    AwardRaceView.update_divisions(None, race_row.id, rsu_race)
+
+    assert recalc_calls == []
 
 
 def test_update_divisions_skips_event_with_no_divisions(awardssetup, monkeypatch):
