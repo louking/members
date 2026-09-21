@@ -9,7 +9,7 @@
 {{ message }}
 
 {% if rsvp_required or has_status_reports %}
-    <p>Please {% if rsvp_required %}RSVP and {% endif %}{% if has_status_reports %}enter your {{ statusreport_text }}{% endif %} by clicking <a href={{ rsvpurl }}>here</a>.</p>
+    <p>Please {% if rsvp_required %}RSVP and {% endif %}{% if has_status_reports %}enter your {{ statusreport_text }}{% endif %} by clicking <a href="{{ rsvpurl }}">here</a>.</p>
 {% endif %}
 
 {% if has_status_reports %}
@@ -27,7 +27,7 @@
 
 {% if show_action_items %}
     {% if actionitems %}
-    <p>Your outstanding action items are listed below. You can update the action item status by clicking <a href={{ actionitemurl }}>here</a>.</p>
+    <p>Your outstanding action items are listed below. You can update the action item status by clicking <a href="{{ actionitemurl }}">here</a>.</p>
 
     <table>
     <tr><th>Action Item</th><th>Status</th></tr>
