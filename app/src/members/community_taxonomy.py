@@ -16,7 +16,7 @@ from docx.oxml import OxmlElement
 
 # homegrown
 from .community import (
-    _RateLimitedDiscourse, _RateLimiter,
+    _Discourse, _RateLimitedDiscourse, _RateLimiter,
     DISCOURSE_RATE_LIMIT_MAX_CALLS, DISCOURSE_RATE_LIMIT_WINDOW_SECS,
 )
 
@@ -111,7 +111,7 @@ def fetch_site_title(discourse):
 def fetch_all(base_url, api_key, api_username, category_groups_query_id=None):
     """Fetch all taxonomy data and return as a dict. Tolerates per-section errors."""
     discourse = _RateLimitedDiscourse(
-        Discourse(
+        _Discourse(
             base_url=base_url,
             username=api_username,
             api_key=api_key,

@@ -14,7 +14,7 @@ from flask import g
 # homegrown
 from members import community
 from members.community import (
-    _RateLimiter, _RateLimitedDiscourse, make_discourse_client, run_query_paged,
+    _Discourse, _RateLimiter, _RateLimitedDiscourse, make_discourse_client, run_query_paged,
     DbTagCommunitySyncManager,
 )
 from members.model import db, LocalInterest, LocalUser, Position, Tag
@@ -138,6 +138,57 @@ def test_make_discourse_client_missing_config_raises_value_error(bareapp):
     with bareapp.app_context():
         with pytest.raises(ValueError):
             make_discourse_client('fsrc')
+
+
+# ----------------------------------------------------------------------
+# _Discourse (429 handling)
+# ----------------------------------------------------------------------
+
+class _FakeResponse:
+    def __init__(self, status_code, text='', headers=None):
+        self.status_code = status_code
+        self.text = text
+        self.headers = headers or {}
+
+    def json(self):
+        return json.loads(self.text)
+
+
+def _run_429(bareapp, monkeypatch, first_response):
+    """issue one GET that gets first_response, then 200; return the seconds slept"""
+    responses = [first_response, _FakeResponse(200, '{"ok": true}')]
+    urls = []
+    def fake_request(method, url, **kwargs):
+        urls.append(url)
+        return responses.pop(0)
+    slept = []
+    monkeypatch.setattr('fluent_discourse.discourse.requests.request', fake_request)
+    monkeypatch.setattr(community.time, 'sleep', slept.append)
+    client = _Discourse('https://community.example.com', 'admin', 'key', raise_for_rate_limit=False)
+    with bareapp.app_context():
+        result = client.categories.json.get({})
+    assert result == {'ok': True}
+    assert urls == ['https://community.example.com/categories.json'] * 2
+    return slept
+
+
+def test_discourse_429_json_body_uses_wait_seconds(bareapp, monkeypatch):
+    body = json.dumps({'extras': {'wait_seconds': 5}})
+    assert _run_429(bareapp, monkeypatch, _FakeResponse(429, body)) == [6]
+
+
+def test_discourse_429_non_json_body_uses_retry_after(bareapp, monkeypatch):
+    resp = _FakeResponse(429, 'Slow down, too many requests', {'Retry-After': '7'})
+    assert _run_429(bareapp, monkeypatch, resp) == [8]
+
+
+def test_discourse_429_empty_body_no_header_uses_default(bareapp, monkeypatch):
+    assert _run_429(bareapp, monkeypatch, _FakeResponse(429, '')) == [community._DEFAULT_429_WAIT_SECS]
+
+
+def test_discourse_chained_segments_keep_subclass():
+    client = _Discourse('https://community.example.com', 'admin', 'key')
+    assert type(client.groups._(5).members.json) is _Discourse
 
 
 # ----------------------------------------------------------------------

@@ -103,7 +103,7 @@ def make_discourse_client(interest: str, username: str | None = None) -> '_RateL
     uinterest = interest.upper()
     try:
         return _RateLimitedDiscourse(
-            Discourse(
+            _Discourse(
                 base_url=current_app.config[f'DISCOURSE_API_URL_{uinterest}'],
                 username=username or current_app.config[f'DISCOURSE_API_INVITE_USERNAME_{uinterest}'],
                 api_key=current_app.config[f'DISCOURSE_API_KEY_{uinterest}'],
@@ -113,6 +113,52 @@ def make_discourse_client(interest: str, username: str | None = None) -> '_RateL
         )
     except KeyError as e:
         raise ValueError(f'Missing Discourse configuration for interest {interest}: {e}')
+
+
+# wait used when a 429 response gives no usable wait time at all
+_DEFAULT_429_WAIT_SECS = 10
+
+
+class _Discourse(Discourse):
+    """fluent_discourse client that tolerates a 429 response without a JSON body.
+
+    fluent_discourse's _wait_for_rate_limit() reads response.json()['extras']['wait_seconds'],
+    which is only present on Discourse's own application-level rate limit response. A 429
+    with a plain-text or empty body (e.g., a per-IP limit enforced before the request
+    reaches the API layer) made it raise JSONDecodeError, crashing the command instead of
+    waiting and retrying. This falls back to the Retry-After header, then to a fixed wait.
+    """
+
+    def _(self, name):
+        # the base class hardcodes Discourse(...) here, which would drop this subclass
+        # from every chained segment
+        return _Discourse(
+            self._base_url,
+            self._username,
+            self._api_key,
+            self._cache + [str(name)],
+            self._raise_for_rate_limit,
+        )
+
+    def _wait_for_rate_limit(self, response, method, url, data, params):
+        wait_seconds = None
+        try:
+            wait_seconds = int(response.json()['extras']['wait_seconds']) + 1
+        except (ValueError, KeyError, TypeError):
+            try:
+                wait_seconds = int(response.headers.get('Retry-After', '')) + 1
+            except ValueError:
+                pass
+            # log what came back, to identify which layer is returning these
+            current_app.logger.warning(
+                f'Discourse 429 without JSON wait_seconds: {method} {url}, '
+                f'Retry-After={response.headers.get("Retry-After")!r}, '
+                f'body={response.text[:200]!r}'
+            )
+        if wait_seconds is None:
+            wait_seconds = _DEFAULT_429_WAIT_SECS
+        current_app.logger.warning(f'Discourse rate limit hit, trying again in {wait_seconds} seconds')
+        time.sleep(wait_seconds)
 
 
 class _RateLimitedDiscourse:
