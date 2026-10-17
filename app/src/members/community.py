@@ -3,6 +3,7 @@
 
 # stdlib
 import json
+import random
 import time
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from pathlib import Path
 from flask import current_app, g
 from fluent_discourse import Discourse, DiscourseError
 from fasteners import InterProcessLock
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 # Lock/state files below live on the 'community-locks' Docker volume
 # (docker-compose.yml), NOT /tmp -- 'app' (web requests, e.g. calendar_feed())
@@ -49,6 +50,20 @@ _RATE_LIMIT_STATE_LOCKFILE = str(_LOCKS_DIR / 'discourse_ratelimit_state.lock')
 # than permanently taxing every normal run's throughput by lowering this further.
 DISCOURSE_RATE_LIMIT_MAX_CALLS = 55
 DISCOURSE_RATE_LIMIT_WINDOW_SECS = 60
+
+# pending invites are renewed by the community sync while the person is still on
+# the source list, so the invite is still redeemable when they sign up. Discourse
+# only redeems an unexpired invite for the new user's email when the signup email
+# is confirmed (EmailToken.confirm -> Invite.redeem_for_existing_user), so an
+# expired invite means no group membership until the next sync run.
+# Each renewal adds a random 0 to INVITE_EXPIRY_SPREAD_DAYS on top of
+# INVITE_EXPIRY_DAYS, so invites renewed in the same run don't all come due
+# again together, which would make one sync run do hundreds of renewals.
+# Discourse puts no cap on an explicit expires_at; its invite_expiry_days site
+# setting only supplies the default when none is given.
+INVITE_RENEW_WITHIN_DAYS = 14
+INVITE_EXPIRY_DAYS = 182
+INVITE_EXPIRY_SPREAD_DAYS = 30
 
 
 class _RateLimiter:
@@ -195,6 +210,40 @@ class _RateLimitedDiscourse:
             return attr
         return _RateLimitedDiscourse(attr, rl)
 
+
+class _ReadOnlyDiscourse:
+    """Proxy around a fluent_discourse client that refuses every write, for dry runs.
+
+    Allows .get(), and .post() only for Data Explorer query runs
+    (admin/plugins/explorer/queries/<id>/run), which are reads despite the verb.
+    Any other .post(), and every .put() or .delete(), raises RuntimeError without
+    reaching Discourse. This backs up the dry-run checks at each write site, so a
+    write added later without its own check still can't go through.
+    """
+
+    def __init__(self, target, path=()):
+        object.__setattr__(self, '_target', target)
+        object.__setattr__(self, '_path', path)
+
+    def _is_query_run(self):
+        path = object.__getattribute__(self, '_path')
+        return len(path) == 6 and path[:4] == ('admin', 'plugins', 'explorer', 'queries') and path[5] == 'run'
+
+    def __getattr__(self, name):
+        target = object.__getattribute__(self, '_target')
+        path = object.__getattribute__(self, '_path')
+        if name == '_':
+            return lambda arg: _ReadOnlyDiscourse(target._(arg), path + (str(arg),))
+        if name.startswith('_'):
+            raise AttributeError(name)
+        if name == 'get' or (name == 'post' and self._is_query_run()):
+            return getattr(target, name)
+        if name in ('post', 'put', 'delete'):
+            def _refuse(*args, **kwargs):
+                raise RuntimeError(f'dry run: refused Discourse {name.upper()} {"/".join(path)}')
+            return _refuse
+        return _ReadOnlyDiscourse(getattr(target, name), path + (name,))
+
 # homegrown
 from .sync import SyncManager
 from .helpers import get_tags_users, make_runsignup_fluent_client
@@ -234,6 +283,20 @@ def run_query_paged(discourse, query_id, params=None, page_size=1000):
             break
         page += 1
     return columns, rows
+
+
+def _parse_discourse_time(value):
+    """parse a Discourse timestamp (e.g. '2026-07-19T16:31:39.483Z') to an aware datetime
+
+    :param value: timestamp string, or None
+    :returns: aware datetime in UTC, or None if value is empty
+    """
+    if not value:
+        return None
+    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 class RsuRaceSyncManager(SyncManager):
     """put participants into internal group from RunSignup
@@ -345,16 +408,21 @@ class CommunitySyncManager(SyncManager):
     Args:
         interest (str): interest short name
         communitygroupname (str): Discourse community group name
+        skipemail (bool): if True, don't send email for new invites
+        dryrun (bool): if True, print each Discourse write instead of making it
     """
-    
-    def __init__(self, interest, communitygroupname, skipemail):
+
+    def __init__(self, interest, communitygroupname, skipemail, dryrun=False):
         """_summary_
 
         """
         self.communitygroupname = communitygroupname
         self.skipemail = skipemail
-        
+        self.dryrun = dryrun
+
         self.discourse = make_discourse_client(interest)
+        if dryrun:
+            self.discourse = _ReadOnlyDiscourse(self.discourse)
     
     def get_group_key_from_service_user(self, svcuser):
         """get unique key for service user used by internal group
@@ -376,6 +444,68 @@ class CommunitySyncManager(SyncManager):
         :returns: (columns, rows) where rows is the combined list across all pages
         """
         return run_query_paged(self.discourse, query_id, page_size=page_size)
+
+    def _skip_for_dryrun(self, description):
+        """in dry-run mode, print the Discourse write that would be made
+
+        :param description: what the write would do
+        :rtype: bool, True if the write should be skipped
+        """
+        if self.dryrun:
+            print(f'  [DRY RUN] {self.communitygroupname}: {description}')
+        return self.dryrun
+
+    def _invite_needs_renewal(self, invite):
+        """check whether an invite has expired or will expire soon
+
+        :param invite: invite record from self.invites
+        :rtype: bool
+        """
+        expires_at = invite.get('expires_at')
+        if not expires_at:
+            return False
+        return expires_at < self.now + timedelta(days=INVITE_RENEW_WITHIN_DAYS)
+
+    def _new_expires_at(self):
+        """expiration for a new or renewed invite
+
+        :rtype: aware datetime, INVITE_EXPIRY_DAYS plus a random 0 to
+            INVITE_EXPIRY_SPREAD_DAYS from now
+        """
+        return self.now + timedelta(days=INVITE_EXPIRY_DAYS + random.uniform(0, INVITE_EXPIRY_SPREAD_DAYS))
+
+    def _update_invite(self, invite, group_ids, renew, caller):
+        """update an existing invite's groups, and optionally renew its expiration
+
+        :param invite: invite record from self.invites
+        :param group_ids: complete list of group ids the invite should target
+        :param renew: True to push the expiration out, see _new_expires_at()
+        :param caller: qualname of calling method, for logging
+        """
+        email = invite['email']
+        body = {
+            'email': email,
+            'group_ids': ','.join([str(g) for g in group_ids]),
+            'skip_email': True,
+        }
+        if renew:
+            expires_at = self._new_expires_at()
+            body['expires_at'] = expires_at.isoformat()
+        current_app.logger.debug(f'{caller}(): updating Discourse invite for email {email} '
+                                 f'group_ids {body["group_ids"]}'
+                                 + (f' expires_at {body["expires_at"]}' if renew else ''))
+        if self._skip_for_dryrun(f'update invite {invite["id"]} for {email}: group_ids {body["group_ids"]}'
+                                 + (f', expires_at {invite["expires_at"].isoformat()} -> {body["expires_at"]}'
+                                    if renew else '')):
+            return
+        # interface reverse engineered from Discourse web app
+        try:
+            self.discourse.invites._(invite['id']).put(body)
+        except DiscourseError as e:
+            current_app.logger.error(f'{caller}(): error updating Discourse invite for email {email}: {e}')
+            return
+        if renew:
+            invite['expires_at'] = expires_at
 
     def start_import(self):
         """runtime start for import from Community perspective
@@ -427,6 +557,10 @@ class CommunitySyncManager(SyncManager):
         self.invites = {row['email']: row for row in inviterows if not row['deleted_at'] and not row['invalidated_at']
                         and row['email']
                         and row['redemption_count']==0}
+        # expired invites are kept too, so they can be renewed rather than duplicated
+        for invite in self.invites.values():
+            invite['expires_at'] = _parse_discourse_time(invite.get('expires_at'))
+        self.now = datetime.now(timezone.utc)
 
         columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_INVITE_GROUPS_QUERY_FSRC'])
         invitegrouprows = [dict(zip(columns, row)) for row in rows]
@@ -510,7 +644,8 @@ class CommunitySyncManager(SyncManager):
         """finalize import process"""
         
         # add users to group
-        if self.add_userids:
+        if self.add_userids and not self._skip_for_dryrun(
+                f'add users {sorted(self.id2users[uid]["username"] for uid in self.add_userids)}'):
             current_app.logger.debug(f'{self.finish_import.__qualname__}(): adding users {self.add_userids} to group {self.communitygroupname}')
             try:
                 # https://docs.discourse.org/#tag/Groups/operation/addGroupMembers
@@ -521,7 +656,8 @@ class CommunitySyncManager(SyncManager):
                 current_app.logger.error(f'{self.finish_import.__qualname__}(): error adding users to group {self.communitygroupname}: {e}')
 
         # remove users from group
-        if self.remove_userids:
+        if self.remove_userids and not self._skip_for_dryrun(
+                f'remove users {sorted(self.id2users[uid]["username"] for uid in self.remove_userids)}'):
             current_app.logger.debug(f'{self.finish_import.__qualname__}(): removing users {self.remove_userids} from group {self.communitygroupname}')
             try:
                 # https://docs.discourse.org/#tag/Groups/operation/removeGroupMembers
@@ -541,28 +677,22 @@ class CommunitySyncManager(SyncManager):
                 invite_group_ids = self.invitegroups[invite_id]
 
                 # remove this group from the invite
-                # TODO: what should we do if invite has expired?
                 invite_group_ids.remove(self.communitygroupid)
-                
-                # still have other groups, so update invite
+
+                # still have other groups, so update invite. An expired invite is
+                # updated rather than deleted, so the other groups' syncs renew it
+                # instead of creating a new invite, which might send an email
                 if len(invite_group_ids) != 0:
-                    group_ids = ','.join([str(g) for g in invite_group_ids])
-                    current_app.logger.debug(f'{self.finish_import.__qualname__}(): updating '
-                                                f'Discourse invite for email {email} to remove '
-                                                f'group {self.communitygroupname} final group_ids {group_ids}')
-                    # interface reverse engineered from Discourse web app
-                    try:
-                        self.discourse.invites._(invite_id).put({
-                            'email': email,
-                            'group_ids': group_ids,
-                            'skip_email': True,
-                        })
-                    except DiscourseError as e:
-                        current_app.logger.error(f'{self.finish_import.__qualname__}(): error updating Discourse invite for email {email}: {e}')
+                    current_app.logger.debug(f'{self.finish_import.__qualname__}(): removing '
+                                             f'group {self.communitygroupname} from Discourse invite for email {email}')
+                    self._update_invite(invite, invite_group_ids, renew=False,
+                                        caller=self.finish_import.__qualname__)
 
                 # no other groups, so delete invite
                 else:
                     current_app.logger.debug(f'{self.finish_import.__qualname__}(): deleting Discourse invite for email {email} since no more groups remain')
+                    if self._skip_for_dryrun(f'delete invite {invite_id} for {email}'):
+                        continue
                     try:
                         self.discourse.invites.json.delete({'id': invite_id})
                     except DiscourseError as e:
@@ -597,47 +727,48 @@ class CommunitySyncManager(SyncManager):
                 invite_id = invite['id']
                 invite_group_ids = self.invitegroups.get(invite_id, [])
     
-                # add this group to the invite if it's not already there
-                # TODO: what should we do if invite has expired?
-                if self.communitygroupid not in invite_group_ids:
-                    invite_group_ids.append(self.communitygroupid)
-                    group_ids = ','.join([str(g) for g in invite_group_ids])
-                    current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): updating '
-                                             f'Discourse invite for email {email} to add '
-                                             f'group {self.communitygroupname} final group_ids {group_ids}')
-                    # interface reverse engineered from Discourse web app
-                    try:
-                        self.discourse.invites._(invite_id).put({
-                            'email': email,
-                            'group_ids': group_ids,
-                            'skip_email': True,
-                        })
-                    except DiscourseError as e:
-                        current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error updating Discourse invite for email {email}: {e}')
-                # TODO: do we need to update our local invite tracking info?
+                # add this group to the invite if it's not already there, and renew
+                # it in the same call if it has expired or will expire soon
+                renew = self._invite_needs_renewal(invite)
+                if self.communitygroupid not in invite_group_ids or renew:
+                    if self.communitygroupid not in invite_group_ids:
+                        invite_group_ids.append(self.communitygroupid)
+                        self.invitegroups[invite_id] = invite_group_ids
+                    self._update_invite(invite, invite_group_ids, renew=renew,
+                                        caller=self.add_user_to_group.__qualname__)
 
             # invite user if no invite exists; only send email if requested
             else:
                 current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): creating Discourse invite for email {email} to join group {self.communitygroupname}')
+                if self._skip_for_dryrun(f'create invite for {email}'
+                                         + (', no email' if self.skipemail else ', sending email')):
+                    return
                 try:
                     self.discourse.invites.json.post({
                         'email': email,
                         'group_ids': self.communitygroupid,
                         'skip_email': self.skipemail,
+                        # same expiration rule as renewals, rather than Discourse's invite_expiry_days default
+                        'expires_at': self._new_expires_at().isoformat(),
                     })
                 except DiscourseError as e:
                     current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): error creating Discourse invite for email {email}: {e}')
                 # TODO: do we need to update our local invite tracking info?
 
     def check_update_user_in_group(self, svcuser, groupuser):
-        """this is called when the user is found in the group already. There
-        shouldn't be anything that's needed to do to update, but is here for
-        completeness.
+        """this is called when the user is found in the group already. Nothing
+        needs to be updated for an existing Discourse user, but a pending invite
+        targeting the group is renewed if it has expired or will expire soon.
 
         Args:
             svcuser: user record from service, which includes email
-            groupuser (discourse user): user record from Discourse
+            groupuser (discourse user): user record from Discourse, or invite record
         """
+        # groupuser is an invite if get_users_from_group() took it from self.invites
+        email = groupuser.get('email')
+        if self.invites.get(email) is groupuser and self._invite_needs_renewal(groupuser):
+            self._update_invite(groupuser, self.invitegroups[groupuser['id']], renew=True,
+                                caller=self.check_update_user_in_group.__qualname__)
         super().check_update_user_in_group(svcuser, groupuser)
     
 
@@ -666,11 +797,11 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
         communitygroupname (str): Discourse community group name
     """
 
-    def __init__(self, interest, tagname, communitygroupname, skipemail):
+    def __init__(self, interest, tagname, communitygroupname, skipemail, dryrun=False):
         """set up for tag-based user retrieval"""
         self.tagname = tagname
         g.interest = interest
-        CommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
+        CommunitySyncManager.__init__(self, interest, communitygroupname, skipemail, dryrun)
         
     def get_email(self, svcuser):
         """get email from service user record
@@ -700,15 +831,15 @@ class DbTagCommunitySyncManager(CommunitySyncManager):
 class RsuRaceCommunitySyncManager(RsuRaceSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
-    def __init__(self, interest, raceid, communitygroupname, skipemail):
+    def __init__(self, interest, raceid, communitygroupname, skipemail, dryrun=False):
         """initialize Rsu, Discourse, and base classes"""
-        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
+        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail, dryrun)
         RsuRaceSyncManager.__init__(self, raceid)
 
 class RsuClubCommunitySyncManager(RsuClubSyncManager, RsuUserCommunitySyncManager):
     """put participants into discourse community group from RunSignup race"""
     
-    def __init__(self, interest, clubid, communitygroupname, skipemail):
+    def __init__(self, interest, clubid, communitygroupname, skipemail, dryrun=False):
         """initialize Rsu, Discourse, and base classes"""
-        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail)
+        RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail, dryrun)
         RsuClubSyncManager.__init__(self, clubid)

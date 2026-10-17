@@ -66,9 +66,10 @@ ORDER BY c.name, g.name
 -- Purpose: pending Discourse invites, to reconcile against community group
 --   membership for people who haven't signed up yet.
 -- Params: :page_size / :page_num (paged via community.run_query_paged())
--- Returns: id, email, deleted_at, invalidated_at, redemption_count
+-- Returns: id, email, deleted_at, invalidated_at, redemption_count, expires_at
 --   (only rows with email set, not deleted/invalidated, and
---   redemption_count == 0 are kept -- see start_import())
+--   redemption_count == 0 are kept -- see start_import(). Expired invites
+--   are kept so the sync can renew them via expires_at)
 -- =============================================================================
 
 -- [params]

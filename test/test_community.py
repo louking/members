@@ -5,7 +5,7 @@ test_community - test members.community
 
 # standard
 import json
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 # pypi
 import pytest
@@ -14,7 +14,7 @@ from flask import g
 # homegrown
 from members import community
 from members.community import (
-    _Discourse, _RateLimiter, _RateLimitedDiscourse, make_discourse_client, run_query_paged,
+    _Discourse, _RateLimiter, _RateLimitedDiscourse, _ReadOnlyDiscourse, make_discourse_client, run_query_paged,
     DbTagCommunitySyncManager,
 )
 from members.model import db, LocalInterest, LocalUser, Position, Tag
@@ -321,6 +321,8 @@ def test_communitysyncmanager_import_group_adds_and_removes_members(tagsyncsetup
     assert len(invite_posts) == 1
     assert invite_posts[0]['email'] == 'alice@example.com'
     assert invite_posts[0]['group_ids'] == 7
+    # new invites get the same expiration rule as renewals
+    _assert_expiration_in_window(invite_posts[0])
 
 
 def test_communitysyncmanager_start_import_filters_invites(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
@@ -354,3 +356,228 @@ def test_communitysyncmanager_start_import_filters_invites(tagsyncsetup, discour
     mgr.lock.release()
 
     assert set(mgr.invites.keys()) == {'keep@example.com'}
+
+
+# ----------------------------------------------------------------------
+# CommunitySyncManager invite renewal
+# ----------------------------------------------------------------------
+
+INVITE_COLUMNS = ['id', 'email', 'deleted_at', 'invalidated_at', 'redemption_count', 'expires_at']
+
+
+def _discourse_time(days_from_now):
+    '''Discourse-style UTC timestamp string, days_from_now relative to now'''
+    dt = datetime.now(timezone.utc) + timedelta(days=days_from_now)
+    return dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+
+def _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows, dryrun=False):
+    '''run import_group() for tag 'board' (alice, bob, neither with a Discourse account)
+    into group 'my-group' (id 7, no user members), with the given invites
+
+    :returns: list of (invite_id, body) for each invite PUT, and the FakeDiscourse
+    '''
+    invite_puts = []
+
+    def invite_put(invite_id):
+        def put(body):
+            invite_puts.append((invite_id, body))
+            return {}
+        return put
+
+    responses = {
+        'admin.users.json': lambda params: [],
+        'groups.json': lambda params: {'groups': [{'id': 7, 'name': 'my-group'}]},
+        'groups.my-group.members.json': lambda params: {'members': [], 'meta': {'total': 0, 'limit': 50}},
+        'admin.plugins.explorer.queries.10.run': lambda body: {'columns': INVITE_COLUMNS,
+                                                                'rows': invite_rows, 'result_count': len(invite_rows)},
+        'admin.plugins.explorer.queries.11.run': lambda body: {'columns': ['invite_id', 'group_id'],
+                                                                'rows': invitegroup_rows,
+                                                                'result_count': len(invitegroup_rows)},
+        'admin.plugins.explorer.queries.12.run': lambda body: {'columns': ['email', 'user_id'],
+                                                                'rows': [], 'result_count': 0},
+        'invites.json': lambda body: {},
+    }
+    for row in invite_rows:
+        responses[('invites.' + str(row[0]), 'put')] = invite_put(row[0])
+    fake = FakeDiscourse(responses)
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: fake)
+    monkeypatch.setattr(community, 'COMMUNITY_LOCKFILE', str(tmp_path / 'lock'))
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True, dryrun=dryrun)
+    mgr.import_group()
+    return invite_puts, fake
+
+
+def _assert_expiration_in_window(body):
+    '''new or renewed expiration falls in INVITE_EXPIRY_DAYS plus 0 to INVITE_EXPIRY_SPREAD_DAYS from now'''
+    expires_at = datetime.fromisoformat(body['expires_at'])
+    now = datetime.now(timezone.utc)
+    earliest = now + timedelta(days=community.INVITE_EXPIRY_DAYS) - timedelta(minutes=5)
+    latest = now + timedelta(days=community.INVITE_EXPIRY_DAYS + community.INVITE_EXPIRY_SPREAD_DAYS) + timedelta(minutes=5)
+    assert earliest <= expires_at <= latest
+
+
+def test_invite_sync_renews_expired_invite_already_in_group(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''an expired invite already targeting the group is renewed (keeping its groups),
+    and an invite with plenty of time left is left alone'''
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(-10)],
+        [2, 'bob@example.com', None, None, 0, _discourse_time(60)],
+    ]
+    invitegroup_rows = [[1, 7], [1, 8], [2, 7]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows)
+
+    assert [p[0] for p in invite_puts] == [1]
+    body = invite_puts[0][1]
+    assert body['email'] == 'alice@example.com'
+    assert body['group_ids'] == '7,8'
+    assert body['skip_email'] is True
+    _assert_expiration_in_window(body)
+    # no new invites created
+    assert not [c for c in fake._calls if c[0] == 'invites.json']
+
+
+def test_invite_sync_renews_invite_within_renewal_window(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''an invite that will expire within INVITE_RENEW_WITHIN_DAYS is renewed before it lapses'''
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(community.INVITE_RENEW_WITHIN_DAYS - 1)],
+        [2, 'bob@example.com', None, None, 0, _discourse_time(community.INVITE_RENEW_WITHIN_DAYS + 1)],
+    ]
+    invitegroup_rows = [[1, 7], [2, 7]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows)
+
+    assert [p[0] for p in invite_puts] == [1]
+    _assert_expiration_in_window(invite_puts[0][1])
+
+
+def test_invite_sync_adds_group_and_renews_in_one_call(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''an expired invite for other groups gets this group added and is renewed in a
+    single PUT; a valid invite for other groups gets only the group added'''
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(-10)],
+        [2, 'bob@example.com', None, None, 0, _discourse_time(60)],
+    ]
+    invitegroup_rows = [[1, 8], [2, 8]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows)
+
+    puts = dict(invite_puts)
+    assert len(invite_puts) == 2
+    assert puts[1]['group_ids'] == '8,7'
+    _assert_expiration_in_window(puts[1])
+    assert puts[2]['group_ids'] == '8,7'
+    assert 'expires_at' not in puts[2]
+
+
+def test_invite_sync_removal_keeps_expired_invite_with_other_groups(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''removing the group from an expired invite that still has other groups updates it
+    rather than deleting it, so the other groups' syncs can renew it'''
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(60)],
+        [2, 'bob@example.com', None, None, 0, _discourse_time(60)],
+        [3, 'carol@example.com', None, None, 0, _discourse_time(-10)],
+    ]
+    invitegroup_rows = [[1, 7], [2, 7], [3, 7], [3, 8]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows)
+
+    assert [p[0] for p in invite_puts] == [3]
+    assert invite_puts[0][1]['group_ids'] == '8'
+    assert 'expires_at' not in invite_puts[0][1]
+    assert not [c for c in fake._calls if c[0] == 'invites.json' and c[1] == 'delete']
+
+
+def test_parse_discourse_time():
+    assert community._parse_discourse_time(None) is None
+    assert community._parse_discourse_time('2026-07-19T16:31:39.483Z') == \
+        datetime(2026, 7, 19, 16, 31, 39, 483000, tzinfo=timezone.utc)
+
+
+def test_invite_sync_dryrun_makes_no_writes(tagsyncsetup, discourse_config, monkeypatch, tmp_path, capsys):
+    '''with dryrun, every write (invite renew, invite create, invite delete) is printed
+    instead of sent; only reads and Data Explorer query runs reach Discourse'''
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(-10)],
+        [3, 'carol@example.com', None, None, 0, _discourse_time(60)],
+    ]
+    invitegroup_rows = [[1, 7], [3, 7]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows, dryrun=True)
+
+    writes = [c for c in fake._calls
+              if c[1] in ('put', 'delete') or (c[1] == 'post' and 'explorer' not in c[0])]
+    assert writes == []
+    out = capsys.readouterr().out
+    assert '[DRY RUN] my-group: update invite 1 for alice@example.com: group_ids 7, expires_at ' in out
+    assert '[DRY RUN] my-group: create invite for bob@example.com, no email' in out
+    assert '[DRY RUN] my-group: delete invite 3 for carol@example.com' in out
+
+
+# ----------------------------------------------------------------------
+# _ReadOnlyDiscourse
+# ----------------------------------------------------------------------
+
+def test_readonlydiscourse_allows_reads_and_query_runs():
+    fake = FakeDiscourse({
+        'groups.json': {'groups': []},
+        'admin.plugins.explorer.queries.10.run': {'rows': []},
+    })
+    ro = _ReadOnlyDiscourse(fake)
+
+    assert ro.groups.json.get({'page': 0}) == {'groups': []}
+    assert ro.admin.plugins.explorer.queries._(10).run.post({'params': {}}) == {'rows': []}
+    assert [c[:2] for c in fake._calls] == [('groups.json', 'get'),
+                                            ('admin.plugins.explorer.queries.10.run', 'post')]
+
+
+@pytest.mark.parametrize('chain, method', [
+    (lambda ro: ro.invites._(1), 'put'),
+    (lambda ro: ro.invites.json, 'post'),
+    (lambda ro: ro.invites.json, 'delete'),
+    (lambda ro: ro.groups._(7).members.json, 'put'),
+    (lambda ro: ro.groups._(7).members.json, 'delete'),
+    # a post under the explorer path that isn't a query run is still refused
+    (lambda ro: ro.admin.plugins.explorer.queries, 'post'),
+])
+def test_readonlydiscourse_refuses_writes(chain, method):
+    fake = FakeDiscourse({})
+    ro = _ReadOnlyDiscourse(fake)
+
+    with pytest.raises(RuntimeError, match='dry run: refused Discourse'):
+        getattr(chain(ro), method)({})
+    assert fake._calls == []
+
+
+def test_communitysyncmanager_dryrun_client_refuses_unchecked_writes(tagsyncsetup, discourse_config, monkeypatch):
+    '''a dry-run sync manager's client refuses a write even if the write site has no
+    _skip_for_dryrun() check of its own'''
+    fake = FakeDiscourse({})
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: fake)
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True, dryrun=True)
+    with pytest.raises(RuntimeError):
+        mgr.discourse.invites._(1).put({'expires_at': 'x'})
+    assert fake._calls == []
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True)
+    assert mgr.discourse is fake
+
+
+def test_invite_sync_spreads_renewed_expirations(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''invites renewed in the same run get different expirations across the spread window,
+    so they don't all come due for renewal again in the same run'''
+    spreads = iter([0.0, community.INVITE_EXPIRY_SPREAD_DAYS])
+    monkeypatch.setattr(community.random, 'uniform', lambda a, b: next(spreads))
+    invite_rows = [
+        [1, 'alice@example.com', None, None, 0, _discourse_time(-10)],
+        [2, 'bob@example.com', None, None, 0, _discourse_time(-10)],
+    ]
+    invitegroup_rows = [[1, 7], [2, 7]]
+
+    invite_puts, fake = _run_invite_sync(monkeypatch, tmp_path, invite_rows, invitegroup_rows)
+
+    expirations = sorted(datetime.fromisoformat(body['expires_at']) for _, body in invite_puts)
+    assert expirations[1] - expirations[0] == timedelta(days=community.INVITE_EXPIRY_SPREAD_DAYS)

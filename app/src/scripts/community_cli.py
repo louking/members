@@ -27,16 +27,17 @@ def community():
 @argument('raceid')
 @argument('communitygroupname')
 @option('--skipemail', is_flag=True, help='if set, skip sending email to new community user')
+@option('--dry-run', is_flag=True, help='Print the Discourse changes that would be made without making them')
 @option('--debug', is_flag=True, help='enable debug logging')
 @option('--debugrequests', is_flag=True, help='enable requests debug logging')
 @with_appcontext
 @catch_errors
-def syncrace(interest, raceid, communitygroupname, skipemail, debug, debugrequests):
+def syncrace(interest, raceid, communitygroupname, skipemail, dry_run, debug, debugrequests):
     """
     Sync community group [communitygroupname] membership from RunSignup race
     [raceid] participants within interest [interest]
     """
-    grpmgr = RsuRaceCommunitySyncManager(interest, raceid, communitygroupname, skipemail)
+    grpmgr = RsuRaceCommunitySyncManager(interest, raceid, communitygroupname, skipemail, dryrun=dry_run)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
 
 
@@ -45,16 +46,17 @@ def syncrace(interest, raceid, communitygroupname, skipemail, debug, debugreques
 @argument('clubid')
 @argument('communitygroupname')
 @option('--skipemail', is_flag=True, help='if set, skip sending email to new community user')
+@option('--dry-run', is_flag=True, help='Print the Discourse changes that would be made without making them')
 @option('--debug', is_flag=True, help='enable debug logging')
 @option('--debugrequests', is_flag=True, help='enable requests debug logging')
 @with_appcontext
 @catch_errors
-def syncclub(interest, clubid, communitygroupname, skipemail, debug, debugrequests):
+def syncclub(interest, clubid, communitygroupname, skipemail, dry_run, debug, debugrequests):
     """
     Sync community group [communitygroupname] membership from RunSignup
     membership organization [clubid] members within interest [interest]
     """
-    grpmgr = RsuClubCommunitySyncManager(interest, clubid, communitygroupname, skipemail)
+    grpmgr = RsuClubCommunitySyncManager(interest, clubid, communitygroupname, skipemail, dryrun=dry_run)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
 
 
@@ -63,16 +65,17 @@ def syncclub(interest, clubid, communitygroupname, skipemail, debug, debugreques
 @argument('tagname')
 @argument('communitygroupname')
 @option('--skipemail', is_flag=True, help='if set, skip sending email to new community user')
+@option('--dry-run', is_flag=True, help='Print the Discourse changes that would be made without making them')
 @option('--debug', is_flag=True, help='enable debug logging')
 @option('--debugrequests', is_flag=True, help='enable requests debug logging')
 @with_appcontext
 @catch_errors
-def synctag(interest, tagname, communitygroupname, skipemail, debug, debugrequests):
+def synctag(interest, tagname, communitygroupname, skipemail, dry_run, debug, debugrequests):
     """
     Sync community group [communitygroupname]  within interest [interest] with users tagged with position
     tag [tagname]
     """
-    grpmgr = DbTagCommunitySyncManager(interest, tagname, communitygroupname, skipemail)
+    grpmgr = DbTagCommunitySyncManager(interest, tagname, communitygroupname, skipemail, dryrun=dry_run)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
 
 
