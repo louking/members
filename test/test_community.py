@@ -581,3 +581,65 @@ def test_invite_sync_spreads_renewed_expirations(tagsyncsetup, discourse_config,
 
     expirations = sorted(datetime.fromisoformat(body['expires_at']) for _, body in invite_puts)
     assert expirations[1] - expirations[0] == timedelta(days=community.INVITE_EXPIRY_SPREAD_DAYS)
+
+
+def test_communitysyncmanager_adds_user_created_after_user_list_fetch(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''an account created after start_import() fetched the user list shows up in the
+    email lookup but not in id2users; add_user_to_group() looks it up by id instead of
+    finish_import() raising KeyError'''
+    responses = {
+        'admin.users.json': lambda params: [],
+        'groups.json': lambda params: {'groups': [{'id': 7, 'name': 'my-group'}]},
+        'groups.my-group.members.json': lambda params: {'members': [], 'meta': {'total': 0, 'limit': 50}},
+        'admin.plugins.explorer.queries.10.run': lambda body: {'columns': INVITE_COLUMNS, 'rows': [], 'result_count': 0},
+        'admin.plugins.explorer.queries.11.run': lambda body: {'columns': ['invite_id', 'group_id'], 'rows': [], 'result_count': 0},
+        # bob signed up after the user list was fetched
+        'admin.plugins.explorer.queries.12.run': lambda body: {'columns': ['email', 'user_id'],
+                                                                'rows': [['bob@example.com', 42]], 'result_count': 1},
+        'admin.users.42.json': {'id': 42, 'username': 'bob'},
+        'invites.json': lambda body: {},
+        ('groups.7.members.json', 'put'): lambda body: {},
+    }
+    fake = FakeDiscourse(responses)
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: fake)
+    monkeypatch.setattr(community, 'COMMUNITY_LOCKFILE', str(tmp_path / 'lock'))
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True)
+    mgr.import_group()
+
+    put_calls = [c for c in fake._calls if c[0] == 'groups.7.members.json' and c[1] == 'put']
+    assert len(put_calls) == 1
+    assert put_calls[0][2]['usernames'] == 'bob'
+
+
+def test_communitysyncmanager_skips_user_whose_lookup_fails(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''if looking up an account missing from the user list fails, that one account is
+    skipped (picked up on the next run) and the rest of the run still completes'''
+    from fluent_discourse import DiscourseError
+
+    def lookup_fails(params):
+        raise DiscourseError('boom')
+
+    responses = {
+        'admin.users.json': lambda params: [{'id': 99, 'username': 'carol'}] if params['page'] == 1 else [],
+        'groups.json': lambda params: {'groups': [{'id': 7, 'name': 'my-group'}]},
+        'groups.my-group.members.json': lambda params: {'members': [{'id': 99}], 'meta': {'total': 1, 'limit': 50}},
+        'admin.plugins.explorer.queries.10.run': lambda body: {'columns': INVITE_COLUMNS, 'rows': [], 'result_count': 0},
+        'admin.plugins.explorer.queries.11.run': lambda body: {'columns': ['invite_id', 'group_id'], 'rows': [], 'result_count': 0},
+        'admin.plugins.explorer.queries.12.run': lambda body: {'columns': ['email', 'user_id'],
+                                                                'rows': [['bob@example.com', 42]], 'result_count': 1},
+        'admin.users.42.json': lookup_fails,
+        'invites.json': lambda body: {},
+        ('groups.7.members.json', 'delete'): lambda body: {},
+    }
+    fake = FakeDiscourse(responses)
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: fake)
+    monkeypatch.setattr(community, 'COMMUNITY_LOCKFILE', str(tmp_path / 'lock'))
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True)
+    mgr.import_group()
+
+    assert not [c for c in fake._calls if c[0] == 'groups.7.members.json' and c[1] == 'put']
+    # carol, no longer in the tag, is still removed
+    delete_calls = [c for c in fake._calls if c[0] == 'groups.7.members.json' and c[1] == 'delete']
+    assert len(delete_calls) == 1 and delete_calls[0][2]['usernames'] == 'carol'

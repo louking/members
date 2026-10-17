@@ -711,6 +711,17 @@ class CommunitySyncManager(SyncManager):
         """
         # if user exists in Discourse
         if groupuserkey and type(groupuserkey) is int:
+            # an account created after start_import() fetched the user list (e.g. a
+            # member signing up while this run is throttled) is in the email lookup
+            # but not in id2users; fetch it so finish_import() has its username
+            if groupuserkey not in self.id2users:
+                try:
+                    # https://docs.discourse.org/#tag/Users/operation/adminGetUser
+                    self.id2users[groupuserkey] = self.discourse.admin.users._(groupuserkey).json.get({})
+                except DiscourseError as e:
+                    current_app.logger.error(f'{self.add_user_to_group.__qualname__}(): user id {groupuserkey} not in '
+                                             f'user list and lookup failed, not adding to group {self.communitygroupname}: {e}')
+                    return
             # by adding this here, the user will be added to the group in finish_import
             self.add_userids.add(groupuserkey)
             current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): added user id {groupuserkey} to group {self.communitygroupname}')
