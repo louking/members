@@ -615,7 +615,9 @@ class CommunitySyncManager(SyncManager):
                 continue
             groupusers[userid] = user
             nusers += 1
-        
+        # kept separately because import_group() pops matched entries from groupusers
+        self.group_userids = set(groupusers)
+
         # include invites targeted for our group
         for invite in self.invites.values():
             invitegroups = self.invitegroups.get(invite['id'], [])
@@ -711,6 +713,14 @@ class CommunitySyncManager(SyncManager):
         """
         # if user exists in Discourse
         if groupuserkey and type(groupuserkey) is int:
+            # two service records can match one Discourse account, e.g. a parent's and
+            # a junior's memberships whose emails are both on the parent's account. The
+            # first match pops the account from groupusers, so the second lands here
+            # even though the account is already in the group
+            if groupuserkey in self.group_userids:
+                current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): user id {groupuserkey} already in '
+                                         f'group {self.communitygroupname}, matched by more than one service record')
+                return
             # an account created after start_import() fetched the user list (e.g. a
             # member signing up while this run is throttled) is in the email lookup
             # but not in id2users; fetch it so finish_import() has its username

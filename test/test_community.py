@@ -643,3 +643,30 @@ def test_communitysyncmanager_skips_user_whose_lookup_fails(tagsyncsetup, discou
     # carol, no longer in the tag, is still removed
     delete_calls = [c for c in fake._calls if c[0] == 'groups.7.members.json' and c[1] == 'delete']
     assert len(delete_calls) == 1 and delete_calls[0][2]['usernames'] == 'carol'
+
+
+def test_communitysyncmanager_two_records_one_account_already_in_group(tagsyncsetup, discourse_config, monkeypatch, tmp_path):
+    '''two service records whose emails are both on one Discourse account that's already
+    in the group (e.g. a parent's and a junior's memberships) don't make the sync try to
+    add the account again, which Discourse rejects with a 422'''
+    responses = {
+        'admin.users.json': lambda params: [{'id': 42, 'username': 'alice'}] if params['page'] == 1 else [],
+        'groups.json': lambda params: {'groups': [{'id': 7, 'name': 'my-group'}]},
+        'groups.my-group.members.json': lambda params: {'members': [{'id': 42}], 'meta': {'total': 1, 'limit': 50}},
+        'admin.plugins.explorer.queries.10.run': lambda body: {'columns': INVITE_COLUMNS, 'rows': [], 'result_count': 0},
+        'admin.plugins.explorer.queries.11.run': lambda body: {'columns': ['invite_id', 'group_id'], 'rows': [], 'result_count': 0},
+        # alice's and bob's emails are both on account 42
+        'admin.plugins.explorer.queries.12.run': lambda body: {'columns': ['email', 'user_id'],
+                                                                'rows': [['alice@example.com', 42], ['bob@example.com', 42]],
+                                                                'result_count': 2},
+    }
+    fake = FakeDiscourse(responses)
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: fake)
+    monkeypatch.setattr(community, 'COMMUNITY_LOCKFILE', str(tmp_path / 'lock'))
+
+    mgr = DbTagCommunitySyncManager('fsrc', 'board', 'my-group', skipemail=True)
+    mgr.import_group()
+
+    # no group add or remove, and no invite created
+    assert not [c for c in fake._calls if c[0] == 'groups.7.members.json']
+    assert not [c for c in fake._calls if c[0] == 'invites.json']
