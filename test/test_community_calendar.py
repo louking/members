@@ -222,6 +222,109 @@ def test_build_vevent_multi_day_all_day_event_keeps_end_date():
     assert vevent['DTEND'].dt == date(2026, 9, 28)
 
 
+def test_build_vevent_non_recurring_event_has_no_rrule():
+    event = {
+        'id': 10,
+        'name': 'Grand Prix Race',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-03-03T17:30:00.000-05:00',
+        'ends_at': '2026-03-03T19:30:00.000-05:00',
+        'rrule': None,
+        'post': {'url': '/t/grand-prix-race/10'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert 'RRULE' not in vevent
+    assert vevent['DTSTART'].dt == datetime(2026, 3, 3, 17, 30, tzinfo=ZoneInfo('America/New_York'))
+
+
+def test_build_vevent_weekly_event_starts_at_series_start_with_rrule():
+    # shape of the live Pub Run event (1030): starts_at is the next occurrence
+    event = {
+        'id': 1030,
+        'name': None,
+        'timezone': 'America/New_York',
+        'starts_at': '2026-10-21T18:00:00.000-04:00',
+        'ends_at': '2026-10-21T20:30:00.000-04:00',
+        'recurrence': 'every_week',
+        'recurrence_until': None,
+        'rrule': 'DTSTART:20260722T220000Z\nRRULE:FREQ=WEEKLY;BYDAY=WE;INTERVAL=1;WKST=MO',
+        'post': {'url': '/t/pub-run/502/1', 'topic': {'title': 'Pub Run'}},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    tz = ZoneInfo('America/New_York')
+    assert vevent['DTSTART'].dt == datetime(2026, 7, 22, 18, 0, tzinfo=tz)
+    assert str(vevent['DTSTART'].dt.tzinfo) == 'America/New_York'
+    assert vevent['DTEND'].dt == datetime(2026, 7, 22, 20, 30, tzinfo=tz)
+    assert vevent['RRULE'].to_ical() == b'FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;WKST=MO'
+    ical = vevent.to_ical()
+    assert b'DTSTART;TZID=America/New_York:20260722T180000' in ical
+
+
+def test_build_vevent_rrule_until_converted_to_utc():
+    # Discourse writes UNTIL as a floating local time
+    event = {
+        'id': 11,
+        'name': 'Track Workout',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-10-20T18:00:00.000-04:00',
+        'ends_at': '2026-10-20T19:00:00.000-04:00',
+        'rrule': 'DTSTART:20260721T220000Z\nRRULE:FREQ=WEEKLY;BYDAY=TU;INTERVAL=1;WKST=MO;UNTIL=20261215T180000',
+        'post': {'url': '/t/track-workout/11'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert b'UNTIL=20261215T230000Z' in vevent['RRULE'].to_ical()
+
+
+def test_build_vevent_rrule_floating_dtstart_uses_event_timezone():
+    # show_local_time events give DTSTART as a floating local time
+    event = {
+        'id': 12,
+        'name': 'Morning Run',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-10-24T07:00:00.000-04:00',
+        'ends_at': '2026-10-24T08:00:00.000-04:00',
+        'rrule': 'DTSTART:20260103T070000\nRRULE:FREQ=WEEKLY;BYDAY=SA;INTERVAL=1;WKST=MO',
+        'post': {'url': '/t/morning-run/12'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    tz = ZoneInfo('America/New_York')
+    assert vevent['DTSTART'].dt == datetime(2026, 1, 3, 7, 0, tzinfo=tz)
+    assert vevent['DTEND'].dt == datetime(2026, 1, 3, 8, 0, tzinfo=tz)
+
+
+def test_build_vevent_rrule_without_dtstart_line_keeps_next_occurrence():
+    event = {
+        'id': 13,
+        'name': 'Pub Run',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-10-21T18:00:00.000-04:00',
+        'ends_at': '2026-10-21T20:30:00.000-04:00',
+        'rrule': 'RRULE:FREQ=WEEKLY;BYDAY=WE;INTERVAL=1;WKST=MO',
+        'post': {'url': '/t/pub-run/13'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert vevent['DTSTART'].dt == datetime(2026, 10, 21, 18, 0, tzinfo=ZoneInfo('America/New_York'))
+    assert 'RRULE' in vevent
+
+
+def test_build_vevent_all_day_recurring_event_uses_dates():
+    event = {
+        'id': 14,
+        'name': 'Monthly Cleanup',
+        'timezone': 'America/New_York',
+        'starts_at': '2026-11-07',
+        'ends_at': '2026-11-07',
+        'rrule': 'DTSTART:20260704T000000Z\nRRULE:FREQ=MONTHLY;BYDAY=1SA;INTERVAL=1;WKST=MO;UNTIL=20270605T000000',
+        'post': {'url': '/t/monthly-cleanup/14'},
+    }
+    vevent = _build_vevent(event, 'https://community.steeplechasers.org')
+    assert vevent['DTSTART'].dt == date(2026, 7, 4)
+    assert vevent['DTEND'].dt == date(2026, 7, 5)
+    rrule = vevent['RRULE'].to_ical()
+    assert b'UNTIL=20270605' in rrule
+    assert b'UNTIL=20270605T' not in rrule
+
+
 # ----------------------------------------------------------------------
 # _fetch_events
 # ----------------------------------------------------------------------

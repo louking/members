@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 # pypi
-from icalendar import Calendar, Event
+from icalendar import Calendar, Event, vRecur
 
 # homegrown
 from .community import run_query_paged
@@ -144,8 +144,56 @@ def fetch_event_locations(discourse, post_ids: list[int], query_id: str | None, 
     return locations
 
 
+def _parse_rrule(rrule: str, tz_name: str, all_day: bool) -> tuple[date | datetime | None, vRecur | None]:
+    """Parse a Discourse event's rrule string into (series start, RRULE value).
+
+    Discourse returns rrule as two lines, e.g.
+    "DTSTART:20260722T220000Z\\nRRULE:FREQ=WEEKLY;BYDAY=WE;INTERVAL=1;WKST=MO".
+    DTSTART is the series start, in UTC, or as a floating local time when the
+    event has show_local_time set. It's converted to the event's timezone so a
+    weekly rule keeps the same local start time across DST. Discourse already
+    computes BYDAY from the local start, so the rule itself is used as-is.
+
+    Discourse writes UNTIL as a floating local time, but RFC 5545 requires UTC
+    when DTSTART has a TZID (or a DATE when DTSTART is a DATE), so it's converted.
+    Either element of the returned tuple is None if its line is missing.
+    """
+    tz = ZoneInfo(tz_name or 'UTC')
+    series_start = None
+    recur = None
+    for line in rrule.splitlines():
+        name, _, value = line.strip().partition(':')
+        if name == 'DTSTART':
+            if value.endswith('Z'):
+                naive = datetime.strptime(value, '%Y%m%dT%H%M%SZ')
+                aware = naive.replace(tzinfo=ZoneInfo('UTC')).astimezone(tz)
+            else:
+                naive = datetime.strptime(value, '%Y%m%dT%H%M%S')
+                aware = naive.replace(tzinfo=tz)
+            # all-day starts_at is the UTC date (see _parse_event_datetime), so match it
+            series_start = naive.date() if all_day else aware
+        elif name == 'RRULE':
+            recur = vRecur.from_ical(value)
+
+    if recur is not None and recur.get('UNTIL'):
+        until = recur['UNTIL'][0]
+        if all_day:
+            until = until.date() if isinstance(until, datetime) else until
+        elif isinstance(until, datetime):
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=tz)
+            until = until.astimezone(ZoneInfo('UTC'))
+        recur['UNTIL'] = [until]
+    return series_start, recur
+
+
 def _build_vevent(event: dict, base_url: str, location: str | None = None) -> Event:
-    """Build an icalendar Event from one /discourse-post-event/events entry."""
+    """Build an icalendar Event from one /discourse-post-event/events entry.
+
+    A recurring event comes back from the API as a single entry whose starts_at
+    is the next occurrence. Its VEVENT instead starts at the series start and
+    carries an RRULE, so the subscriber's calendar shows every occurrence.
+    """
     cal_event = Event()
     tz_name = event.get('timezone') or 'UTC'
     summary = event.get('name') or event['post']['topic']['title']
@@ -166,8 +214,21 @@ def _build_vevent(event: dict, base_url: str, location: str | None = None) -> Ev
     elif dtend is None:
         dtend = dtstart
 
+    recur = None
+    if event.get('rrule'):
+        all_day = isinstance(dtstart, date) and not isinstance(dtstart, datetime)
+        series_start, recur = _parse_rrule(event['rrule'], tz_name, all_day)
+        # without a DTSTART line, the next occurrence is still a valid series
+        # start for every occurrence from here on
+        if recur is not None and series_start is not None:
+            duration = dtend - dtstart
+            dtstart = series_start
+            dtend = series_start + duration
+
     cal_event.add('DTSTART', dtstart)
     cal_event.add('DTEND', dtend)
+    if recur is not None:
+        cal_event.add('RRULE', recur)
     cal_event.add('URL', base_url.rstrip('/') + event['post']['url'])
     cal_event.add('UID', f"discourse-event-{event['id']}@{urlparse(base_url).netloc}")
     if location:
@@ -250,10 +311,9 @@ def filter_tags_to_bytes(base_url: str, discourse, tags: list[str] | None = None
     else:
         matched_events = events
 
-    # dict.fromkeys dedupes while preserving order -- recurring discourse-calendar
-    # events can produce multiple event entries (one per occurrence) that all
-    # point at the same underlying post, so this list can have fewer distinct
-    # ids than there are matched_events
+    # dict.fromkeys dedupes while preserving order, in case more than one event
+    # entry points at the same post. A recurring event is one entry, not one
+    # per occurrence (see _build_vevent)
     post_ids = list(dict.fromkeys(event['post']['id'] for event in matched_events))
     location_discourse = admin_discourse if location_query_id and admin_discourse else discourse
     locations = fetch_event_locations(location_discourse, post_ids, location_query_id, log)
