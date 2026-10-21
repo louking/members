@@ -74,8 +74,13 @@ synced from RunSignup and cannot be edited here.
 
     :Configured:
         RunSignup still can't auto-place this division, but **Gender** has
-        been set to ``X``, so award placements for it are computed
-        automatically the same way as any other division.
+        been set to ``X``. **membertility** assigns the event's non-binary
+        registrants to the division and RunSignup computes their placements.
+        This happens while the :ref:`race awards view` is open for the
+        division's event.
+
+A non-binary division should never show Auto-Placed. See
+:ref:`non-binary divisions`.
 
 Once a division is Configured, RunSignup's own **Priority** ranking still
 governs it exactly as it does for a normal division -- e.g., if a registrant
@@ -112,6 +117,69 @@ and click **Edit**.
     :align: center
 
 |
+
+.. _Non-binary divisions:
+
+Setting up non-binary divisions
+---------------------------------
+
+RunSignup can't place non-binary registrants in award divisions on its own.
+**membertility** does it, but only if the race is set up as described here.
+
+**In RunSignup**
+
+Create a non-binary division as a **Custom Division**. Under **Options**, leave
+both of these unchecked:
+
+- **Participants should be automatically placed in this division based on age.**
+- **Participants should be automatically placed in this division based on gender.**
+
+This applies to an age-banded division (e.g., "Non-Binary 40+") as well as an
+overall one. Give the division a **Division Name** that says it's non-binary,
+and set its position in the division list and **Number to Show in Results
+(Awards)** as usual.
+
+.. warning::
+    Don't check the age option to limit a non-binary division's age range.
+    RunSignup then places anyone in that age range in the division, male or
+    female. A fast male or female runner can win the non-binary award,
+    and as a result lose their own age-group award to a slower runner. A
+    division set up this way shows as Auto-Placed in this view, so
+    **membertility** can't warn you about it.
+
+Each non-binary registrant's registration must have gender **Non-Binary**.
+**membertility** finds non-binary registrants from their registration. A
+registrant registered as male or female is treated as male or female. A
+registrant registered as **Prefer Not to Say** has no gender in RunSignup, so
+they aren't placed in any division that depends on gender, including the
+non-binary ones.
+
+**In membertility**
+
+After the divisions are created in RunSignup, click **Update** on the
+:ref:`award races view`. Each non-binary division should show as Needs Setup.
+Edit it and set **Gender** to ``X``. For an age-banded division, also set
+**Min Age** and **Max Age** (both inclusive). Leave them blank for an overall
+division. The division should then show as Configured.
+
+**Results**
+
+Tell the timer that results must be pushed to RunSignup live, including
+non-binary finishers. If the timing software has no non-binary option, any
+gender can be used for those finishers. RunSignup ignores the gender in the
+results and keeps the registration's gender.
+
+.. warning::
+    Don't use RunSignup's CSV results import for non-binary finishers.
+    RunSignup ignores division assignments for CSV-imported results, so the
+    non-binary division stays empty and no error is shown.
+
+**On race day**
+
+Open the :ref:`race awards view` for the event. **membertility** assigns
+non-binary registrants to their divisions and RunSignup computes the
+placements. After that, results corrections the timer pushes update the
+non-binary placements the same way as any other division.
 
 
 .. _Race Awards view:
