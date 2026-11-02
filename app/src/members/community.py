@@ -65,12 +65,14 @@ INVITE_RENEW_WITHIN_DAYS = 14
 INVITE_EXPIRY_DAYS = 182
 INVITE_EXPIRY_SPREAD_DAYS = 30
 
-# RsuClubNewMembersCommunitySyncManager (#739) fetches the whole club member list
-# each run, this many per page, so a normal run is a single RunSignup call. The club
-# members endpoint accepts registered_after_timestamp but ignores it (confirmed live
-# 2026-11-02: a timestamp a year in the future still returned every member), and
-# ignores sort, so new members are picked out on our side by membership_id.
+# RsuClubNewMembersCommunitySyncManager (#739) fetches club members this many per
+# page, so a run is a single RunSignup call. It sends registered_after_timestamp as
+# the last check time minus CLUB_MEMBERS_FILTER_MARGIN to cut down the fetch. The
+# filter only reduces what comes back: new members are still picked out on our side
+# by membership_id, so if RunSignup stops honoring the filter a run just fetches
+# more. The endpoint ignores sort.
 CLUB_MEMBERS_PER_PAGE = 2500
+CLUB_MEMBERS_FILTER_MARGIN = timedelta(days=1)
 
 
 class _RateLimiter:
@@ -907,6 +909,10 @@ class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
     an existing family membership keeps its older membership_id, and a membership
     that isn't current yet (a future start date) when a higher one is first seen.
 
+    Each run after the first asks RunSignup only for members registered since a day
+    before the last run (see CLUB_MEMBERS_FILTER_MARGIN). The membership_id test still
+    decides who is new, so the filter only makes the fetch smaller.
+
     A run with no new members makes one RunSignup call and no Discourse calls. When
     there are new members, it fetches only what those members need: the group id,
     the email lookup, each matched account's record (for its username and groups),
@@ -918,9 +924,12 @@ class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
         self.interest = interest
         RsuClubCommunitySyncManager.__init__(self, interest, clubid, communitygroupname, skipemail, dryrun)
 
-    def get_all_members_from_service(self):
-        """get every current club member, CLUB_MEMBERS_PER_PAGE per call
+    def get_all_members_from_service(self, registered_after=None):
+        """get current club members, CLUB_MEMBERS_PER_PAGE per call
 
+        :param registered_after: if given, a Unix timestamp sent as
+            registered_after_timestamp, so only members registered after it are
+            returned; if None, every current member is returned
         :rtype: list of club member records
         """
         page = 1
@@ -928,12 +937,15 @@ class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
         while True:
             # https://runsignup.com/API/club/:club_id/members/GET
             current_app.logger.debug(f'{self.get_all_members_from_service.__qualname__}(): retrieving club {self.clubid} '
-                                     f'members page {page}')
-            resp = self.rsu.club._(self.clubid).members.params({
+                                     f'members page {page}, registered after {registered_after}')
+            params = {
                 'current_members_only': 'T',
                 'results_per_page': CLUB_MEMBERS_PER_PAGE,
                 'page': page,
-            }).get()
+            }
+            if registered_after is not None:
+                params['registered_after_timestamp'] = registered_after
+            resp = self.rsu.club._(self.clubid).members.params(params).get()
             pagemembers = resp.json().pop('club_members', [])
             members.extend(pagemembers)
             # a short page is the last one, so a normal run stops after one call
@@ -1005,7 +1017,15 @@ class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
             after = after_membership_id if after_membership_id is not None else (
                 state.last_membership_id if state else None)
 
-            allmembers = self.get_all_members_from_service()
+            # filter the fetch by the last check time, less a margin. Not on a first
+            # run, which needs the highest membership_id of all current members, and
+            # not with after_membership_id, which may reach back further than that
+            registered_after = None
+            if state and after_membership_id is None:
+                lastchecked = state.last_checked_at.replace(tzinfo=timezone.utc)
+                registered_after = int((lastchecked - CLUB_MEMBERS_FILTER_MARGIN).timestamp())
+
+            allmembers = self.get_all_members_from_service(registered_after=registered_after)
             # kept at the baseline if the highest current membership has since ended
             highest = max([m['membership_id'] for m in allmembers]
                           + ([after] if after is not None else []), default=0)

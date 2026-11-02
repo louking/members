@@ -139,6 +139,8 @@ def test_first_run_records_highest_membership_id_and_adds_nobody(interestsetup, 
     assert len(rsu.calls) == 1
     assert rsu.calls[0]['current_members_only'] == 'T'
     assert rsu.calls[0]['results_per_page'] == community.CLUB_MEMBERS_PER_PAGE
+    # a first run needs every current member to find the highest membership_id
+    assert 'registered_after_timestamp' not in rsu.calls[0]
     assert fake._calls == []
 
     state = RsuClubSyncState.query.one()
@@ -159,6 +161,49 @@ def test_no_new_members_makes_one_rsu_call_and_no_discourse_calls(interestsetup,
     assert state.last_checked_at > datetime(2026, 11, 1, 12, 0, 0)
 
 
+def test_stored_state_sends_registered_after_one_day_before_last_check(interestsetup, monkeypatch, tmp_path):
+    _store(interestsetup, 101)
+
+    counts, rsu, fake = _run(monkeypatch, tmp_path, OLD_MEMBERS, _responses())
+
+    # last_checked_at is naive UTC 2026-11-01 12:00, so the filter is 2026-10-31 12:00 UTC
+    expected = int(datetime(2026, 10, 31, 12, 0, 0, tzinfo=timezone.utc).timestamp())
+    assert [c['registered_after_timestamp'] for c in rsu.calls] == [expected]
+
+
+def test_filtered_empty_response_keeps_stored_membership_id(interestsetup, monkeypatch, tmp_path):
+    '''RunSignup honoring the filter returns nobody when no one joined, and the baseline holds'''
+    state = _store(interestsetup, 101)
+
+    class FilteringRsu(FakeRsu):
+        def get(self):
+            self.calls.append(self._params)
+            if 'registered_after_timestamp' in self._params:
+                return _FakeResponse({'club_members': []})
+            return super().get()
+
+    rsu = FilteringRsu(OLD_MEMBERS)
+    monkeypatch.setattr(community, 'make_runsignup_fluent_client', lambda: rsu)
+    monkeypatch.setattr(community, 'make_discourse_client', lambda interest: FakeDiscourse({}))
+    monkeypatch.setattr(community, 'COMMUNITY_LOCKFILE', str(tmp_path / 'lock'))
+    mgr = RsuClubNewMembersCommunitySyncManager('fsrc', CLUBID, GROUP, skipemail=True)
+    counts = mgr.import_new()
+
+    assert counts['new'] == 0
+    assert len(rsu.calls) == 1
+    assert state.last_membership_id == 101
+
+
+def test_after_membership_id_fetches_without_filter(interestsetup, monkeypatch, tmp_path):
+    '''an override may reach back further than the last check, so the fetch isn't filtered'''
+    _store(interestsetup, 101)
+
+    counts, rsu, fake = _run(monkeypatch, tmp_path, OLD_MEMBERS, _responses(), dryrun=True, after_membership_id=100)
+
+    assert 'registered_after_timestamp' not in rsu.calls[0]
+    assert counts['new'] == 1
+
+
 def test_full_page_fetches_next_page(interestsetup, monkeypatch, tmp_path):
     _store(interestsetup, 101)
     monkeypatch.setattr(community, 'CLUB_MEMBERS_PER_PAGE', 2)
@@ -168,6 +213,7 @@ def test_full_page_fetches_next_page(interestsetup, monkeypatch, tmp_path):
                                         users={42: {'id': 42, 'username': 'new', 'groups': []}}))
 
     assert [c['page'] for c in rsu.calls] == [1, 2]
+    assert len({c['registered_after_timestamp'] for c in rsu.calls}) == 1
     assert counts['new'] == 1
     assert RsuClubSyncState.query.one().last_membership_id == 102
 
