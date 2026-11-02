@@ -60,8 +60,41 @@ class SyncManager(object):
     
     def import_group(self, debug=False, debugrequests=False):
         """import users from some service to internal group"""
+        self.set_logging(debug, debugrequests)
 
-        # set up logging
+        # do any initialization the import requires
+        self.start_import()
+
+        # download member list from external service and current group members
+        svcusers = self.get_users_from_service()
+        groupusers = self.get_users_from_group()
+
+        # loop through service members
+        for svcuserkey in svcusers:
+            svcuser = svcusers[svcuserkey]
+            groupuserkey = self.get_group_key_from_service_user(svcuser)
+
+            # if svc user is in the group
+            if groupuserkey in groupusers:
+                groupuser = groupusers.pop(groupuserkey)
+
+                # check if any changes are required, and make them if needed
+                self.check_update_user_in_group(svcuser, groupuser)
+
+            # if club member is missing from the internal group
+            else:
+                self.add_user_to_group(svcuser, groupuserkey)
+
+        # at this point, groupusers have only those users who are not in svcusers
+        # loop through each of these and remove from the group
+        for groupuserkey in groupusers:
+            self.remove_user_from_group(groupuserkey)
+
+        # finalize the import process
+        self.finish_import()
+
+    def set_logging(self, debug=False, debugrequests=False):
+        """set app logger to DEBUG if debug, else WARNING; optionally log requests"""
         thislogger = current_app.logger
         thislogger.propagate = True
         if debug:
@@ -75,36 +108,4 @@ class SyncManager(object):
             import logging
             logging.getLogger("requests").setLevel(DEBUG)
             logging.getLogger("urllib3").setLevel(DEBUG)
-            logging.basicConfig()     
-        
-        # do any initialization the import requires
-        self.start_import()
-        
-        # download member list from external service and current group members
-        svcusers = self.get_users_from_service()
-        groupusers = self.get_users_from_group()
-        
-        # loop through service members
-        for svcuserkey in svcusers:
-            svcuser = svcusers[svcuserkey]
-            groupuserkey = self.get_group_key_from_service_user(svcuser)
-
-            # if svc user is in the group
-            if groupuserkey in groupusers:
-                groupuser = groupusers.pop(groupuserkey)
-                
-                # check if any changes are required, and make them if needed
-                self.check_update_user_in_group(svcuser, groupuser)
-                
-            # if club member is missing from the internal group
-            else:
-                self.add_user_to_group(svcuser, groupuserkey)
-
-        # at this point, groupusers have only those users who are not in svcusers
-        # loop through each of these and remove from the group
-        for groupuserkey in groupusers:
-            self.remove_user_from_group(groupuserkey)
-            
-        # finalize the import process
-        self.finish_import()
-
+            logging.basicConfig()

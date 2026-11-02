@@ -11,7 +11,8 @@ from click import argument, group, option
 
 # homegrown
 from scripts import catch_errors, ParameterError
-from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, DbTagCommunitySyncManager, make_discourse_client
+from members.community import RsuRaceCommunitySyncManager, RsuClubCommunitySyncManager, RsuClubNewMembersCommunitySyncManager, \
+    DbTagCommunitySyncManager, make_discourse_client
 from members.community_taxonomy import fetch_all, build_docx
 from members.community_events import import_events as _import_events
 from members.community_review import check_pending_reviews
@@ -58,6 +59,40 @@ def syncclub(interest, clubid, communitygroupname, skipemail, dry_run, debug, de
     """
     grpmgr = RsuClubCommunitySyncManager(interest, clubid, communitygroupname, skipemail, dryrun=dry_run)
     grpmgr.import_group(debug=debug, debugrequests=debugrequests)
+
+
+@community.command('syncclub-new')
+@argument('interest')
+@argument('clubid')
+@argument('communitygroupname')
+@option('--skipemail', is_flag=True, help='if set, skip sending email to new community user')
+@option('--dry-run', is_flag=True, help='Print the Discourse changes that would be made without making them, '
+                                         'and leave the stored membership_id alone')
+@option('--after-membership-id', type=int, default=None,
+        help='treat members above this membership_id as new, instead of the stored value')
+@option('--debug', is_flag=True, help='enable debug logging, and print a summary even when nothing was added')
+@option('--debugrequests', is_flag=True, help='enable requests debug logging')
+@with_appcontext
+@catch_errors
+def syncclub_new(interest, clubid, communitygroupname, skipemail, dry_run, after_membership_id, debug, debugrequests):
+    """
+    Add RunSignup membership organization [clubid] members who joined since the
+    last run to community group [communitygroupname] within interest [interest].
+    New members are those whose membership_id is above the highest one stored by
+    the last run; the first run only records it. Never removes anyone; the full
+    syncclub handles removals. Intended to run every few minutes via cron; prints
+    nothing unless someone was added or invited, or on the first run (or with
+    --debug), so routine runs don't generate cron mail.
+    """
+    grpmgr = RsuClubNewMembersCommunitySyncManager(interest, clubid, communitygroupname, skipemail, dryrun=dry_run)
+    counts = grpmgr.import_new(after_membership_id=after_membership_id, debug=debug, debugrequests=debugrequests)
+
+    if counts['initialized'] is not None:
+        print(f"{communitygroupname}: first run, " + ('would record' if dry_run else 'recorded')
+              + f" highest membership_id {counts['initialized']}, no members added")
+    elif debug or counts['added'] or counts['invited']:
+        print(f"{communitygroupname}: new={counts['new']} added={counts['added']} "
+              f"invited={counts['invited']} unchanged={counts['unchanged']}")
 
 
 @community.command()

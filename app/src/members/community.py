@@ -65,6 +65,13 @@ INVITE_RENEW_WITHIN_DAYS = 14
 INVITE_EXPIRY_DAYS = 182
 INVITE_EXPIRY_SPREAD_DAYS = 30
 
+# RsuClubNewMembersCommunitySyncManager (#739) fetches the whole club member list
+# each run, this many per page, so a normal run is a single RunSignup call. The club
+# members endpoint accepts registered_after_timestamp but ignores it (confirmed live
+# 2026-11-02: a timestamp a year in the future still returned every member), and
+# ignores sort, so new members are picked out on our side by membership_id.
+CLUB_MEMBERS_PER_PAGE = 2500
+
 
 class _RateLimiter:
     """Sliding-window rate limiter shared across processes via a small state file.
@@ -247,7 +254,7 @@ class _ReadOnlyDiscourse:
 # homegrown
 from .sync import SyncManager
 from .helpers import get_tags_users, make_runsignup_fluent_client
-from .model import Tag, localinterest_query_params
+from .model import db, Tag, RsuClubSyncState, localinterest_query_params
 
 
 def run_query_paged(discourse, query_id, params=None, page_size=1000):
@@ -514,14 +521,23 @@ class CommunitySyncManager(SyncManager):
         # interprocess lock to prevent multiple imports at once
         self.lock = InterProcessLock(COMMUNITY_LOCKFILE)
         self.lock.acquire()
-        
-        # sets to track users to add/remove
+
+        self._init_changes()
+        self._fetch_users()
+        self._fetch_group_id()
+        self._fetch_invites()
+
+        super().start_import()
+
+    def _init_changes(self):
+        """sets to track users to add/remove, applied by _apply_changes()"""
         self.add_userids = set()
         self.remove_userids = set()
         self.remove_group_invites = set()
 
+    def _fetch_users(self):
+        """fetch every Discourse user into self.id2users, indexed by user id"""
         # https://docs.discourse.org/#tag/Admin/operation/adminListUsers
-        
         page = 1
         userrows = []
         while True:
@@ -532,7 +548,8 @@ class CommunitySyncManager(SyncManager):
             page += 1
         self.id2users = {row['id']: row for row in userrows}
 
-        # save group id for current group
+    def _fetch_group_id(self):
+        """look up the id of self.communitygroupname, saved in self.communitygroupid"""
         # https://docs.discourse.org/#tag/Groups/operation/listGroups
         self.communitygroupid = None
         page = 0
@@ -550,6 +567,9 @@ class CommunitySyncManager(SyncManager):
             raise ValueError(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} not found in Discourse')
         current_app.logger.debug(f'{self.start_import.__qualname__}(): community group {self.communitygroupname} has id {self.communitygroupid}')
 
+    def _fetch_invites(self):
+        """fetch pending invites into self.invites (indexed by email) and their
+        group ids into self.invitegroups (indexed by invite id)"""
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
         columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_INVITES_QUERY_FSRC'])
         inviterows = [dict(zip(columns, row)) for row in rows]
@@ -570,21 +590,20 @@ class CommunitySyncManager(SyncManager):
             self.invitegroups.setdefault(row['invite_id'], [])
             self.invitegroups[row['invite_id']].append(row['group_id'])
 
-        super().start_import()
-    
-    def get_users_from_group(self):
-        """get users from discourse community group
-        
-        :rtype: dict of group user records indexed by user_id / invite records indexed by email
-        """
+    def _fetch_email2user(self):
+        """fetch every Discourse account email (primary and secondary) into
+        self.email2user, indexed by email"""
         # https://meta.discourse.org/t/run-data-explorer-queries-with-the-discourse-api/120063
         columns, rows = self._run_query_paged(current_app.config['DISCOURSE_API_USER_EMAIL_QUERY_FSRC'])
         emailrows = [dict(zip(columns, row)) for row in rows]
         self.email2user = {row['email']: row for row in emailrows}
-        id2emails = {}
-        for row in emailrows:
-            id2emails.setdefault(row['user_id'], [])
-            id2emails[row['user_id']].append(row['email'])
+
+    def get_users_from_group(self):
+        """get users from discourse community group
+
+        :rtype: dict of group user records indexed by user_id / invite records indexed by email
+        """
+        self._fetch_email2user()
 
         # https://docs.discourse.org/#tag/Groups/operation/listGroupMembers
         all_members = []
@@ -642,9 +661,17 @@ class CommunitySyncManager(SyncManager):
             self.remove_group_invites.add(groupuserkey)
         current_app.logger.debug(f'{self.remove_user_from_group.__qualname__}(): removed user id {groupuserkey} from group {self.communitygroupname}')
         
-    def finish_import(self):    
+    def finish_import(self):
         """finalize import process"""
-        
+        self._apply_changes()
+
+        # release interprocess lock to prevent multiple imports at once
+        self.lock.release()
+
+    def _apply_changes(self):
+        """make the Discourse writes collected in add_userids, remove_userids and
+        remove_group_invites"""
+
         # add users to group
         if self.add_userids and not self._skip_for_dryrun(
                 f'add users {sorted(self.id2users[uid]["username"] for uid in self.add_userids)}'):
@@ -701,9 +728,6 @@ class CommunitySyncManager(SyncManager):
                         current_app.logger.error(f'{self.finish_import.__qualname__}(): error deleting Discourse invite for email {email}: {e}')
                 # TODO: do we need to update our local invite tracking info?
 
-        # release interprocess lock to prevent multiple imports at once
-        self.lock.release()
-
     def add_user_to_group(self, svcuser, groupuserkey):
         """add user to internal group
 
@@ -716,10 +740,12 @@ class CommunitySyncManager(SyncManager):
             # two service records can match one Discourse account, e.g. a parent's and
             # a junior's memberships whose emails are both on the parent's account. The
             # first match pops the account from groupusers, so the second lands here
-            # even though the account is already in the group
+            # even though the account is already in the group. The incremental sync
+            # (RsuClubNewMembersCommunitySyncManager) gets here for every new member
+            # whose account is already in the group
             if groupuserkey in self.group_userids:
                 current_app.logger.debug(f'{self.add_user_to_group.__qualname__}(): user id {groupuserkey} already in '
-                                         f'group {self.communitygroupname}, matched by more than one service record')
+                                         f'group {self.communitygroupname}, not adding again')
                 return
             # an account created after start_import() fetched the user list (e.g. a
             # member signing up while this run is throttled) is in the email lookup
@@ -864,3 +890,163 @@ class RsuClubCommunitySyncManager(RsuClubSyncManager, RsuUserCommunitySyncManage
         """initialize Rsu, Discourse, and base classes"""
         RsuUserCommunitySyncManager.__init__(self, interest, communitygroupname, skipemail, dryrun)
         RsuClubSyncManager.__init__(self, clubid)
+
+
+class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
+    """add members who joined a RunSignup club since the last run to a community group
+
+    The incremental counterpart of RsuClubCommunitySyncManager (#739), meant to run
+    every few minutes between full syncclub runs. It only adds: removals, invite
+    renewals for existing members and drift correction stay with the full sync.
+
+    A member is new if their membership_id is higher than the highest one stored in
+    RsuClubSyncState by the last run. RunSignup assigns membership_id when the
+    membership is created, in the same order as registration_date, and members of a
+    family membership share one. Unlike registration_date, it has no same-second ties
+    between memberships. Two cases are left to the full sync: someone added later to
+    an existing family membership keeps its older membership_id, and a membership
+    that isn't current yet (a future start date) when a higher one is first seen.
+
+    A run with no new members makes one RunSignup call and no Discourse calls. When
+    there are new members, it fetches only what those members need: the group id,
+    the email lookup, each matched account's record (for its username and groups),
+    and the pending invites if any member has no account.
+    """
+
+    def __init__(self, interest, clubid, communitygroupname, skipemail, dryrun=False):
+        """initialize Rsu, Discourse, and base classes"""
+        self.interest = interest
+        RsuClubCommunitySyncManager.__init__(self, interest, clubid, communitygroupname, skipemail, dryrun)
+
+    def get_all_members_from_service(self):
+        """get every current club member, CLUB_MEMBERS_PER_PAGE per call
+
+        :rtype: list of club member records
+        """
+        page = 1
+        members = []
+        while True:
+            # https://runsignup.com/API/club/:club_id/members/GET
+            current_app.logger.debug(f'{self.get_all_members_from_service.__qualname__}(): retrieving club {self.clubid} '
+                                     f'members page {page}')
+            resp = self.rsu.club._(self.clubid).members.params({
+                'current_members_only': 'T',
+                'results_per_page': CLUB_MEMBERS_PER_PAGE,
+                'page': page,
+            }).get()
+            pagemembers = resp.json().pop('club_members', [])
+            members.extend(pagemembers)
+            # a short page is the last one, so a normal run stops after one call
+            if len(pagemembers) < CLUB_MEMBERS_PER_PAGE:
+                break
+            page += 1
+        return members
+
+    def _start_new_import(self, emails):
+        """fetch the Discourse state needed to add the given emails to the group
+
+        :param emails: set of emails of new members
+        """
+        self._init_changes()
+        self.id2users = {}
+        self.now = datetime.now(timezone.utc)
+        self._fetch_group_id()
+        self._fetch_email2user()
+
+        # the invite queries return every pending invite, so skip them when every new
+        # member already has an account
+        if any(email not in self.email2user for email in emails):
+            self._fetch_invites()
+        else:
+            self.invites = {}
+            self.invitegroups = {}
+
+        # the admin user record carries the account's groups, so one call per account
+        # gives both the username add_user_to_group() needs and whether the account is
+        # already in the group. A failed lookup is left out of id2users, and
+        # add_user_to_group() retries it and logs the error
+        self.group_userids = set()
+        for userid in {self.email2user[email]['user_id'] for email in emails if email in self.email2user}:
+            try:
+                # https://docs.discourse.org/#tag/Users/operation/adminGetUser
+                user = self.discourse.admin.users._(userid).json.get({})
+            except DiscourseError as e:
+                current_app.logger.debug(f'{self._start_new_import.__qualname__}(): user id {userid} lookup failed: {e}')
+                continue
+            self.id2users[userid] = user
+            if any(grp.get('id') == self.communitygroupid for grp in user.get('groups', [])):
+                self.group_userids.add(userid)
+
+    def import_new(self, after_membership_id=None, debug=False, debugrequests=False):
+        """add club members whose membership_id is above the stored one to the community group
+
+        The first run for a club and group has nothing stored. It records the current
+        highest membership_id and adds nobody, since the full sync covers existing members.
+
+        :param after_membership_id: use this instead of the stored membership_id, for
+            testing with a dry run or to recover from a wrong stored value
+
+        :rtype: dict with counts 'new' (members above the stored membership_id),
+            'added' (accounts added to the group), 'invited' (invites created or given
+            this group), 'unchanged' (already in the group or already invited to it),
+            and 'initialized' (the membership_id recorded by a first run, else None)
+        """
+        self.set_logging(debug, debugrequests)
+        counts = {'new': 0, 'added': 0, 'invited': 0, 'unchanged': 0, 'initialized': None}
+
+        self.lock = InterProcessLock(COMMUNITY_LOCKFILE)
+        self.lock.acquire()
+        try:
+            g.interest = self.interest
+            localinterest = localinterest_query_params()['interest']
+            state = RsuClubSyncState.query.filter_by(interest=localinterest, club_id=int(self.clubid),
+                                                     groupname=self.communitygroupname).one_or_none()
+
+            after = after_membership_id if after_membership_id is not None else (
+                state.last_membership_id if state else None)
+
+            allmembers = self.get_all_members_from_service()
+            # kept at the baseline if the highest current membership has since ended
+            highest = max([m['membership_id'] for m in allmembers]
+                          + ([after] if after is not None else []), default=0)
+
+            if after is None:
+                counts['initialized'] = highest
+            else:
+                svcusers = {m['user']['email'].lower(): m for m in allmembers
+                            if m['membership_id'] > after}
+                counts['new'] = len(svcusers)
+
+                if svcusers:
+                    self._start_new_import(set(svcusers))
+                    for svcuser in svcusers.values():
+                        groupuserkey = self.get_group_key_from_service_user(svcuser)
+                        if type(groupuserkey) is int:
+                            if groupuserkey in self.group_userids or groupuserkey in self.add_userids:
+                                counts['unchanged'] += 1
+                            else:
+                                counts['added'] += 1
+                        else:
+                            invite = self.invites.get(groupuserkey)
+                            if invite and self.communitygroupid in self.invitegroups.get(invite['id'], []):
+                                counts['unchanged'] += 1
+                            else:
+                                counts['invited'] += 1
+                        self.add_user_to_group(svcuser, groupuserkey)
+                    self._apply_changes()
+
+            # a dry run leaves the stored membership_id alone, so it can be repeated
+            if not self.dryrun:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                if state:
+                    state.last_membership_id = highest
+                    state.last_checked_at = now
+                else:
+                    db.session.add(RsuClubSyncState(interest=localinterest, club_id=int(self.clubid),
+                                                    groupname=self.communitygroupname,
+                                                    last_membership_id=highest, last_checked_at=now))
+                db.session.commit()
+        finally:
+            self.lock.release()
+
+        return counts

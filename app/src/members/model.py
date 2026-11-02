@@ -1314,6 +1314,25 @@ class DiscourseReviewNotice(Base):
     __table_args__ = (UniqueConstraint('interest_id', 'reviewable_id', name='uq_discoursereviewnotice_interest_reviewable'),)
 
 
+class RsuClubSyncState(Base):
+    '''
+    tracks the highest RunSignup membership_id community.RsuClubNewMembersCommunitySyncManager
+    has seen for a club and community group, so the next run only adds members whose
+    membership_id is higher (#739)
+    '''
+    __tablename__ = 'rsuclubsyncstate'
+    id                  = Column(Integer(), primary_key=True)
+    interest_id         = Column(Integer, ForeignKey('localinterest.id'))
+    interest            = relationship('LocalInterest', backref=backref('rsuclubsyncstates'))
+    club_id             = Column(Integer, nullable=False)
+    groupname           = Column(String(64), nullable=False)
+    last_membership_id  = Column(Integer, nullable=False)
+    # naive UTC; when the last successful run finished, for troubleshooting only
+    last_checked_at     = Column(DateTime, nullable=False)
+
+    __table_args__ = (UniqueConstraint('interest_id', 'club_id', 'groupname', name='uq_rsuclubsyncstate_interest_club_group'),)
+
+
 # supporting functions
 
 # shares the 'community-locks' Docker volume (mounted at /locks in both the 'app' and
