@@ -907,7 +907,9 @@ class RsuClubNewMembersCommunitySyncManager(RsuClubCommunitySyncManager):
     family membership share one. Unlike registration_date, it has no same-second ties
     between memberships. Two cases are left to the full sync: someone added later to
     an existing family membership keeps its older membership_id, and a membership
-    that isn't current yet (a future start date) when a higher one is first seen.
+    with a future start date. That one isn't returned until it starts, and by then
+    a higher membership_id may have passed it, or the registered_after_timestamp
+    filter may exclude it because it was registered more than a day earlier.
 
     Each run after the first asks RunSignup only for members registered since a day
     before the last run (see CLUB_MEMBERS_FILTER_MARGIN). The membership_id test still
