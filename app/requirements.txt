@@ -12,7 +12,7 @@ bcrypt==4.2.0
 blinker==1.9.0
 cachetools==5.2.0
 cattrs==24.1.2
-certifi==2025.11.12
+certifi==2026.10.19
 cffi==2.0.0
 chardet==5.0.0
 charset-normalizer==2.1.0
